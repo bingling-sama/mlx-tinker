@@ -76,7 +76,7 @@ def _make_datum(tokens, targets, weights):
 
 class TestEndToEnd:
     def test_train_then_sample(self):
-        """Full loop: train for 10 steps, verify loss decreases, then sample."""
+        """Full loop: train for 20 steps, verify loss trends down, then sample."""
         model = TinyModel(vocab_size=32, dim=16)
         mx.eval(model.parameters())
         tokenizer = FakeTokenizer()
@@ -86,7 +86,7 @@ class TestEndToEnd:
 
         # Train
         losses = []
-        for step in range(10):
+        for step in range(20):
             datum = _make_datum([1, 2, 3, 4, 5], [2, 3, 4, 5, 6], [0.0, 1.0, 1.0, 1.0, 1.0])
             fb_result = training.forward_backward(
                 "test", model, ForwardBackwardInput(data=[datum], loss_fn="cross_entropy")
@@ -99,7 +99,13 @@ class TestEndToEnd:
                 OptimStepInput(adam_params=AdamParams(learning_rate=0.01)),
             )
 
-        assert losses[-1] < losses[0], f"Loss should decrease: {losses}"
+        # Average of last 5 losses should be lower than average of first 5
+        avg_first = sum(losses[:5]) / 5
+        avg_last = sum(losses[-5:]) / 5
+        assert avg_last < avg_first, (
+            f"Loss should trend downward: first-5 avg={avg_first:.4f}, "
+            f"last-5 avg={avg_last:.4f}"
+        )
 
         # Sample
         model.eval()

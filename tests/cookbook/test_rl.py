@@ -153,7 +153,8 @@ class TestRLWorkflow:
         assert len(rl_losses) == NUM_RL_STEPS
         # At minimum, the RL loop should complete without errors
         # and produce non-trivial loss values
-        assert all(abs(l) > 0 or True for l in rl_losses)  # Allow zero loss
+        assert all(isinstance(l, float) for l in rl_losses), "All losses should be floats"
+        assert any(l != rl_losses[0] for l in rl_losses), "Loss should change across RL steps"
 
     def test_ppo_loss(self, backend, model_name):
         """Test PPO loss variant for RL."""

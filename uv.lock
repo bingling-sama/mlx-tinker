@@ -852,6 +852,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "aiosqlite" },
+    { name = "datasets" },
     { name = "fastapi" },
     { name = "greenlet" },
     { name = "huggingface-hub" },
@@ -880,6 +881,7 @@ stress = [
 [package.metadata]
 requires-dist = [
     { name = "aiosqlite", specifier = ">=0.20.0" },
+    { name = "datasets", specifier = ">=4.8.4" },
     { name = "datasets", marker = "extra == 'stress'", specifier = ">=3.2.0" },
     { name = "fastapi", specifier = ">=0.115.0" },
     { name = "greenlet", specifier = ">=3.3.2" },

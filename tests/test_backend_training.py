@@ -147,13 +147,18 @@ class TestOptimStep:
         )
 
         losses = []
-        for _ in range(5):
+        for _ in range(20):
             result = training.forward_backward("test", model, fb_request)
             losses.append(result.loss_fn_outputs[0]["loss"])
             training.optim_step("test", model, opt_request)
 
-        # Loss should generally decrease over steps
-        assert losses[-1] < losses[0], f"Loss should decrease: {losses}"
+        # Average of last 5 losses should be lower than average of first 5
+        avg_first = sum(losses[:5]) / 5
+        avg_last = sum(losses[-5:]) / 5
+        assert avg_last < avg_first, (
+            f"Loss should trend downward: first-5 avg={avg_first:.4f}, "
+            f"last-5 avg={avg_last:.4f}, all={losses}"
+        )
 
 
 class TestForward:

@@ -55,7 +55,10 @@ class TestHealthEndpoints:
         response = client.get("/api/v1/get_server_capabilities")
         assert response.status_code == 200
         data = response.json()
-        assert len(data["supported_models"]) >= 1
+        assert len(data["supported_models"]) == 1
+        model = data["supported_models"][0]
+        assert model["name"] == "test-model"
+        assert model["base_model"] == "test-model"
 
 
 class TestSessionEndpoints:

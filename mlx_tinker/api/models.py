@@ -58,7 +58,7 @@ class CreateSamplingSessionResponse(BaseModel):
 
 class CreateModelRequest(BaseModel):
     session_id: str
-    base_model: str
+    base_model: str | None = None
     lora_config: LoraConfig
 
 

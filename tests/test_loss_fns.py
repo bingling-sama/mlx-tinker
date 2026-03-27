@@ -145,7 +145,8 @@ class TestLossFunctionMap:
         assert "ppo" in LOSS_FUNCTION_MAP
         assert "cispo" in LOSS_FUNCTION_MAP
 
-    def test_callable(self, cfg):
+    def test_all_return_scalar_with_correct_sign(self, cfg):
+        """Verify all loss functions return a scalar and produce expected values."""
         for name, fn in LOSS_FUNCTION_MAP.items():
             lp = mx.full((1, 2), -1.0)
             mask = mx.ones((1, 2))
@@ -153,3 +154,16 @@ class TestLossFunctionMap:
             result = fn(lp, mask, lp, adv, cfg)
             mx.eval(result)
             assert result.ndim == 0, f"{name} should return scalar"
+            assert result.dtype == mx.float32, f"{name} should return float32"
+
+        # Cross-entropy with log-prob=-1 and full mask should give loss=1.0
+        ce = cross_entropy_loss(mx.full((1, 2), -1.0), mx.ones((1, 2)), mx.zeros((1, 2)), mx.zeros((1, 2)), cfg)
+        mx.eval(ce)
+        assert abs(ce.item() - 1.0) < 1e-5, f"CE loss should be 1.0, got {ce.item()}"
+
+        # On-policy IS loss (ratio=1) should equal -mean(advantages)
+        lp = mx.full((1, 2), -1.0)
+        adv = mx.array([[2.0, 4.0]])
+        is_loss = importance_sampling_loss(lp, mx.ones((1, 2)), lp, adv, cfg)
+        mx.eval(is_loss)
+        assert abs(is_loss.item() - (-3.0)) < 1e-5, f"IS loss should be -3.0, got {is_loss.item()}"
