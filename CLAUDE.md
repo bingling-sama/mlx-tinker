@@ -9,7 +9,7 @@ Tinker API-compatible backend for Mac (Apple Silicon / Metal) using MLX and mlx-
 
 ## Commands
 - Install: `uv sync --all-extras`
-- Run server: `uv run python -m mlx_tinker --model Qwen/Qwen3.5-9B`
+- Run server: `uv run python -m mlx_tinker --model Qwen/Qwen3.5-0.8B`
 - Tests: `uv run pytest tests/ -k "not stress and not cookbook"`
 - Stress tests: `uv run pytest tests/stress/ -m stress`
 - Cookbook tests: `uv run pytest tests/cookbook/ -m cookbook`

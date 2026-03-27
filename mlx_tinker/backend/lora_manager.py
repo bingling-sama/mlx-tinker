@@ -47,7 +47,14 @@ class LoRAManager:
         # Build LoRA config dict for mlx-lm's linear_to_lora_layers
         keys = []
         if lora_config.train_attn:
-            keys.extend(["self_attn.q_proj", "self_attn.k_proj", "self_attn.v_proj", "self_attn.o_proj"])
+            keys.extend(
+                [
+                    "self_attn.q_proj",
+                    "self_attn.k_proj",
+                    "self_attn.v_proj",
+                    "self_attn.o_proj",
+                ]
+            )
         if lora_config.train_mlp:
             keys.extend(["mlp.gate_proj", "mlp.up_proj", "mlp.down_proj"])
 
@@ -95,9 +102,7 @@ class LoRAManager:
         model.train()
 
         # Verify LoRA params are actually trainable
-        trainable_names = [
-            name for name, _ in tree_flatten(model.trainable_parameters())
-        ]
+        trainable_names = [name for name, _ in tree_flatten(model.trainable_parameters())]
         lora_params = [n for n in trainable_names if "lora_a" in n or "lora_b" in n]
         if not lora_params:
             raise RuntimeError(

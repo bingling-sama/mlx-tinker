@@ -11,7 +11,7 @@ class EngineConfig(BaseModel):
     """Configuration for the MLX-Tinker engine."""
 
     # Model
-    base_model: str = "Qwen/Qwen3.5-9B"
+    base_model: str = "Qwen/Qwen3.5-0.8B"
     quantize_bits: int = 4
     quantize_group_size: int = 64
 

@@ -321,14 +321,16 @@ def _register_routes(app: FastAPI) -> None:
         async with get_session() as db:
             future = await db.get(FutureDB, int(request.future_id))
             if future is None:
-                raise HTTPException(
-                    status_code=404, detail=f"Future {request.future_id} not found"
-                )
+                raise HTTPException(status_code=404, detail=f"Future {request.future_id} not found")
 
         if future.status == RequestStatus.PENDING:
             return RetrieveFutureResponse(status="pending")
         elif future.status == RequestStatus.FAILED:
-            error = future.result_data.get("error", "Unknown error") if future.result_data else "Unknown error"
+            error = (
+                future.result_data.get("error", "Unknown error")
+                if future.result_data
+                else "Unknown error"
+            )
             return RetrieveFutureResponse(status="failed", error=error)
         else:
             return RetrieveFutureResponse(status="completed", result=future.result_data)

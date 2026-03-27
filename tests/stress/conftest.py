@@ -6,8 +6,8 @@ import os
 
 import pytest
 
-MODEL_NAME = "Qwen/Qwen3.5-9B"
-MIN_RAM_GB = 12  # Minimum RAM for stress tests (~6GB quantized + HF model)
+MODEL_NAME = "Qwen/Qwen3.5-0.8B"
+MIN_RAM_GB = 4  # Minimum RAM for stress tests (~1GB quantized + HF model)
 
 
 def _check_memory():

@@ -6,7 +6,7 @@ import os
 
 import pytest
 
-MODEL_NAME = "Qwen/Qwen3.5-9B"
+MODEL_NAME = "Qwen/Qwen3.5-0.8B"
 
 
 @pytest.fixture(scope="session")

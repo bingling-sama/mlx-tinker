@@ -12,7 +12,7 @@ from mlx_tinker.config import EngineConfig
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="MLX-Tinker: Tinker API backend for Apple Silicon")
-    parser.add_argument("--model", default="Qwen/Qwen3.5-9B", help="Base model name or path")
+    parser.add_argument("--model", default="Qwen/Qwen3.5-0.8B", help="Base model name or path")
     parser.add_argument("--host", default="0.0.0.0", help="Server host")
     parser.add_argument("--port", type=int, default=8080, help="Server port")
     parser.add_argument("--db", default="tinker.db", help="Database path")
@@ -43,8 +43,8 @@ def main() -> None:
         engine_cycle_ms=args.cycle_ms,
     )
 
-    from mlx_tinker.api.server import create_app
     from mlx_tinker.api.openai_compat import register_openai_routes
+    from mlx_tinker.api.server import create_app
 
     app = create_app(config)
 
@@ -53,6 +53,7 @@ def main() -> None:
     @app.on_event("startup")
     async def _register_openai():
         from mlx_tinker.api.server import _backend
+
         if _backend is not None:
             register_openai_routes(app, _backend)
 

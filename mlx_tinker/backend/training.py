@@ -89,9 +89,11 @@ class TrainingBackend:
             seq_len = min(input_len, target_len, weights_len)
             if not (input_len == target_len == weights_len):
                 logger.warning(
-                    "Sequence length mismatch: input=%d, target=%d, weights=%d "
-                    "(truncating to %d)",
-                    input_len, target_len, weights_len, seq_len,
+                    "Sequence length mismatch: input=%d, target=%d, weights=%d (truncating to %d)",
+                    input_len,
+                    target_len,
+                    weights_len,
+                    seq_len,
                 )
             input_tokens = input_tokens[:, :seq_len]
             target_tokens = target_tokens[:, :seq_len]
@@ -154,7 +156,7 @@ class TrainingBackend:
 
         return ForwardBackwardOutput(
             loss_fn_output_type=request.loss_fn,
-            loss_fn_outputs=[{"loss": l} for l in all_losses],
+            loss_fn_outputs=[{"loss": v} for v in all_losses],
             metrics={
                 "mean_loss": sum(all_losses) / len(all_losses),
                 "num_sequences": len(request.data),
@@ -175,9 +177,9 @@ class TrainingBackend:
             logits = model(input_tokens)
             log_probs = logits - mx.logsumexp(logits, axis=-1, keepdims=True)
 
-            target_tokens = mx.array(
-                datum.loss_fn_inputs.target_tokens.data, dtype=mx.int32
-            )[None, :]
+            target_tokens = mx.array(datum.loss_fn_inputs.target_tokens.data, dtype=mx.int32)[
+                None, :
+            ]
             seq_len = min(log_probs.shape[1], target_tokens.shape[1])
             target_lp = mx.take_along_axis(
                 log_probs[:, :seq_len], target_tokens[:, :seq_len, None].astype(mx.int32), axis=-1
@@ -234,9 +236,7 @@ class TrainingBackend:
 
         logger.info("optim_step model=%s lr=%.2e grad_accum=%d", model_id, ap.learning_rate, n)
 
-        return OptimStepOutput(
-            metrics={"learning_rate": ap.learning_rate, "grad_accum_steps": n}
-        )
+        return OptimStepOutput(metrics={"learning_rate": ap.learning_rate, "grad_accum_steps": n})
 
     def get_optimizer_state(self, model_id: str) -> dict | None:
         """Return serializable optimizer state for checkpointing."""

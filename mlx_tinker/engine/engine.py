@@ -147,9 +147,7 @@ class TinkerEngine:
         """Dispatch a forward request to the backend."""
         try:
             request = ForwardInput(**future.request_data)
-            result = await asyncio.to_thread(
-                self.backend.forward, future.model_id, request
-            )
+            result = await asyncio.to_thread(self.backend.forward, future.model_id, request)
             async with get_session() as session:
                 await complete_future(session, future.request_id, result.model_dump())
         except Exception as e:
@@ -161,9 +159,7 @@ class TinkerEngine:
         """Dispatch a sample request to the backend."""
         try:
             request = SampleInput(**future.request_data)
-            result = await asyncio.to_thread(
-                self.backend.sample, future.model_id, request
-            )
+            result = await asyncio.to_thread(self.backend.sample, future.model_id, request)
             async with get_session() as session:
                 await complete_future(session, future.request_id, result.model_dump())
         except Exception as e:
@@ -193,33 +189,25 @@ class TinkerEngine:
         try:
             await handler(future)
         except Exception as e:
-            logger.error(
-                "%s failed for request %d: %s", future.request_type, future.request_id, e
-            )
+            logger.error("%s failed for request %d: %s", future.request_type, future.request_id, e)
             async with get_session() as session:
                 await fail_future(session, future.request_id, str(e))
 
     async def _handle_create_model(self, future: FutureDB) -> None:
         request = CreateModelInput(**future.request_data)
-        result = await asyncio.to_thread(
-            self.backend.create_model, future.model_id, request
-        )
+        result = await asyncio.to_thread(self.backend.create_model, future.model_id, request)
         async with get_session() as session:
             await complete_future(session, future.request_id, result.model_dump())
 
     async def _handle_optim_step(self, future: FutureDB) -> None:
         request = OptimStepInput(**future.request_data)
-        result = await asyncio.to_thread(
-            self.backend.optim_step, future.model_id, request
-        )
+        result = await asyncio.to_thread(self.backend.optim_step, future.model_id, request)
         async with get_session() as session:
             await complete_future(session, future.request_id, result.model_dump())
 
     async def _handle_save_weights(self, future: FutureDB) -> None:
         request = SaveWeightsInput(**future.request_data)
-        result = await asyncio.to_thread(
-            self.backend.save_weights, future.model_id, request
-        )
+        result = await asyncio.to_thread(self.backend.save_weights, future.model_id, request)
         async with get_session() as session:
             await complete_future(session, future.request_id, result.model_dump())
 
@@ -233,16 +221,12 @@ class TinkerEngine:
 
     async def _handle_load_weights(self, future: FutureDB) -> None:
         request = LoadWeightsInput(**future.request_data)
-        result = await asyncio.to_thread(
-            self.backend.load_weights, future.model_id, request
-        )
+        result = await asyncio.to_thread(self.backend.load_weights, future.model_id, request)
         async with get_session() as session:
             await complete_future(session, future.request_id, result.model_dump())
 
     async def _handle_unload_model(self, future: FutureDB) -> None:
         request = UnloadModelInput(**future.request_data)
-        result = await asyncio.to_thread(
-            self.backend.unload_model, future.model_id, request
-        )
+        result = await asyncio.to_thread(self.backend.unload_model, future.model_id, request)
         async with get_session() as session:
             await complete_future(session, future.request_id, result.model_dump())

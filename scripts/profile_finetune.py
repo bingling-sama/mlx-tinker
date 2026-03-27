@@ -323,8 +323,8 @@ def run_finetune(
 
 def main():
     parser = argparse.ArgumentParser(description="Profile MLX-Tinker QLoRA finetune")
-    parser.add_argument("--model", default="mlx-community/Qwen2.5-7B-Instruct-4bit",
-                        help="Model name (default: 4-bit Qwen2.5-7B for faster download)")
+    parser.add_argument("--model", default="mlx-community/Qwen3.5-0.8B-MLX-4bit",
+                        help="Model name (default: 4-bit Qwen3.5-0.8B for fast iteration)")
     parser.add_argument("--steps", type=int, default=50, help="Number of training steps")
     parser.add_argument("--lora-rank", type=int, default=16, help="LoRA rank")
     parser.add_argument("--lr", type=float, default=1e-4, help="Learning rate")

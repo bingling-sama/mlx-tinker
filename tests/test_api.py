@@ -241,3 +241,58 @@ class TestTelemetry:
         )
         assert resp.status_code == 200
         assert resp.json()["status"] == "accepted"
+
+
+class TestRequestValidation:
+    def test_create_model_missing_lora_config(self, client):
+        resp = client.post("/api/v1/create_session", json={"sdk_version": "0.1.0"})
+        session_id = resp.json()["session_id"]
+
+        resp = client.post(
+            "/api/v1/create_model",
+            json={"session_id": session_id, "base_model": "test-model"},
+        )
+        assert resp.status_code == 422  # Pydantic validation error
+
+    def test_forward_backward_missing_data(self, client):
+        resp = client.post(
+            "/api/v1/forward_backward",
+            json={"model_id": "x", "loss_fn": "cross_entropy"},
+        )
+        assert resp.status_code == 422
+
+    def test_forward_backward_invalid_loss_fn(self, client):
+        resp = client.post(
+            "/api/v1/forward_backward",
+            json={
+                "model_id": "x",
+                "data": [
+                    {
+                        "model_input": {"chunks": [{"type": "encoded_text", "tokens": [1]}]},
+                        "loss_fn_inputs": {
+                            "target_tokens": {"data": [2]},
+                            "weights": {"data": [1.0]},
+                            "advantages": {"data": [0.0]},
+                            "logprobs": {"data": [0.0]},
+                        },
+                    }
+                ],
+                "loss_fn": "invalid_loss",
+            },
+        )
+        assert resp.status_code == 422
+
+    def test_create_model_defaults_base_model(self, client):
+        resp = client.post("/api/v1/create_session", json={"sdk_version": "0.1.0"})
+        session_id = resp.json()["session_id"]
+
+        resp = client.post(
+            "/api/v1/create_model",
+            json={
+                "session_id": session_id,
+                "lora_config": {"rank": 8, "alpha": 16.0},
+            },
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["base_model"] == "test-model"

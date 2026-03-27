@@ -63,11 +63,18 @@ def _get_model_and_tokenizer():
     return _backend._base_model, _backend._base_tokenizer
 
 
-def _generate_tokens(model, tokenizer, prompt_tokens: list[int], temperature: float, top_p: float, max_tokens: int) -> list[int]:
+def _generate_tokens(
+    model,
+    tokenizer,
+    prompt_tokens: list[int],
+    temperature: float,
+    top_p: float,
+    max_tokens: int,
+) -> list[int]:
     """Generate tokens using mlx-lm's generate_step."""
+    import mlx.core as mx
     from mlx_lm.generate import generate_step
     from mlx_lm.sample_utils import make_sampler
-    import mlx.core as mx
 
     sampler = make_sampler(temp=temperature, top_p=top_p)
     generated_tokens = []
@@ -127,8 +134,12 @@ async def chat_completions(request: ChatCompletionRequest):
         )
 
     generated_tokens = _generate_tokens(
-        model, tokenizer, prompt_tokens,
-        request.temperature, request.top_p, request.max_tokens,
+        model,
+        tokenizer,
+        prompt_tokens,
+        request.temperature,
+        request.top_p,
+        request.max_tokens,
     )
     completion_text = tokenizer.decode(generated_tokens)
     resp_id = f"chatcmpl-{uuid.uuid4().hex[:12]}"
@@ -157,8 +168,12 @@ async def completions(request: CompletionRequest):
     prompt_tokens = tokenizer.encode(prompt_text)
 
     generated_tokens = _generate_tokens(
-        model, tokenizer, prompt_tokens,
-        request.temperature, request.top_p, request.max_tokens,
+        model,
+        tokenizer,
+        prompt_tokens,
+        request.temperature,
+        request.top_p,
+        request.max_tokens,
     )
     completion_text = tokenizer.decode(generated_tokens)
     resp_id = f"cmpl-{uuid.uuid4().hex[:12]}"
@@ -197,9 +212,9 @@ async def list_models():
 
 async def _stream_chat_response(model, tokenizer, prompt_tokens, request):
     """SSE streaming generator for chat completions."""
+    import mlx.core as mx
     from mlx_lm.generate import generate_step
     from mlx_lm.sample_utils import make_sampler
-    import mlx.core as mx
 
     sampler = make_sampler(temp=request.temperature, top_p=request.top_p)
     resp_id = f"chatcmpl-{uuid.uuid4().hex[:12]}"

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Callable
 
 import mlx.core as mx
 import mlx.nn as nn
@@ -69,7 +68,12 @@ class InferenceBackend:
         sp = request.sampling_params
 
         if _has_kv_cache_support(model):
-            sequences = self._sample_with_generate_step(model, prompt_tokens, sp, request.num_samples)
+            sequences = self._sample_with_generate_step(
+                model,
+                prompt_tokens,
+                sp,
+                request.num_samples,
+            )
         else:
             sequences = self._sample_simple(model, prompt_tokens, sp, request.num_samples)
 
@@ -120,20 +124,32 @@ class InferenceBackend:
                 generated_logprobs.append(token_logprob)
 
                 if sp.stop_tokens and token_id in sp.stop_tokens:
-                    sequences.append(GeneratedSequence(
-                        stop_reason="stop", tokens=generated_tokens, logprobs=generated_logprobs,
-                    ))
+                    sequences.append(
+                        GeneratedSequence(
+                            stop_reason="stop",
+                            tokens=generated_tokens,
+                            logprobs=generated_logprobs,
+                        )
+                    )
                     break
 
                 if len(generated_tokens) >= sp.max_tokens:
-                    sequences.append(GeneratedSequence(
-                        stop_reason="length", tokens=generated_tokens, logprobs=generated_logprobs,
-                    ))
+                    sequences.append(
+                        GeneratedSequence(
+                            stop_reason="length",
+                            tokens=generated_tokens,
+                            logprobs=generated_logprobs,
+                        )
+                    )
                     break
             else:
-                sequences.append(GeneratedSequence(
-                    stop_reason="length", tokens=generated_tokens, logprobs=generated_logprobs,
-                ))
+                sequences.append(
+                    GeneratedSequence(
+                        stop_reason="length",
+                        tokens=generated_tokens,
+                        logprobs=generated_logprobs,
+                    )
+                )
 
         return sequences
 
@@ -170,14 +186,22 @@ class InferenceBackend:
                 current_tokens.append(token_id)
 
                 if sp.stop_tokens and token_id in sp.stop_tokens:
-                    sequences.append(GeneratedSequence(
-                        stop_reason="stop", tokens=generated_tokens, logprobs=generated_logprobs,
-                    ))
+                    sequences.append(
+                        GeneratedSequence(
+                            stop_reason="stop",
+                            tokens=generated_tokens,
+                            logprobs=generated_logprobs,
+                        )
+                    )
                     break
             else:
-                sequences.append(GeneratedSequence(
-                    stop_reason="length", tokens=generated_tokens, logprobs=generated_logprobs,
-                ))
+                sequences.append(
+                    GeneratedSequence(
+                        stop_reason="length",
+                        tokens=generated_tokens,
+                        logprobs=generated_logprobs,
+                    )
+                )
 
         return sequences
 

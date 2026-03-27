@@ -9,8 +9,6 @@ from typing import Any
 import mlx.nn as nn
 from mlx_lm import load as mlx_load
 
-MAX_SAMPLES = 128
-
 from mlx_tinker.backend.checkpointing import (
     load_training_checkpoint,
     save_sampler_weights,
@@ -44,6 +42,8 @@ from mlx_tinker.types import (
 
 logger = logging.getLogger(__name__)
 
+MAX_SAMPLES = 128
+
 
 class MLXBackend:
     """Top-level backend managing models, training, and inference on MLX."""
@@ -75,9 +75,7 @@ class MLXBackend:
             model, tokenizer = mlx_load(self.config.base_model)
         except Exception as e:
             logger.error("Failed to load base model %s: %s", self.config.base_model, e)
-            raise ValueError(
-                f"Failed to load base model '{self.config.base_model}': {e}"
-            ) from e
+            raise ValueError(f"Failed to load base model '{self.config.base_model}': {e}") from e
         self._base_model = model
         self._base_tokenizer = tokenizer
         logger.info("Base model loaded")
@@ -96,9 +94,7 @@ class MLXBackend:
             model, tokenizer = mlx_load(self.config.base_model)
         except Exception as e:
             logger.error("Failed to load model for %s: %s", model_id, e)
-            raise ValueError(
-                f"Failed to load model for '{model_id}': {e}"
-            ) from e
+            raise ValueError(f"Failed to load model for '{model_id}': {e}") from e
 
         # Apply QLoRA
         model = self.lora_manager.apply_qlora(
@@ -168,9 +164,7 @@ class MLXBackend:
     def sample(self, model_id: str | None, request: SampleInput) -> SampleOutput:
         """Generate samples. Uses model_id if provided, else base model."""
         if request.num_samples > MAX_SAMPLES:
-            raise ValueError(
-                f"num_samples={request.num_samples} exceeds maximum of {MAX_SAMPLES}"
-            )
+            raise ValueError(f"num_samples={request.num_samples} exceeds maximum of {MAX_SAMPLES}")
 
         if model_id and model_id in self.models:
             model = self.models[model_id]
@@ -209,16 +203,16 @@ class MLXBackend:
         self, model_id: str, request: SaveWeightsForSamplerInput
     ) -> SaveWeightsForSamplerOutput:
         model = self._get_model(model_id)
-        path = request.path or str(
-            self.config.checkpoints_base / model_id / "sampler" / "latest"
-        )
+        path = request.path or str(self.config.checkpoints_base / model_id / "sampler" / "latest")
         safe_path = self._validate_checkpoint_path(path)
         save_sampler_weights(model, safe_path)
         return SaveWeightsForSamplerOutput(path=str(safe_path))
 
     def load_weights(self, model_id: str, request: LoadWeightsInput) -> LoadWeightsOutput:
         model = self._get_model(model_id)
-        checkpoint_dir = self.config.checkpoints_base / request.source_model_id / request.checkpoint_id
+        checkpoint_dir = (
+            self.config.checkpoints_base / request.source_model_id / request.checkpoint_id
+        )
         self._validate_checkpoint_path(str(checkpoint_dir))
         opt_state = load_training_checkpoint(model, checkpoint_dir)
         if opt_state is not None:
