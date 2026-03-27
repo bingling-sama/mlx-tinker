@@ -11,7 +11,11 @@ import mlx.nn as nn
 import mlx.optimizers as optim
 from mlx.utils import tree_map
 
-from mlx_tinker.backend.loss_fns import LOSS_FUNCTION_MAP, LossFnConfig
+from mlx_tinker.backend.loss_fns import (
+    LOSS_FUNCTION_MAP,
+    LossFnConfig,
+    chunked_cross_entropy_loss,
+)
 from mlx_tinker.backend.optimizers import AdamW8Bit
 from mlx_tinker.types import (
     ForwardBackwardInput,
@@ -23,6 +27,13 @@ from mlx_tinker.types import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _has_split_lm_head(model: nn.Module) -> bool:
+    """Check if model has a separate backbone (.model) and lm_head."""
+    return (
+        hasattr(model, "model") and hasattr(model, "lm_head") and hasattr(model.lm_head, "weight")
+    )
 
 
 def _clip_grad_norm(grads: dict, max_norm: float) -> dict:
@@ -148,6 +159,9 @@ class TrainingBackend:
             mask_count = mx.sum(token_weights > 0).item()
             batch_token_count += max(mask_count, 1.0)
 
+            # Use chunked CE for SFT when model supports split forward
+            use_chunked = request.loss_fn == "cross_entropy" and _has_split_lm_head(model)
+
             def compute_loss(
                 model: nn.Module,
                 input_ids: mx.array,
@@ -156,12 +170,24 @@ class TrainingBackend:
                 adv: mx.array,
                 samp_lp: mx.array,
             ) -> mx.array:
-                logits = model(input_ids)
-                log_probs = logits - mx.logsumexp(logits, axis=-1, keepdims=True)
-                target_lp = mx.take_along_axis(
-                    log_probs, targets[:, :, None].astype(mx.int32), axis=-1
-                ).squeeze(-1)
-                return loss_fn_impl(target_lp, weights, samp_lp, adv, cfg)
+                if use_chunked:
+                    # Memory-efficient: never materialize [B, T, V]
+                    hidden = model.model(input_ids)
+                    return chunked_cross_entropy_loss(
+                        hidden,
+                        model.lm_head.weight,
+                        targets,
+                        weights,
+                    )
+                else:
+                    logits = model(input_ids)
+                    log_probs = logits - mx.logsumexp(logits, axis=-1, keepdims=True)
+                    target_lp = mx.take_along_axis(
+                        log_probs,
+                        targets[:, :, None].astype(mx.int32),
+                        axis=-1,
+                    ).squeeze(-1)
+                    return loss_fn_impl(target_lp, weights, samp_lp, adv, cfg)
 
             loss_and_grad_fn = nn.value_and_grad(model, compute_loss)
 

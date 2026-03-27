@@ -6,6 +6,7 @@ import pytest
 from mlx_tinker.backend.loss_fns import (
     LOSS_FUNCTION_MAP,
     LossFnConfig,
+    chunked_cross_entropy_loss,
     cispo_loss,
     cross_entropy_loss,
     importance_sampling_loss,
@@ -217,3 +218,114 @@ class TestCISPONegativeAdvantages:
 
         expected = math.exp(2.0)
         assert abs(loss.item() - expected) < 1e-3
+
+
+class TestChunkedCrossEntropy:
+    def test_matches_standard_ce(self):
+        """Chunked CE should produce the same result as standard CE."""
+        import mlx.nn as nn
+
+        mx.random.seed(42)
+        vocab_size = 64
+        dim = 16
+        seq_len = 8
+
+        lm_head = nn.Linear(dim, vocab_size, bias=False)
+        mx.eval(lm_head.parameters())
+
+        hidden = mx.random.normal((1, seq_len, dim))
+        targets = mx.array([[2, 5, 10, 3, 7, 1, 4, 9]], dtype=mx.int32)
+        mask = mx.array([[0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]])
+        mx.eval(hidden)
+
+        # Standard CE
+        logits = hidden @ lm_head.weight.T
+        log_probs = logits - mx.logsumexp(logits, axis=-1, keepdims=True)
+        target_lp = mx.take_along_axis(
+            log_probs, targets[:, :, None], axis=-1
+        ).squeeze(-1)
+        cfg = LossFnConfig()
+        standard_loss = cross_entropy_loss(
+            target_lp, mask, mx.zeros_like(mask), mx.zeros_like(mask), cfg
+        )
+        mx.eval(standard_loss)
+
+        # Chunked CE
+        chunked_loss = chunked_cross_entropy_loss(
+            hidden, lm_head.weight, targets, mask
+        )
+        mx.eval(chunked_loss)
+
+        assert abs(standard_loss.item() - chunked_loss.item()) < 1e-5, (
+            f"Standard CE {standard_loss.item():.6f} != "
+            f"Chunked CE {chunked_loss.item():.6f}"
+        )
+
+    def test_small_chunk_size(self):
+        """Chunked CE should work correctly with very small chunk sizes."""
+        import mlx.nn as nn
+
+        import mlx_tinker.backend.loss_fns as lf
+
+        old_chunk = lf.CE_CHUNK_SIZE
+        lf.CE_CHUNK_SIZE = 8  # Very small chunks
+
+        try:
+            mx.random.seed(0)
+            vocab_size = 32
+            dim = 8
+            lm_head = nn.Linear(dim, vocab_size, bias=False)
+            mx.eval(lm_head.parameters())
+
+            hidden = mx.random.normal((1, 4, dim))
+            targets = mx.array([[1, 2, 3, 4]], dtype=mx.int32)
+            mask = mx.ones((1, 4))
+            mx.eval(hidden)
+
+            # Standard CE
+            logits = hidden @ lm_head.weight.T
+            log_probs = logits - mx.logsumexp(logits, axis=-1, keepdims=True)
+            target_lp = mx.take_along_axis(
+                log_probs, targets[:, :, None], axis=-1
+            ).squeeze(-1)
+            standard = cross_entropy_loss(
+                target_lp, mask, mx.zeros_like(mask), mx.zeros_like(mask),
+                LossFnConfig(),
+            )
+            mx.eval(standard)
+
+            chunked = chunked_cross_entropy_loss(
+                hidden, lm_head.weight, targets, mask
+            )
+            mx.eval(chunked)
+
+            assert abs(standard.item() - chunked.item()) < 1e-4
+        finally:
+            lf.CE_CHUNK_SIZE = old_chunk
+
+    def test_gradient_flows(self):
+        """Gradients should flow through chunked CE."""
+        import mlx.nn as nn
+
+        mx.random.seed(42)
+        vocab_size = 32
+        dim = 8
+        lm_head = nn.Linear(dim, vocab_size, bias=False)
+        mx.eval(lm_head.parameters())
+
+        hidden = mx.random.normal((1, 4, dim))
+        targets = mx.array([[1, 2, 3, 4]], dtype=mx.int32)
+        mask = mx.ones((1, 4))
+        mx.eval(hidden)
+
+        def loss_fn(h):
+            return chunked_cross_entropy_loss(
+                h, lm_head.weight, targets, mask
+            )
+
+        grad_fn = mx.grad(loss_fn)
+        grads = grad_fn(hidden)
+        mx.eval(grads)
+
+        assert grads.shape == hidden.shape
+        assert mx.any(grads != 0).item(), "Gradients should be non-zero"
