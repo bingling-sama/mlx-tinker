@@ -1,0 +1,52 @@
+[project]
+name = "mlx-tinker"
+version = "0.1.0"
+description = "Tinker API-compatible backend for Apple Silicon using MLX"
+requires-python = ">=3.12"
+dependencies = [
+    "mlx>=0.24.0",
+    "mlx-lm>=0.22.0",
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.34.0",
+    "sqlmodel>=0.0.22",
+    "aiosqlite>=0.20.0",
+    "pydantic>=2.10.0",
+    "huggingface-hub>=0.28.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.25.0",
+    "httpx>=0.28.0",
+    "ruff>=0.9.0",
+]
+stress = [
+    "torch>=2.5.0",
+    "transformers>=4.48.0",
+    "peft>=0.14.0",
+    "datasets>=3.2.0",
+    "scipy>=1.14.0",
+]
+
+[project.scripts]
+mlx-tinker = "mlx_tinker.__main__:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+markers = [
+    "stress: marks tests requiring HF transformers (deselect with '-m \"not stress\"')",
+    "cookbook: marks tinker-cookbook verification tests",
+]

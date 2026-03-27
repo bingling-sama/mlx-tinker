@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+build/
+dist/
+wheels/
+*.egg-info/
+.venv/
+*.db
+*.sqlite
+checkpoints/
+.ruff_cache/
+.pytest_cache/
+.DS_Store
