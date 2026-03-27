@@ -79,14 +79,31 @@ class LoRAManager:
                 # Navigate to the parent module and unfreeze the param
                 parts = name.rsplit(".", 1)
                 if len(parts) == 2:
-                    module = model
-                    for attr in parts[0].split("."):
-                        if attr.isdigit():
-                            module = module[int(attr)]
-                        else:
-                            module = getattr(module, attr)
-                    module.unfreeze(keys=[parts[1]])
+                    try:
+                        module = model
+                        for attr in parts[0].split("."):
+                            if attr.isdigit():
+                                module = module[int(attr)]
+                            else:
+                                module = getattr(module, attr)
+                        module.unfreeze(keys=[parts[1]])
+                    except (AttributeError, IndexError, KeyError) as e:
+                        logger.error("Failed to unfreeze LoRA param '%s': %s", name, e)
+                        raise RuntimeError(
+                            f"Failed to unfreeze LoRA parameter '{name}': {e}"
+                        ) from e
         model.train()
+
+        # Verify LoRA params are actually trainable
+        trainable_names = [
+            name for name, _ in tree_flatten(model.trainable_parameters())
+        ]
+        lora_params = [n for n in trainable_names if "lora_a" in n or "lora_b" in n]
+        if not lora_params:
+            raise RuntimeError(
+                "No LoRA parameters found after apply_qlora. "
+                "Check that the model architecture matches the expected layer names."
+            )
 
         trainable, total = self.get_trainable_param_count(model)
         logger.info(

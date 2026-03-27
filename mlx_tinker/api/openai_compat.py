@@ -53,14 +53,60 @@ def register_openai_routes(app, backend: MLXBackend) -> None:
     app.include_router(router)
 
 
-@router.post("/v1/chat/completions")
-async def chat_completions(request: ChatCompletionRequest):
+def _get_model_and_tokenizer():
+    """Get the base model and tokenizer from the backend, raising 503 if unavailable."""
     if _backend is None:
         raise HTTPException(status_code=503, detail="Backend not initialized")
-
     _backend._ensure_base_model()
-    tokenizer = _backend._base_tokenizer
-    model = _backend._base_model
+    if _backend._base_model is None or _backend._base_tokenizer is None:
+        raise HTTPException(status_code=503, detail="Base model not loaded")
+    return _backend._base_model, _backend._base_tokenizer
+
+
+def _generate_tokens(model, tokenizer, prompt_tokens: list[int], temperature: float, top_p: float, max_tokens: int) -> list[int]:
+    """Generate tokens using mlx-lm's generate_step."""
+    from mlx_lm.generate import generate_step
+    from mlx_lm.sample_utils import make_sampler
+    import mlx.core as mx
+
+    sampler = make_sampler(temp=temperature, top_p=top_p)
+    generated_tokens = []
+    prompt_array = mx.array(prompt_tokens)
+
+    for token, _ in generate_step(
+        prompt=prompt_array,
+        model=model,
+        max_tokens=max_tokens,
+        sampler=sampler,
+    ):
+        token_id = token.item()
+        generated_tokens.append(token_id)
+
+        if token_id == tokenizer.eos_token_id:
+            break
+        if len(generated_tokens) >= max_tokens:
+            break
+
+    return generated_tokens
+
+
+def _finish_reason(generated_tokens: list[int], eos_token_id: int) -> str:
+    if generated_tokens and generated_tokens[-1] == eos_token_id:
+        return "stop"
+    return "length"
+
+
+def _usage(prompt_tokens: list[int], generated_tokens: list[int]) -> dict:
+    return {
+        "prompt_tokens": len(prompt_tokens),
+        "completion_tokens": len(generated_tokens),
+        "total_tokens": len(prompt_tokens) + len(generated_tokens),
+    }
+
+
+@router.post("/v1/chat/completions")
+async def chat_completions(request: ChatCompletionRequest):
+    model, tokenizer = _get_model_and_tokenizer()
 
     # Format messages using tokenizer's chat template
     if hasattr(tokenizer, "apply_chat_template"):
@@ -80,29 +126,10 @@ async def chat_completions(request: ChatCompletionRequest):
             media_type="text/event-stream",
         )
 
-    # Non-streaming
-    from mlx_lm.generate import generate_step
-    from mlx_lm.sample_utils import make_sampler
-    import mlx.core as mx
-
-    sampler = make_sampler(temp=request.temperature, top_p=request.top_p)
-    generated_tokens = []
-    prompt_array = mx.array(prompt_tokens)
-
-    for token, _ in generate_step(
-        prompt=prompt_array,
-        model=model,
-        max_tokens=request.max_tokens,
-        sampler=sampler,
-    ):
-        token_id = token.item()
-        generated_tokens.append(token_id)
-
-        if token_id == tokenizer.eos_token_id:
-            break
-        if len(generated_tokens) >= request.max_tokens:
-            break
-
+    generated_tokens = _generate_tokens(
+        model, tokenizer, prompt_tokens,
+        request.temperature, request.top_p, request.max_tokens,
+    )
     completion_text = tokenizer.decode(generated_tokens)
     resp_id = f"chatcmpl-{uuid.uuid4().hex[:12]}"
 
@@ -115,53 +142,24 @@ async def chat_completions(request: ChatCompletionRequest):
             {
                 "index": 0,
                 "message": {"role": "assistant", "content": completion_text},
-                "finish_reason": "stop"
-                if generated_tokens and generated_tokens[-1] == tokenizer.eos_token_id
-                else "length",
+                "finish_reason": _finish_reason(generated_tokens, tokenizer.eos_token_id),
             }
         ],
-        "usage": {
-            "prompt_tokens": len(prompt_tokens),
-            "completion_tokens": len(generated_tokens),
-            "total_tokens": len(prompt_tokens) + len(generated_tokens),
-        },
+        "usage": _usage(prompt_tokens, generated_tokens),
     }
 
 
 @router.post("/v1/completions")
 async def completions(request: CompletionRequest):
-    if _backend is None:
-        raise HTTPException(status_code=503, detail="Backend not initialized")
-
-    _backend._ensure_base_model()
-    tokenizer = _backend._base_tokenizer
-    model = _backend._base_model
+    model, tokenizer = _get_model_and_tokenizer()
 
     prompt_text = request.prompt if isinstance(request.prompt, str) else request.prompt[0]
     prompt_tokens = tokenizer.encode(prompt_text)
 
-    from mlx_lm.generate import generate_step
-    from mlx_lm.sample_utils import make_sampler
-    import mlx.core as mx
-
-    sampler = make_sampler(temp=request.temperature, top_p=request.top_p)
-    generated_tokens = []
-    prompt_array = mx.array(prompt_tokens)
-
-    for token, _ in generate_step(
-        prompt=prompt_array,
-        model=model,
-        max_tokens=request.max_tokens,
-        sampler=sampler,
-    ):
-        token_id = token.item()
-        generated_tokens.append(token_id)
-
-        if token_id == tokenizer.eos_token_id:
-            break
-        if len(generated_tokens) >= request.max_tokens:
-            break
-
+    generated_tokens = _generate_tokens(
+        model, tokenizer, prompt_tokens,
+        request.temperature, request.top_p, request.max_tokens,
+    )
     completion_text = tokenizer.decode(generated_tokens)
     resp_id = f"cmpl-{uuid.uuid4().hex[:12]}"
 
@@ -174,16 +172,10 @@ async def completions(request: CompletionRequest):
             {
                 "text": completion_text,
                 "index": 0,
-                "finish_reason": "stop"
-                if generated_tokens and generated_tokens[-1] == tokenizer.eos_token_id
-                else "length",
+                "finish_reason": _finish_reason(generated_tokens, tokenizer.eos_token_id),
             }
         ],
-        "usage": {
-            "prompt_tokens": len(prompt_tokens),
-            "completion_tokens": len(generated_tokens),
-            "total_tokens": len(prompt_tokens) + len(generated_tokens),
-        },
+        "usage": _usage(prompt_tokens, generated_tokens),
     }
 
 

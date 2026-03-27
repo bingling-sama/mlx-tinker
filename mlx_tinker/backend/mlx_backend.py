@@ -9,6 +9,8 @@ from typing import Any
 import mlx.nn as nn
 from mlx_lm import load as mlx_load
 
+MAX_SAMPLES = 128
+
 from mlx_tinker.backend.checkpointing import (
     load_training_checkpoint,
     save_sampler_weights,
@@ -69,7 +71,13 @@ class MLXBackend:
             return
 
         logger.info("Loading base model: %s", self.config.base_model)
-        model, tokenizer = mlx_load(self.config.base_model)
+        try:
+            model, tokenizer = mlx_load(self.config.base_model)
+        except Exception as e:
+            logger.error("Failed to load base model %s: %s", self.config.base_model, e)
+            raise ValueError(
+                f"Failed to load base model '{self.config.base_model}': {e}"
+            ) from e
         self._base_model = model
         self._base_tokenizer = tokenizer
         logger.info("Base model loaded")
@@ -84,7 +92,13 @@ class MLXBackend:
 
         # Load a fresh copy for this model_id
         logger.info("Creating model %s with LoRA rank=%d", model_id, request.lora_config.rank)
-        model, tokenizer = mlx_load(self.config.base_model)
+        try:
+            model, tokenizer = mlx_load(self.config.base_model)
+        except Exception as e:
+            logger.error("Failed to load model for %s: %s", model_id, e)
+            raise ValueError(
+                f"Failed to load model for '{model_id}': {e}"
+            ) from e
 
         # Apply QLoRA
         model = self.lora_manager.apply_qlora(
@@ -153,6 +167,11 @@ class MLXBackend:
 
     def sample(self, model_id: str | None, request: SampleInput) -> SampleOutput:
         """Generate samples. Uses model_id if provided, else base model."""
+        if request.num_samples > MAX_SAMPLES:
+            raise ValueError(
+                f"num_samples={request.num_samples} exceeds maximum of {MAX_SAMPLES}"
+            )
+
         if model_id and model_id in self.models:
             model = self.models[model_id]
             tokenizer = self.tokenizers[model_id]
@@ -168,10 +187,21 @@ class MLXBackend:
     # Checkpointing
     # ------------------------------------------------------------------
 
+    def _validate_checkpoint_path(self, requested_path: str) -> Path:
+        """Validate that a checkpoint path is within the allowed base directory."""
+        resolved = Path(requested_path).resolve()
+        base = self.config.checkpoints_base.resolve()
+        if not str(resolved).startswith(str(base) + "/") and resolved != base:
+            raise ValueError(
+                f"Checkpoint path '{requested_path}' is outside the allowed "
+                f"directory '{self.config.checkpoints_base}'"
+            )
+        return resolved
+
     def save_weights(self, model_id: str, request: SaveWeightsInput) -> SaveWeightsOutput:
         model = self._get_model(model_id)
         opt_state = self.training.get_optimizer_state(model_id)
-        checkpoint_dir = Path(request.path)
+        checkpoint_dir = self._validate_checkpoint_path(request.path)
         save_training_checkpoint(model, opt_state, checkpoint_dir)
         return SaveWeightsOutput(path=str(checkpoint_dir))
 
@@ -182,12 +212,14 @@ class MLXBackend:
         path = request.path or str(
             self.config.checkpoints_base / model_id / "sampler" / "latest"
         )
-        save_sampler_weights(model, Path(path))
-        return SaveWeightsForSamplerOutput(path=path)
+        safe_path = self._validate_checkpoint_path(path)
+        save_sampler_weights(model, safe_path)
+        return SaveWeightsForSamplerOutput(path=str(safe_path))
 
     def load_weights(self, model_id: str, request: LoadWeightsInput) -> LoadWeightsOutput:
         model = self._get_model(model_id)
         checkpoint_dir = self.config.checkpoints_base / request.source_model_id / request.checkpoint_id
+        self._validate_checkpoint_path(str(checkpoint_dir))
         opt_state = load_training_checkpoint(model, checkpoint_dir)
         if opt_state is not None:
             self.training.load_optimizer_state(model_id, opt_state)

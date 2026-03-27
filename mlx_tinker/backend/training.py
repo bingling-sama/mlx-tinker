@@ -55,10 +55,17 @@ class TrainingBackend:
         # Parse loss_fn_config
         cfg = LossFnConfig()
         if request.loss_fn_config:
+            for key in request.loss_fn_config:
+                if key not in ("clip_low_threshold", "clip_high_threshold"):
+                    logger.warning("Unknown loss_fn_config key ignored: %s", key)
             if "clip_low_threshold" in request.loss_fn_config:
-                cfg.clip_low_threshold = request.loss_fn_config["clip_low_threshold"]
+                cfg.clip_low_threshold = float(request.loss_fn_config["clip_low_threshold"])
             if "clip_high_threshold" in request.loss_fn_config:
-                cfg.clip_high_threshold = request.loss_fn_config["clip_high_threshold"]
+                cfg.clip_high_threshold = float(request.loss_fn_config["clip_high_threshold"])
+            if cfg.clip_low_threshold < 0:
+                raise ValueError(f"clip_low_threshold must be >= 0, got {cfg.clip_low_threshold}")
+            if cfg.clip_high_threshold < 0:
+                raise ValueError(f"clip_high_threshold must be >= 0, got {cfg.clip_high_threshold}")
 
         # Prepare batched tensors from request data
         all_losses = []
@@ -76,11 +83,16 @@ class TrainingBackend:
             ]
 
             # Trim to same length
-            seq_len = min(
-                input_tokens.shape[1],
-                target_tokens.shape[1],
-                token_weights.shape[1],
-            )
+            input_len = input_tokens.shape[1]
+            target_len = target_tokens.shape[1]
+            weights_len = token_weights.shape[1]
+            seq_len = min(input_len, target_len, weights_len)
+            if not (input_len == target_len == weights_len):
+                logger.warning(
+                    "Sequence length mismatch: input=%d, target=%d, weights=%d "
+                    "(truncating to %d)",
+                    input_len, target_len, weights_len, seq_len,
+                )
             input_tokens = input_tokens[:, :seq_len]
             target_tokens = target_tokens[:, :seq_len]
             token_weights = token_weights[:, :seq_len]

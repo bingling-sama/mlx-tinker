@@ -7,6 +7,8 @@ import logging
 import traceback
 from datetime import datetime, timezone
 
+from sqlalchemy import update
+
 from mlx_tinker.backend.mlx_backend import MLXBackend
 from mlx_tinker.config import EngineConfig
 from mlx_tinker.db.database import get_session
@@ -61,6 +63,24 @@ class TinkerEngine:
         if self._task is not None:
             await self._task
             self._task = None
+
+        # Mark remaining pending futures as failed
+        try:
+            async with get_session() as session:
+                stmt = (
+                    update(FutureDB)
+                    .where(FutureDB.status == RequestStatus.PENDING)
+                    .values(
+                        status=RequestStatus.FAILED,
+                        result_data={"error": "Engine shutdown"},
+                        completed_at=datetime.now(timezone.utc),
+                    )
+                )
+                await session.execute(stmt)
+                await session.commit()
+        except Exception:
+            logger.error("Failed to drain pending futures on shutdown:\n%s", traceback.format_exc())
+
         logger.info("TinkerEngine stopped")
 
     async def _run_loop(self) -> None:
