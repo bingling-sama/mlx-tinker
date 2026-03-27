@@ -9,6 +9,7 @@ from typing import Any
 
 import mlx.core as mx
 import mlx.nn as nn
+from mlx.utils import tree_flatten
 from mlx_lm.tuner.utils import linear_to_lora_layers
 
 from mlx_tinker.types import LoraConfig
@@ -58,18 +59,36 @@ class LoRAManager:
             "keys": keys,
         }
 
-        # Count model layers
-        num_layers = len(model.model.layers) if hasattr(model, "model") and hasattr(model.model, "layers") else -1
+        # Count model layers — .layers may be a property on the top-level model
+        # (as in Qwen3ForCausalLM) or on model.model
+        if hasattr(model, "layers"):
+            num_layers = len(model.layers)
+        elif hasattr(model, "model") and hasattr(model.model, "layers"):
+            num_layers = len(model.model.layers)
+        else:
+            num_layers = -1
 
         # Apply LoRA layers via mlx-lm utility
         linear_to_lora_layers(model, num_layers=num_layers, config=lora_cfg)
 
-        # Freeze base, keep LoRA trainable
+        # Freeze all base weights, then unfreeze LoRA params
         model.freeze()
+        # Selectively unfreeze LoRA parameters
+        for name, p in tree_flatten(model.parameters()):
+            if "lora_a" in name or "lora_b" in name:
+                # Navigate to the parent module and unfreeze the param
+                parts = name.rsplit(".", 1)
+                if len(parts) == 2:
+                    module = model
+                    for attr in parts[0].split("."):
+                        if attr.isdigit():
+                            module = module[int(attr)]
+                        else:
+                            module = getattr(module, attr)
+                    module.unfreeze(keys=[parts[1]])
         model.train()
 
-        trainable = sum(p.size for _, p in model.trainable_parameters())
-        total = sum(p.size for _, p in model.parameters())
+        trainable, total = self.get_trainable_param_count(model)
         logger.info(
             "LoRA applied: %d trainable / %d total params (%.2f%%)",
             trainable,
@@ -85,7 +104,7 @@ class LoRAManager:
         path.mkdir(parents=True, exist_ok=True)
 
         # Collect trainable (LoRA) weights
-        weights = dict(model.trainable_parameters())
+        weights = dict(tree_flatten(model.trainable_parameters()))
         mx.save_safetensors(str(path / "adapters.safetensors"), weights)
 
         # Save LoRA config
@@ -110,8 +129,8 @@ class LoRAManager:
 
     def get_trainable_param_count(self, model: nn.Module) -> tuple[int, int]:
         """Return (trainable_params, total_params)."""
-        trainable = sum(p.size for _, p in model.trainable_parameters())
-        total = sum(p.size for _, p in model.parameters())
+        trainable = sum(p.size for _, p in tree_flatten(model.trainable_parameters()))
+        total = sum(p.size for _, p in tree_flatten(model.parameters()))
         return trainable, total
 
     def save_full_model(self, model: nn.Module, path: str | Path, config: dict[str, Any]) -> Path:
@@ -119,7 +138,7 @@ class LoRAManager:
         path = Path(path)
         path.mkdir(parents=True, exist_ok=True)
 
-        weights = dict(model.parameters())
+        weights = dict(tree_flatten(model.parameters()))
         mx.save_safetensors(str(path / "model.safetensors"), weights)
         (path / "config.json").write_text(json.dumps(config, indent=2))
 

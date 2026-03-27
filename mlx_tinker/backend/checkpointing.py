@@ -8,6 +8,7 @@ from pathlib import Path
 
 import mlx.core as mx
 import mlx.nn as nn
+from mlx.utils import tree_flatten
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +33,7 @@ def save_training_checkpoint(
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
 
     # Save all model weights (including LoRA)
-    weights = dict(model.parameters())
+    weights = dict(tree_flatten(model.parameters()))
     mx.save_safetensors(str(checkpoint_dir / "model.safetensors"), weights)
 
     # Save optimizer state
@@ -90,7 +91,7 @@ def save_sampler_weights(
     """
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    weights = dict(model.parameters())
+    weights = dict(tree_flatten(model.parameters()))
     mx.save_safetensors(str(output_dir / "model.safetensors"), weights)
 
     if model_config:
