@@ -4,7 +4,12 @@ import mlx.core as mx
 import mlx.nn as nn
 import pytest
 
-from mlx_tinker.backend.optimizers import AdamW8Bit, _quantize_blockwise, _dequantize_blockwise
+from mlx_tinker.backend.optimizers import (
+    AdamW8Bit,
+    _quantize_blockwise,
+    _dequantize_blockwise,
+    create_dynamic_map,
+)
 from mlx_tinker.backend.training import TrainingBackend
 from mlx_tinker.types import (
     AdamParams,
@@ -76,7 +81,7 @@ class TestQuantizeBlockwise:
         quantized, absmax = _quantize_blockwise(tensor)
         mx.eval(quantized, absmax)
 
-        assert quantized.dtype == mx.int8
+        assert quantized.dtype == mx.uint8
         assert absmax.dtype == mx.float32
 
     def test_non_multiple_of_block_size(self):
@@ -151,8 +156,8 @@ class TestAdamW8Bit:
             if isinstance(s, dict):
                 if "m" in s and "v" in s:
                     mx.eval(s["m"], s["v"])
-                    assert s["m"].dtype == mx.int8, f"Expected m to be int8, got {s['m'].dtype}"
-                    assert s["v"].dtype == mx.int8, f"Expected v to be int8, got {s['v'].dtype}"
+                    assert s["m"].dtype == mx.uint8, f"Expected m to be uint8, got {s['m'].dtype}"
+                    assert s["v"].dtype == mx.uint8, f"Expected v to be uint8, got {s['v'].dtype}"
                     return True
                 return any(_check_state(v) for v in s.values())
             elif isinstance(s, (list, tuple)):
@@ -160,7 +165,7 @@ class TestAdamW8Bit:
             return False
 
         found = _check_state(state)
-        assert found, "Should find int8 m and v in optimizer state"
+        assert found, "Should find uint8 m and v in optimizer state"
 
     def test_matches_fp32_direction(self):
         """Both adamw_8bit and adamw should reduce loss over 10 steps."""
@@ -192,3 +197,61 @@ class TestAdamW8Bit:
                 f"{opt_type} should reduce loss: first={losses[0]:.4f}, "
                 f"last={losses[-1]:.4f}"
             )
+
+    def test_stable_at_lr_1e3(self):
+        """8-bit AdamW with tree quantization should be stable at LR=1e-3."""
+        mx.random.seed(42)
+        model = TinyModel(vocab_size=32, dim=16)
+        mx.eval(model.parameters())
+
+        training = TrainingBackend(
+            optimizer_type="adamw_8bit", gradient_checkpointing=False
+        )
+        datum = _make_datum([1, 2, 3, 4], [2, 3, 4, 5], [0.0, 1.0, 1.0, 1.0])
+        fb_request = ForwardBackwardInput(data=[datum], loss_fn="cross_entropy")
+        opt_request = OptimStepInput(
+            adam_params=AdamParams(learning_rate=1e-3, weight_decay=0.0)
+        )
+
+        losses = []
+        for _ in range(20):
+            result = training.forward_backward("test", model, fb_request)
+            loss = result.loss_fn_outputs[0]["loss"]
+            losses.append(loss)
+            training.optim_step("test", model, opt_request)
+
+        # Should not diverge (no inf/nan)
+        import math
+
+        assert all(math.isfinite(l) for l in losses), (
+            f"Loss should be finite at LR=1e-3: {losses}"
+        )
+        # Should trend down
+        avg_first = sum(losses[:5]) / 5
+        avg_last = sum(losses[-5:]) / 5
+        assert avg_last < avg_first
+
+
+class TestDynamicMap:
+    def test_map_size(self):
+        dmap = create_dynamic_map()
+        assert len(dmap) == 256
+
+    def test_map_is_sorted(self):
+        dmap = create_dynamic_map()
+        for i in range(len(dmap) - 1):
+            assert dmap[i] <= dmap[i + 1], f"Map not sorted at index {i}"
+
+    def test_map_contains_zero(self):
+        dmap = create_dynamic_map()
+        assert 0.0 in dmap
+
+    def test_map_has_positive_and_negative(self):
+        """Signed map should have both positive and negative values."""
+        dmap = create_dynamic_map(signed=True)
+        positives = [v for v in dmap if v > 0]
+        negatives = [v for v in dmap if v < 0]
+        assert len(positives) > 50, "Should have many positive values"
+        assert len(negatives) > 50, "Should have many negative values"
+        # Counts may differ by 1 due to special 1.0 value
+        assert abs(len(positives) - len(negatives)) <= 1
