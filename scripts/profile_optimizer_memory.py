@@ -56,7 +56,7 @@ def measure_optimizer(opt_name: str, optimizer, model, num_steps: int = 20):
     optimizer.update(model, grads)
     mx.eval(loss, model.parameters(), optimizer.state)
 
-    mx.metal.reset_peak_memory()
+    mx.reset_peak_memory()
 
     losses = []
     start = time.perf_counter()
@@ -67,7 +67,7 @@ def measure_optimizer(opt_name: str, optimizer, model, num_steps: int = 20):
         losses.append(loss.item())
 
     elapsed = time.perf_counter() - start
-    peak_mem = mx.metal.get_peak_memory() / 1e6
+    peak_mem = mx.get_peak_memory() / 1e6
 
     # Measure optimizer state size
     state_size = 0

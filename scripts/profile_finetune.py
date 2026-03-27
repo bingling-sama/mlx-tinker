@@ -64,8 +64,8 @@ class Profiler:
 
     def end(self, sp: StepProfile, **extra) -> StepProfile:
         sp.wall_time_s = time.perf_counter() - self._phase_start
-        sp.active_memory_gb = mx.metal.get_active_memory() / 1e9
-        sp.peak_memory_gb = mx.metal.get_peak_memory() / 1e9
+        sp.active_memory_gb = mx.get_active_memory() / 1e9
+        sp.peak_memory_gb = mx.get_peak_memory() / 1e9
         sp.extra = extra
         self.steps.append(sp)
         return sp
