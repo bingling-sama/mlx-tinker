@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from operator import add
+from typing import Literal
 
 import mlx.core as mx
 import mlx.nn as nn
@@ -11,6 +12,7 @@ import mlx.optimizers as optim
 from mlx.utils import tree_map
 
 from mlx_tinker.backend.loss_fns import LOSS_FUNCTION_MAP, LossFnConfig
+from mlx_tinker.backend.optimizers import AdamW8Bit
 from mlx_tinker.types import (
     ForwardBackwardInput,
     ForwardBackwardOutput,
@@ -23,20 +25,57 @@ from mlx_tinker.types import (
 logger = logging.getLogger(__name__)
 
 
+def _clip_grad_norm(grads: dict, max_norm: float) -> dict:
+    """Clip gradient global norm to max_norm."""
+    from mlx.utils import tree_flatten
+
+    flat = tree_flatten(grads)
+    total_norm_sq = sum(mx.sum(mx.square(g)).item() for _, g in flat)
+    total_norm = total_norm_sq**0.5
+
+    if total_norm > max_norm:
+        scale = max_norm / (total_norm + 1e-6)
+        grads = tree_map(lambda g: g * scale, grads)
+
+    return grads
+
+
 class TrainingBackend:
     """Handles gradient computation, accumulation, and optimizer steps on MLX."""
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        optimizer_type: Literal["adamw_8bit", "adamw", "adafactor", "lion"] = "adamw_8bit",
+        gradient_checkpointing: bool = True,
+    ) -> None:
+        self.optimizer_type = optimizer_type
+        self.gradient_checkpointing = gradient_checkpointing
+
         self.accumulated_grads: dict[str, dict | None] = {}
         self.grad_accum_counts: dict[str, int] = {}
-        self.optimizers: dict[str, optim.OptimizerBase] = {}
+        self.total_tokens: dict[str, float] = {}
+        self.optimizers: dict[str, optim.Optimizer] = {}
+
+    def _create_optimizer(self, learning_rate: float = 1e-5) -> optim.Optimizer:
+        """Create an optimizer based on the configured type."""
+        if self.optimizer_type == "adamw_8bit":
+            return AdamW8Bit(learning_rate=learning_rate)
+        elif self.optimizer_type == "adamw":
+            return optim.AdamW(learning_rate=learning_rate)
+        elif self.optimizer_type == "adafactor":
+            return optim.Adafactor(learning_rate=learning_rate)
+        elif self.optimizer_type == "lion":
+            return optim.Lion(learning_rate=learning_rate)
+        else:
+            raise ValueError(f"Unknown optimizer type: {self.optimizer_type}")
 
     def ensure_optimizer(self, model_id: str, model: nn.Module) -> None:
-        """Lazily create an AdamW optimizer for the model."""
+        """Lazily create an optimizer for the model."""
         if model_id not in self.optimizers:
-            self.optimizers[model_id] = optim.AdamW(learning_rate=1e-5)
+            self.optimizers[model_id] = self._create_optimizer()
             self.accumulated_grads[model_id] = None
             self.grad_accum_counts[model_id] = 0
+            self.total_tokens[model_id] = 0.0
 
     def forward_backward(
         self,
@@ -47,7 +86,8 @@ class TrainingBackend:
         """Compute loss and accumulate gradients without applying them.
 
         Gradients are accumulated across multiple forward_backward calls
-        until optim_step is invoked.
+        until optim_step is invoked. Uses sum-reduction for correct
+        gradient accumulation across variable-length sequences.
         """
         self.ensure_optimizer(model_id, model)
         loss_fn_impl = LOSS_FUNCTION_MAP[request.loss_fn]
@@ -70,9 +110,10 @@ class TrainingBackend:
         # Prepare batched tensors from request data
         all_losses = []
         all_grads = []
+        batch_token_count = 0.0
 
         for datum in request.data:
-            input_tokens = mx.array(datum.model_input.get_tokens())[None, :]  # [1, T]
+            input_tokens = mx.array(datum.model_input.get_tokens())[None, :]
             target_tokens = mx.array(datum.loss_fn_inputs.target_tokens.data, dtype=mx.int32)[
                 None, :
             ]
@@ -103,6 +144,10 @@ class TrainingBackend:
             if sampling_logprobs.shape[1] > 0:
                 sampling_logprobs = sampling_logprobs[:, :seq_len]
 
+            # Track total unmasked tokens for correct gradient averaging
+            mask_count = mx.sum(token_weights > 0).item()
+            batch_token_count += max(mask_count, 1.0)
+
             def compute_loss(
                 model: nn.Module,
                 input_ids: mx.array,
@@ -112,16 +157,15 @@ class TrainingBackend:
                 samp_lp: mx.array,
             ) -> mx.array:
                 logits = model(input_ids)
-                # Compute log probs of target tokens
                 log_probs = logits - mx.logsumexp(logits, axis=-1, keepdims=True)
-                # Gather target token log probs
                 target_lp = mx.take_along_axis(
                     log_probs, targets[:, :, None].astype(mx.int32), axis=-1
                 ).squeeze(-1)
                 return loss_fn_impl(target_lp, weights, samp_lp, adv, cfg)
 
-            loss_and_grad = nn.value_and_grad(model, compute_loss)
-            loss_val, grads = loss_and_grad(
+            loss_and_grad_fn = nn.value_and_grad(model, compute_loss)
+
+            loss_val, grads = loss_and_grad_fn(
                 model,
                 input_tokens,
                 target_tokens,
@@ -145,6 +189,7 @@ class TrainingBackend:
                 add, self.accumulated_grads[model_id], combined_grads
             )
         self.grad_accum_counts[model_id] += len(request.data)
+        self.total_tokens[model_id] += batch_token_count
 
         logger.info(
             "forward_backward model=%s loss=%.6f n_datum=%d accum_count=%d",
@@ -182,7 +227,9 @@ class TrainingBackend:
             ]
             seq_len = min(log_probs.shape[1], target_tokens.shape[1])
             target_lp = mx.take_along_axis(
-                log_probs[:, :seq_len], target_tokens[:, :seq_len, None].astype(mx.int32), axis=-1
+                log_probs[:, :seq_len],
+                target_tokens[:, :seq_len, None].astype(mx.int32),
+                axis=-1,
             ).squeeze(-1)
             mx.eval(target_lp)
             all_logprobs.append(target_lp[0].tolist())
@@ -198,45 +245,69 @@ class TrainingBackend:
         model: nn.Module,
         request: OptimStepInput,
     ) -> OptimStepOutput:
-        """Apply accumulated gradients to model parameters via AdamW."""
+        """Apply accumulated gradients to model parameters."""
         self.ensure_optimizer(model_id, model)
         optimizer = self.optimizers[model_id]
         grads = self.accumulated_grads[model_id]
 
         if grads is None:
-            logger.warning("optim_step called with no accumulated gradients for model=%s", model_id)
-            return OptimStepOutput(metrics={"warning": "no_gradients"})
+            logger.warning(
+                "optim_step called with no accumulated gradients for model=%s",
+                model_id,
+            )
+            return OptimStepOutput(metrics={"grad_accum_steps": 0})
+
+        ap = request.adam_params
 
         # Update optimizer hyperparams
-        ap = request.adam_params
         optimizer.learning_rate = ap.learning_rate
-        # Note: MLX AdamW constructor sets betas; we recreate if they changed
+
+        # Recreate optimizer if betas changed (for AdamW/AdamW8Bit)
         if hasattr(optimizer, "betas"):
             if optimizer.betas != (ap.beta1, ap.beta2):
-                optimizer = optim.AdamW(
-                    learning_rate=ap.learning_rate,
-                    betas=(ap.beta1, ap.beta2),
-                    eps=ap.eps,
-                    weight_decay=ap.weight_decay,
-                )
+                optimizer = self._create_optimizer(learning_rate=ap.learning_rate)
+                if hasattr(optimizer, "betas"):
+                    optimizer.betas = (ap.beta1, ap.beta2)
+                if hasattr(optimizer, "eps"):
+                    optimizer.eps = ap.eps
+                if hasattr(optimizer, "weight_decay"):
+                    optimizer.weight_decay = ap.weight_decay
                 self.optimizers[model_id] = optimizer
 
-        # Average gradients if multiple forward_backward calls accumulated
-        n = self.grad_accum_counts[model_id]
-        if n > 1:
-            grads = tree_map(lambda g: g / n, grads)
+        # Average gradients by total token count (Unsloth-style fix)
+        total_tok = self.total_tokens[model_id]
+        if total_tok > 1:
+            grads = tree_map(lambda g: g / total_tok, grads)
 
-        # Apply
+        # Gradient clipping
+        if ap.grad_clip_norm > 0:
+            grads = _clip_grad_norm(grads, ap.grad_clip_norm)
+
+        # Apply optimizer step
         optimizer.update(model, grads)
         mx.eval(model.parameters(), optimizer.state)
 
         # Clear accumulation
+        n = self.grad_accum_counts[model_id]
         self.accumulated_grads[model_id] = None
         self.grad_accum_counts[model_id] = 0
+        self.total_tokens[model_id] = 0.0
 
-        logger.info("optim_step model=%s lr=%.2e grad_accum=%d", model_id, ap.learning_rate, n)
+        logger.info(
+            "optim_step model=%s lr=%.2e grad_accum=%d total_tokens=%.0f",
+            model_id,
+            ap.learning_rate,
+            n,
+            total_tok,
+        )
 
-        return OptimStepOutput(metrics={"learning_rate": ap.learning_rate, "grad_accum_steps": n})
+        return OptimStepOutput(
+            metrics={
+                "learning_rate": ap.learning_rate,
+                "grad_accum_steps": n,
+                "total_tokens": total_tok,
+            }
+        )
 
     def get_optimizer_state(self, model_id: str) -> dict | None:
         """Return serializable optimizer state for checkpointing."""

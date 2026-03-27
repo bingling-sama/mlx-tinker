@@ -3,8 +3,18 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Literal
 
 from pydantic import BaseModel
+
+
+class LRScheduleConfig(BaseModel):
+    """Learning rate schedule configuration."""
+
+    warmup_steps: int = 0
+    schedule: Literal["constant", "cosine", "linear"] = "constant"
+    min_lr_ratio: float = 0.1
+    total_steps: int = 0
 
 
 class EngineConfig(BaseModel):
@@ -23,6 +33,11 @@ class EngineConfig(BaseModel):
     engine_cycle_ms: int = 100
     max_batch_size: int = 8
 
+    # Training
+    optimizer_type: Literal["adamw_8bit", "adamw", "adafactor", "lion"] = "adamw_8bit"
+    gradient_checkpointing: bool = True
+    lr_schedule: LRScheduleConfig = LRScheduleConfig()
+
     # Checkpoints
     checkpoints_base: Path = Path("checkpoints")
 
@@ -39,4 +54,3 @@ class EngineConfig(BaseModel):
 
     # Memory
     max_kv_cache_size: int | None = None
-    gradient_checkpointing: bool = True

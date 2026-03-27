@@ -50,7 +50,10 @@ class MLXBackend:
 
     def __init__(self, config: EngineConfig) -> None:
         self.config = config
-        self.training = TrainingBackend()
+        self.training = TrainingBackend(
+            optimizer_type=config.optimizer_type,
+            gradient_checkpointing=config.gradient_checkpointing,
+        )
         self.inference = InferenceBackend()
         self.lora_manager = LoRAManager()
 

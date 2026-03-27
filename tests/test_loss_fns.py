@@ -167,3 +167,53 @@ class TestLossFunctionMap:
         is_loss = importance_sampling_loss(lp, mx.ones((1, 2)), lp, adv, cfg)
         mx.eval(is_loss)
         assert abs(is_loss.item() - (-3.0)) < 1e-5, f"IS loss should be -3.0, got {is_loss.item()}"
+
+    def test_all_zero_mask_returns_zero(self, cfg):
+        """All loss functions should return 0 when mask is all zeros."""
+        for name, fn in LOSS_FUNCTION_MAP.items():
+            lp = mx.full((1, 3), -1.0)
+            zero_mask = mx.zeros((1, 3))
+            adv = mx.ones((1, 3))
+            result = fn(lp, zero_mask, lp, adv, cfg)
+            mx.eval(result)
+            assert result.item() == 0.0, f"{name} should return 0 with zero mask"
+
+
+class TestPPONegativeAdvantages:
+    def test_negative_advantage_clips_correctly(self):
+        """With negative advantages, PPO should clip the upper bound."""
+        ppo_cfg = LossFnConfig(clip_high_threshold=0.2)
+        # ratio ≈ 7.39 (large), negative advantage
+        new_lp = mx.array([[0.0]])
+        old_lp = mx.array([[-2.0]])
+        mask = mx.ones((1, 1))
+        advantages = mx.array([[-1.0]])
+
+        loss = ppo_loss(new_lp, mask, old_lp, advantages, ppo_cfg)
+        mx.eval(loss)
+        # ratio=7.39, adv=-1: surr1=7.39*(-1)=-7.39, clipped=1.2*(-1)=-1.2
+        # loss = -min(-7.39, -1.2) = -(-7.39) = 7.39
+        import math
+
+        expected = math.exp(2.0)
+        assert abs(loss.item() - expected) < 1e-3
+
+
+class TestCISPONegativeAdvantages:
+    def test_negative_advantage_uses_clip_low(self):
+        """With negative advantages, CISPO should use clip_low_threshold."""
+        cispo_cfg = LossFnConfig(clip_low_threshold=0.1, clip_high_threshold=0.2)
+        new_lp = mx.array([[0.0]])
+        old_lp = mx.array([[-2.0]])
+        mask = mx.ones((1, 1))
+        advantages = mx.array([[-1.0]])  # negative
+
+        loss = cispo_loss(new_lp, mask, old_lp, advantages, cispo_cfg)
+        mx.eval(loss)
+        # ratio ≈ 7.39, negative adv → clip to [0.9, 1.1]
+        # clipped_ratio = 1.1, surr1 = 7.39*(-1) = -7.39, surr2 = 1.1*(-1) = -1.1
+        # loss = -min(-7.39, -1.1) = 7.39
+        import math
+
+        expected = math.exp(2.0)
+        assert abs(loss.item() - expected) < 1e-3

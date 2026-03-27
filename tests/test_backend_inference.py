@@ -142,3 +142,14 @@ class TestSample:
         r1 = inference.sample(model, tokenizer, request)
         r2 = inference.sample(model, tokenizer, request)
         assert r1.sequences[0].tokens == r2.sequences[0].tokens
+
+    def test_max_tokens_one(self, model, tokenizer, inference):
+        request = SampleInput(
+            prompt=ModelInput(chunks=[EncodedTextChunk(tokens=[1, 2, 3])]),
+            sampling_params=SamplingParams(temperature=1.0, max_tokens=1),
+            num_samples=1,
+        )
+
+        result = inference.sample(model, tokenizer, request)
+        assert len(result.sequences) == 1
+        assert len(result.sequences[0].tokens) == 1

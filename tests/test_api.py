@@ -296,3 +296,46 @@ class TestRequestValidation:
         assert resp.status_code == 200
         data = resp.json()
         assert data["base_model"] == "test-model"
+
+
+class TestMoreEndpoints:
+    def _create_model(self, client) -> str:
+        resp = client.post("/api/v1/create_session", json={"sdk_version": "0.1.0"})
+        session_id = resp.json()["session_id"]
+        resp = client.post(
+            "/api/v1/create_model",
+            json={
+                "session_id": session_id,
+                "base_model": "test-model",
+                "lora_config": {"rank": 8, "alpha": 16.0},
+            },
+        )
+        return resp.json()["model_id"]
+
+    def test_unload_model_creates_future(self, client):
+        model_id = self._create_model(client)
+        resp = client.post("/api/v1/unload_model", json={"model_id": model_id})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "request_id" in data
+        assert data["model_id"] == model_id
+
+    def test_save_weights_creates_future(self, client):
+        model_id = self._create_model(client)
+        resp = client.post(
+            "/api/v1/save_weights",
+            json={"model_id": model_id, "path": "checkpoints/test"},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "pending"
+
+    def test_sample_creates_future(self, client):
+        resp = client.post(
+            "/api/v1/asample",
+            json={
+                "prompt": {"chunks": [{"type": "encoded_text", "tokens": [1, 2, 3]}]},
+                "sampling_params": {"temperature": 1.0, "max_tokens": 5},
+            },
+        )
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "pending"

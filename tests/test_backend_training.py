@@ -40,7 +40,7 @@ def model():
 
 @pytest.fixture
 def training():
-    return TrainingBackend()
+    return TrainingBackend(optimizer_type="adamw", gradient_checkpointing=False)
 
 
 def _make_datum(tokens: list[int], targets: list[int], weights: list[float]) -> Datum:
@@ -159,6 +159,28 @@ class TestOptimStep:
             f"Loss should trend downward: first-5 avg={avg_first:.4f}, "
             f"last-5 avg={avg_last:.4f}, all={losses}"
         )
+
+
+    def test_optim_step_no_gradients_returns_zero_steps(self, model, training):
+        opt_request = OptimStepInput(
+            adam_params=AdamParams(learning_rate=0.01)
+        )
+        result = training.optim_step("fresh_model", model, opt_request)
+        assert result.metrics is not None
+        assert result.metrics["grad_accum_steps"] == 0
+
+    def test_gradient_clipping(self, model, training):
+        datum = _make_datum([1, 2, 3, 4], [2, 3, 4, 5], [0.0, 1.0, 1.0, 1.0])
+        fb_request = ForwardBackwardInput(data=[datum], loss_fn="cross_entropy")
+        training.forward_backward("test", model, fb_request)
+
+        # Apply with gradient clipping
+        opt_request = OptimStepInput(
+            adam_params=AdamParams(learning_rate=0.01, grad_clip_norm=0.1)
+        )
+        result = training.optim_step("test", model, opt_request)
+        assert result.metrics is not None
+        assert result.metrics["grad_accum_steps"] == 1
 
 
 class TestForward:

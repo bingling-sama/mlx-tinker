@@ -16,6 +16,11 @@ Tinker API-compatible backend for Mac (Apple Silicon / Metal) using MLX and mlx-
 - Lint: `uv run ruff check mlx_tinker/`
 - Format: `uv run ruff format mlx_tinker/`
 
+## Testing requirements
+- ALWAYS run unit tests, cookbook tests, AND stress tests before committing
+- All three test suites must pass (stress tests may have infra issues like deprecated datasets — those are pre-existing)
+- Run: `uv run pytest tests/ -k "not stress and not cookbook" && uv run pytest tests/cookbook/ -m cookbook`
+
 ## Architecture
 - `mlx_tinker/api/` — FastAPI server, Tinker endpoints + OpenAI-compat
 - `mlx_tinker/engine/` — Async polling loop with barrier-aware batching

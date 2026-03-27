@@ -65,6 +65,7 @@ class AdamParams(BaseModel):
     beta2: float = 0.999
     eps: float = 1e-8
     weight_decay: float = 0.0
+    grad_clip_norm: float = 0.0  # 0 = disabled
 
 
 class LoraConfig(BaseModel):

@@ -81,7 +81,7 @@ class TestEndToEnd:
         mx.eval(model.parameters())
         tokenizer = FakeTokenizer()
 
-        training = TrainingBackend()
+        training = TrainingBackend(optimizer_type="adamw", gradient_checkpointing=False)
         inference = InferenceBackend()
 
         # Train
@@ -129,7 +129,7 @@ class TestEndToEnd:
         model = TinyModel(vocab_size=32, dim=16)
         mx.eval(model.parameters())
 
-        training = TrainingBackend()
+        training = TrainingBackend(optimizer_type="adamw", gradient_checkpointing=False)
 
         # Accumulate 3 forward_backward calls
         for _ in range(3):
@@ -163,7 +163,7 @@ class TestEndToEnd:
         mx.eval(model.parameters())
         tokenizer = FakeTokenizer()
 
-        training = TrainingBackend()
+        training = TrainingBackend(optimizer_type="adamw", gradient_checkpointing=False)
         inference = InferenceBackend()
 
         # Sample
