@@ -39,6 +39,7 @@ from mlx_tinker.types import (
 pytestmark = pytest.mark.cookbook
 
 SFT_PROOF_STEPS = 48
+PIPELINE_SFT_STEPS = 12
 RL_WARMSTART_STEPS = 12
 RL_PROOF_STEPS = 32
 GROUP_SIZE = 8
@@ -251,7 +252,142 @@ def _reward_for_label(text: str, label: str) -> float:
     return 1.0 if _extract_label(text) == label else 0.0
 
 
+def _run_rl_steps(
+    backend: MLXBackend,
+    model_id: str,
+    tokenizer,
+    examples: list[tuple[str, str]],
+    *,
+    num_steps: int,
+    learning_rate: float,
+    group_size: int,
+) -> tuple[list[float], int]:
+    mean_rewards: list[float] = []
+    non_zero_advantage_steps = 0
+
+    for step in range(num_steps):
+        prompt, gold_label = examples[step % len(examples)]
+        prompt_tokens = tokenizer.encode(prompt)
+        sample_result = backend.sample(
+            model_id,
+            SampleInput(
+                prompt=ModelInput(chunks=[EncodedTextChunk(tokens=prompt_tokens)]),
+                sampling_params=SamplingParams(
+                    temperature=1.0,
+                    max_tokens=4,
+                    stop=["\n"],
+                    seed=step,
+                ),
+                num_samples=group_size,
+                prompt_logprobs=False,
+            ),
+        )
+
+        rewards = []
+        datums = []
+        for sequence in sample_result.sequences:
+            text = tokenizer.decode(sequence.tokens, skip_special_tokens=True)
+            rewards.append(_reward_for_label(text, gold_label))
+
+        mean_reward = sum(rewards) / len(rewards)
+        advantages = [reward - mean_reward for reward in rewards]
+        mean_rewards.append(mean_reward)
+        if any(abs(advantage) > 1e-6 for advantage in advantages):
+            non_zero_advantage_steps += 1
+        else:
+            continue
+
+        for sequence, advantage in zip(sample_result.sequences, advantages, strict=True):
+            datums.append(_make_rl_datum(tokenizer, prompt, sequence, advantage))
+
+        fb_result = backend.forward_backward(
+            model_id,
+            ForwardBackwardInput(data=datums, loss_fn="importance_sampling"),
+        )
+        assert isinstance(fb_result.metrics["loss:sum"], float)
+        backend.optim_step(
+            model_id,
+            OptimStepInput(adam_params=AdamParams(learning_rate=learning_rate)),
+        )
+
+    return mean_rewards, non_zero_advantage_steps
+
+
 class TestCapabilityProofs:
+    def test_base_then_sft_then_rl_progression(self, backend, model_name):
+        train_examples = _train_examples()
+        eval_examples = _eval_examples()
+
+        backend.create_model(
+            "capability-pipeline",
+            CreateModelInput(
+                lora_config=LoraConfig(rank=8, alpha=16.0, seed=2, train_attn=True, train_mlp=True)
+            ),
+        )
+        tokenizer = backend.tokenizers["capability-pipeline"]
+
+        base_accuracy = _evaluate_accuracy(backend, "capability-pipeline", tokenizer, eval_examples)
+        base_reward = _evaluate_mean_reward(
+            backend,
+            "capability-pipeline",
+            tokenizer,
+            eval_examples,
+            group_size=GROUP_SIZE,
+        )
+
+        sft_losses = _run_sft_steps(
+            backend,
+            "capability-pipeline",
+            tokenizer,
+            train_examples,
+            num_steps=PIPELINE_SFT_STEPS,
+            learning_rate=2e-4,
+        )
+        sft_accuracy = _evaluate_accuracy(backend, "capability-pipeline", tokenizer, eval_examples)
+        sft_reward = _evaluate_mean_reward(
+            backend,
+            "capability-pipeline",
+            tokenizer,
+            eval_examples,
+            group_size=GROUP_SIZE,
+        )
+
+        rl_mean_rewards, non_zero_advantage_steps = _run_rl_steps(
+            backend,
+            "capability-pipeline",
+            tokenizer,
+            train_examples,
+            num_steps=RL_PROOF_STEPS,
+            learning_rate=1e-4,
+            group_size=GROUP_SIZE,
+        )
+        rl_accuracy = _evaluate_accuracy(backend, "capability-pipeline", tokenizer, eval_examples)
+        rl_reward = _evaluate_mean_reward(
+            backend,
+            "capability-pipeline",
+            tokenizer,
+            eval_examples,
+            group_size=GROUP_SIZE,
+        )
+
+        print("\n=== Base -> SFT -> RL Progression ===")
+        print(f"  Base accuracy: {base_accuracy:.3f}")
+        print(f"  SFT accuracy:  {sft_accuracy:.3f}")
+        print(f"  RL accuracy:   {rl_accuracy:.3f}")
+        print(f"  Base reward: {base_reward:.3f}")
+        print(f"  SFT reward:  {sft_reward:.3f}")
+        print(f"  RL reward:   {rl_reward:.3f}")
+        print(f"  SFT loss: {sft_losses[0]:.4f} -> {sft_losses[-1]:.4f}")
+        print(f"  RL mean reward during train: {sum(rl_mean_rewards) / len(rl_mean_rewards):.3f}")
+        print(f"  RL non-zero advantage steps: {non_zero_advantage_steps}/{RL_PROOF_STEPS}")
+
+        assert sft_accuracy >= base_accuracy + 0.30
+        assert sft_reward >= base_reward + 0.30
+        assert sft_losses[-1] < sft_losses[0]
+        assert non_zero_advantage_steps >= RL_PROOF_STEPS // 4
+        assert rl_reward >= sft_reward + 0.01
+        assert rl_accuracy >= sft_accuracy - 1e-6
+
     def test_sft_improves_exact_match_accuracy(self, backend, model_name):
         train_examples = _train_examples()
         eval_examples = _eval_examples()
@@ -317,52 +453,15 @@ class TestCapabilityProofs:
             group_size=GROUP_SIZE,
         )
 
-        non_zero_advantage_steps = 0
-        mean_rewards: list[float] = []
-        for step in range(RL_PROOF_STEPS):
-            prompt, gold_label = train_examples[step % len(train_examples)]
-            prompt_tokens = tokenizer.encode(prompt)
-            sample_result = backend.sample(
-                "capability-rl",
-                SampleInput(
-                    prompt=ModelInput(chunks=[EncodedTextChunk(tokens=prompt_tokens)]),
-                    sampling_params=SamplingParams(
-                        temperature=1.0,
-                        max_tokens=4,
-                        stop=["\n"],
-                        seed=step,
-                    ),
-                    num_samples=GROUP_SIZE,
-                    prompt_logprobs=False,
-                ),
-            )
-
-            rewards = []
-            datums = []
-            for sequence in sample_result.sequences:
-                text = tokenizer.decode(sequence.tokens, skip_special_tokens=True)
-                rewards.append(_reward_for_label(text, gold_label))
-
-            mean_reward = sum(rewards) / len(rewards)
-            advantages = [reward - mean_reward for reward in rewards]
-            mean_rewards.append(mean_reward)
-            if any(abs(advantage) > 1e-6 for advantage in advantages):
-                non_zero_advantage_steps += 1
-            else:
-                continue
-
-            for sequence, advantage in zip(sample_result.sequences, advantages, strict=True):
-                datums.append(_make_rl_datum(tokenizer, prompt, sequence, advantage))
-
-            fb_result = backend.forward_backward(
-                "capability-rl",
-                ForwardBackwardInput(data=datums, loss_fn="importance_sampling"),
-            )
-            assert isinstance(fb_result.metrics["loss:sum"], float)
-            backend.optim_step(
-                "capability-rl",
-                OptimStepInput(adam_params=AdamParams(learning_rate=1e-4)),
-            )
+        mean_rewards, non_zero_advantage_steps = _run_rl_steps(
+            backend,
+            "capability-rl",
+            tokenizer,
+            train_examples,
+            num_steps=RL_PROOF_STEPS,
+            learning_rate=1e-4,
+            group_size=GROUP_SIZE,
+        )
 
         post_rl_accuracy = _evaluate_accuracy(backend, "capability-rl", tokenizer, eval_examples)
         post_rl_reward = _evaluate_mean_reward(

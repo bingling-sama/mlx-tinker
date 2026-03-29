@@ -14,6 +14,8 @@ dependencies = [
     "huggingface-hub>=0.28.0",
     "greenlet>=3.3.2",
     "datasets>=4.8.4",
+    "tinker>=0.16.1",
+    "protobuf>=5.28.3,<7",
 ]
 
 [project.optional-dependencies]
@@ -22,6 +24,11 @@ dev = [
     "pytest-asyncio>=0.25.0",
     "httpx>=0.28.0",
     "ruff>=0.9.0",
+    "python-dotenv>=1.0.0",
+    "torch>=2.5.0",
+]
+cookbook = [
+    "datasets>=4.0.0",
 ]
 stress = [
     "torch>=2.5.0",
@@ -29,6 +36,11 @@ stress = [
     "peft>=0.14.0",
     "datasets>=3.2.0",
     "scipy>=1.14.0",
+    "bitsandbytes>=0.44.0",
+]
+benchmark = [
+    "tinker-atropos @ git+https://github.com/NousResearch/tinker-atropos.git",
+    "wandb>=0.18.0",
 ]
 
 [project.scripts]
@@ -37,6 +49,14 @@ mlx-tinker = "mlx_tinker.__main__:main"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.uv]
+override-dependencies = [
+    "atroposlib>=0.4.0",  # override atroposlib[all] to avoid vllm (requires CUDA)
+]
 
 [tool.ruff]
 line-length = 100
@@ -51,4 +71,6 @@ testpaths = ["tests"]
 markers = [
     "stress: marks tests requiring HF transformers (deselect with '-m \"not stress\"')",
     "cookbook: marks tinker-cookbook verification tests",
+    "uat: marks opt-in end-to-end backend-vs-backend acceptance tests",
+    "profiling: marks timing/memory measurement tests (may be flaky on CI)",
 ]

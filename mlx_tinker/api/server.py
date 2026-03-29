@@ -426,7 +426,10 @@ async def _resolve_sampling_request(
 ) -> tuple[str | None, dict]:
     """Resolve a sample request into concrete backend request data."""
     resolved_model_id = request.model_id
-    resolved_request = request.model_dump()
+    # Preserve SDK semantics for omitted optional fields. In particular,
+    # prompt_logprobs should fall back to the backend default `False`, not
+    # serialize as `null` and fail SampleInput validation later.
+    resolved_request = request.model_dump(exclude_none=True)
 
     if request.sampling_session_id:
         async with get_session() as db:
