@@ -51,6 +51,13 @@ Goal:
 3. Extremely fast, performant model training + inference platform for local AI agents on Apple Silicon.
 4. Integrate with Hermes Agent and OpenClaw to support continual learning plugins such as OpenClaw-RL.
 
+## Development Principles
+
+- All claimed optimizations must have proofs with them.
+- As a faithful AI agent building a high-stakes, upstream library, you are required to be extremely thorough.
+- ALWAYS VERIFY CLAIMS AND ASSUMPTIONS.
+- Do experiments, A lot of them. Verify ideas in small scale. Write one-off scripts if required. Only high-confidence changes will be approved.
+
 ### Loss functions
 - **Sum reduction** for all losses (not mean) — matches Tinker's official formulas
 - `cross_entropy`: `(-target_logprobs * weights).sum()`
