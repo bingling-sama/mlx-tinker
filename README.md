@@ -88,8 +88,6 @@ await training.optim_step_async(tinker.AdamParams(learning_rate=5e-5))
 
 Both backends converge on WikiSQL SFT with comparable accuracy. mlx-tinker trades some per-step speed for running entirely on your Mac — no cloud costs, no network latency, your data stays local. And Tinker (official) doesn't even support 9B — mlx-tinker lets you train larger models that the cloud can't.
 
-> **Reproduce:** `uv run python scripts/run_benchmark.py --mlx-only --sft-steps 50 --skip-rl --skip-inference --model Qwen/Qwen3.5-4B`
-
 ## Features
 
 ### QLoRA with Gradient Checkpointing
