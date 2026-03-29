@@ -7,6 +7,7 @@ import logging
 import traceback
 from datetime import datetime, timezone
 
+from mlx_tinker.backend.inference import _sampling_params_key
 from sqlalchemy import update
 
 from mlx_tinker.backend.mlx_backend import MLXBackend
@@ -89,14 +90,19 @@ class TinkerEngine:
 
         while self._running:
             try:
-                await self._process_cycle()
+                did_work = await self._process_cycle()
             except Exception:
                 logger.error("Engine cycle error:\n%s", traceback.format_exc())
+                did_work = False
 
-            await asyncio.sleep(cycle_sec)
+            if did_work:
+                await asyncio.sleep(0)
+            else:
+                await asyncio.sleep(cycle_sec)
 
-    async def _process_cycle(self) -> None:
+    async def _process_cycle(self) -> bool:
         """Single engine cycle: find and dispatch pending requests."""
+        did_work = False
         async with get_session() as session:
             # 1. Process batchable forward_backward requests
             fb_batch = await find_batchable_requests(
@@ -106,6 +112,7 @@ class TinkerEngine:
             )
             for future in fb_batch:
                 await self._dispatch_forward_backward(future)
+                did_work = True
 
             # 2. Process batchable forward requests
             fwd_batch = await find_batchable_requests(
@@ -115,19 +122,50 @@ class TinkerEngine:
             )
             for future in fwd_batch:
                 await self._dispatch_forward(future)
+                did_work = True
 
             # 3. Process sample requests
             sample_batch = await find_sample_requests(
                 session,
                 max_batch_size=self.config.max_batch_size,
             )
-            for future in sample_batch:
-                await self._dispatch_sample(future)
+            for futures in self._group_sample_futures(sample_batch):
+                if len(futures) == 1:
+                    await self._dispatch_sample(futures[0])
+                else:
+                    await self._dispatch_sample_batch(futures)
+                did_work = True
 
             # 4. Process single (barrier) requests
             single = await find_next_single_request(session)
             if single is not None:
                 await self._dispatch_single(single)
+                did_work = True
+
+        return did_work
+
+    def _group_sample_futures(self, futures: list[FutureDB]) -> list[list[FutureDB]]:
+        """Group sample requests that can share a single backend sampling call."""
+        groups: list[list[FutureDB]] = []
+        current: list[FutureDB] = []
+        current_key: tuple | None = None
+
+        for future in futures:
+            request_data = future.request_data or {}
+            key = (
+                future.model_id,
+                _sampling_params_key(SampleInput(**request_data).sampling_params),
+                bool(request_data.get("prompt_logprobs")),
+            )
+            if current and key != current_key:
+                groups.append(current)
+                current = []
+            current.append(future)
+            current_key = key
+
+        if current:
+            groups.append(current)
+        return groups
 
     async def _dispatch_forward_backward(self, future: FutureDB) -> None:
         """Dispatch a forward_backward request to the backend."""
@@ -166,6 +204,23 @@ class TinkerEngine:
             logger.error("sample failed for request %d: %s", future.request_id, e)
             async with get_session() as session:
                 await fail_future(session, future.request_id, str(e))
+
+    async def _dispatch_sample_batch(self, futures: list[FutureDB]) -> None:
+        """Dispatch a compatible sample batch to the backend in one call."""
+        try:
+            requests = [SampleInput(**future.request_data) for future in futures]
+            results = await asyncio.to_thread(
+                self.backend.sample_batch,
+                [(future.model_id, request) for future, request in zip(futures, requests, strict=True)],
+            )
+            async with get_session() as session:
+                for future, result in zip(futures, results, strict=True):
+                    await complete_future(session, future.request_id, result.model_dump())
+        except Exception as e:
+            logger.error("sample batch failed for requests %s: %s", [f.request_id for f in futures], e)
+            async with get_session() as session:
+                for future in futures:
+                    await fail_future(session, future.request_id, str(e))
 
     async def _dispatch_single(self, future: FutureDB) -> None:
         """Dispatch a single (non-batchable) request to the backend."""

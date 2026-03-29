@@ -5,7 +5,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, Discriminator
+from pydantic import BaseModel, Discriminator, Tag
 
 # ---------------------------------------------------------------------------
 # Enumerations
@@ -51,6 +51,7 @@ LOSS_TYPES: dict[str, int] = {
     "importance_sampling": 1,
     "ppo": 2,
     "cispo": 3,
+    "dro": 4,
 }
 
 
@@ -70,8 +71,8 @@ class AdamParams(BaseModel):
 
 class LoraConfig(BaseModel):
     rank: int
-    alpha: float
-    seed: int = 42
+    alpha: float = 16.0
+    seed: int | None = 42
     train_attn: bool = True
     train_mlp: bool = True
     train_unembed: bool = False
@@ -116,9 +117,18 @@ class ImageAssetPointerChunk(BaseModel):
     expected_tokens: int | None = None
 
 
+def _chunk_discriminator(v):
+    """Discriminate chunk type, defaulting to encoded_text when type is missing."""
+    if isinstance(v, dict):
+        return v.get("type", "encoded_text")
+    return getattr(v, "type", "encoded_text")
+
+
 ModelInputChunk = Annotated[
-    EncodedTextChunk | ImageAssetPointerChunk | ImageChunk,
-    Discriminator("type"),
+    Annotated[EncodedTextChunk, Tag("encoded_text")]
+    | Annotated[ImageAssetPointerChunk, Tag("image_asset_pointer")]
+    | Annotated[ImageChunk, Tag("image")],
+    Discriminator(_chunk_discriminator),
 ]
 
 
@@ -139,13 +149,15 @@ class ModelInput(BaseModel):
 
 class TensorData(BaseModel):
     data: list[int] | list[float]
+    dtype: Literal["float32", "int64"] | None = None
+    shape: list[int] | None = None
 
 
 class LossFnInputs(BaseModel):
     target_tokens: TensorData
-    weights: TensorData
-    advantages: TensorData
-    logprobs: TensorData
+    weights: TensorData | None = None
+    advantages: TensorData | None = None
+    logprobs: TensorData | None = None
 
 
 class Datum(BaseModel):
@@ -180,7 +192,7 @@ class UnloadModelOutput(BaseModel):
 
 class ForwardBackwardInput(BaseModel):
     data: list[Datum]
-    loss_fn: Literal["cross_entropy", "importance_sampling", "ppo", "cispo"]
+    loss_fn: Literal["cross_entropy", "importance_sampling", "ppo", "cispo", "dro"]
     loss_fn_config: dict[str, float] | None = None
 
 
@@ -217,6 +229,7 @@ class SaveWeightsForSamplerInput(BaseModel):
     sampling_session_seq_id: int | None = None
     seq_id: int | None = None
     sampling_session_id: str | None = None
+    ephemeral: bool = False
 
 
 class SaveWeightsForSamplerOutput(BaseModel):
@@ -255,7 +268,10 @@ class GeneratedSequence(BaseModel):
 
 
 class SampleInput(BaseModel):
+    model_id: str | None = None
     base_model: str | None = None
+    model_path: str | None = None
+    sampling_session_id: str | None = None
     prompt: ModelInput
     sampling_params: SamplingParams
     num_samples: int = 1

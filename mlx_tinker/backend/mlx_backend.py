@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from pathlib import Path
 from typing import Any
 
+import mlx.core as mx
 import mlx.nn as nn
 from mlx_lm import load as mlx_load
 
@@ -54,7 +56,7 @@ class MLXBackend:
             optimizer_type=config.optimizer_type,
             gradient_checkpointing=config.gradient_checkpointing,
         )
-        self.inference = InferenceBackend()
+        self.inference = InferenceBackend(max_kv_cache_size=config.max_kv_cache_size)
         self.lora_manager = LoRAManager()
 
         # Model registry: model_id -> (model, tokenizer, lora_config)
@@ -62,6 +64,7 @@ class MLXBackend:
         self.tokenizers: dict[str, Any] = {}
         self.lora_configs: dict[str, LoraConfig] = {}
         self.model_configs: dict[str, dict] = {}
+        self.sampling_models: dict[str, tuple[nn.Module, Any]] = {}
 
         # Base model (shared, loaded once)
         self._base_model: nn.Module | None = None
@@ -130,6 +133,48 @@ class MLXBackend:
 
         return UnloadModelOutput(model_id=model_id, status="unloaded")
 
+    def _load_sampling_model(self, model_path: str, base_model: str | None) -> tuple[nn.Module, Any]:
+        resolved_path = self._validate_checkpoint_path(model_path)
+        cache_key = str(resolved_path)
+        if cache_key in self.sampling_models:
+            return self.sampling_models[cache_key]
+
+        config_path = resolved_path / "config.json"
+        config_payload: dict[str, Any] = {}
+        if config_path.exists():
+            config_payload = json.loads(config_path.read_text())
+
+        resolved_base_model = (
+            base_model
+            or config_payload.get("base_model")
+            or self.config.base_model
+        )
+        model, tokenizer = mlx_load(resolved_base_model)
+
+        adapter_path = resolved_path / "adapters.safetensors"
+        full_weights_path = resolved_path / "model.safetensors"
+        if adapter_path.exists():
+            lora_cfg = config_payload.get("lora_config")
+            if not lora_cfg:
+                raise ValueError(f"Missing lora_config in sampler config at {config_path}")
+            model = self.lora_manager.apply_qlora(
+                model,
+                LoraConfig(**lora_cfg),
+                quantize_bits=self.config.quantize_bits,
+                quantize_group_size=self.config.quantize_group_size,
+            )
+            model = self.lora_manager.load_adapter(model, resolved_path)
+        elif full_weights_path.exists():
+            weights = mx.load(str(full_weights_path))
+            model.load_weights(list(weights.items()), strict=False)
+        else:
+            raise FileNotFoundError(
+                f"No sampler weights found in {resolved_path}; expected adapters.safetensors or model.safetensors"
+            )
+
+        self.sampling_models[cache_key] = (model, tokenizer)
+        return model, tokenizer
+
     def _get_model(self, model_id: str) -> nn.Module:
         if model_id not in self.models:
             raise ValueError(f"Model {model_id} not found. Call create_model first.")
@@ -164,12 +209,29 @@ class MLXBackend:
     # Inference
     # ------------------------------------------------------------------
 
+    @staticmethod
+    def _inject_eos_stop_token(request: SampleInput, tokenizer) -> SampleInput:
+        """Ensure eos_token_id is in stop_tokens if the tokenizer defines one."""
+        eos_id = getattr(tokenizer, "eos_token_id", None)
+        if eos_id is None:
+            return request
+        current = request.sampling_params.stop_tokens or []
+        if eos_id in current:
+            return request
+        new_params = request.sampling_params.model_copy(
+            update={"stop_tokens": list(current) + [eos_id]}
+        )
+        return request.model_copy(update={"sampling_params": new_params})
+
     def sample(self, model_id: str | None, request: SampleInput) -> SampleOutput:
         """Generate samples. Uses model_id if provided, else base model."""
+        model_id = model_id or request.model_id
         if request.num_samples > MAX_SAMPLES:
             raise ValueError(f"num_samples={request.num_samples} exceeds maximum of {MAX_SAMPLES}")
 
-        if model_id and model_id in self.models:
+        if request.model_path:
+            model, tokenizer = self._load_sampling_model(request.model_path, request.base_model)
+        elif model_id and model_id in self.models:
             model = self.models[model_id]
             tokenizer = self.tokenizers[model_id]
         else:
@@ -177,8 +239,47 @@ class MLXBackend:
             model = self._base_model
             tokenizer = self._base_tokenizer
 
+        request = self._inject_eos_stop_token(request, tokenizer)
         model.eval()
         return self.inference.sample(model, tokenizer, request)
+
+    def sample_batch(self, requests: list[tuple[str | None, SampleInput]]) -> list[SampleOutput]:
+        """Generate samples for multiple requests, batching compatible ones."""
+        if not requests:
+            return []
+
+        resolved: list[tuple[object, object, SampleInput]] = []
+        for model_id, request in requests:
+            model_id = model_id or request.model_id
+            if request.num_samples > MAX_SAMPLES:
+                raise ValueError(f"num_samples={request.num_samples} exceeds maximum of {MAX_SAMPLES}")
+
+            if request.model_path:
+                model, tokenizer = self._load_sampling_model(request.model_path, request.base_model)
+            elif model_id and model_id in self.models:
+                model = self.models[model_id]
+                tokenizer = self.tokenizers[model_id]
+            else:
+                self._ensure_base_model()
+                model = self._base_model
+                tokenizer = self._base_tokenizer
+            request = self._inject_eos_stop_token(request, tokenizer)
+            model.eval()
+            resolved.append((model, tokenizer, request))
+
+        first_model, first_tokenizer, _first_request = resolved[0]
+        compatible = all(model is first_model and tokenizer is first_tokenizer for model, tokenizer, _ in resolved)
+        if compatible:
+            return self.inference.sample_batch(
+                first_model,
+                first_tokenizer,
+                [request for _model, _tokenizer, request in resolved],
+            )
+
+        return [
+            self.inference.sample(model, tokenizer, request)
+            for model, tokenizer, request in resolved
+        ]
 
     # ------------------------------------------------------------------
     # Checkpointing
@@ -208,8 +309,21 @@ class MLXBackend:
         model = self._get_model(model_id)
         path = request.path or str(self.config.checkpoints_base / model_id / "sampler" / "latest")
         safe_path = self._validate_checkpoint_path(path)
-        save_sampler_weights(model, safe_path)
-        return SaveWeightsForSamplerOutput(path=str(safe_path))
+        lora_config = self.lora_configs.get(model_id)
+        if lora_config is None:
+            raise ValueError(f"LoRA config for model {model_id} not found")
+        save_sampler_weights(
+            model,
+            safe_path,
+            base_model=self.config.base_model,
+            lora_config=lora_config.model_dump(),
+        )
+        # Refresh cached sampler state for this path on the next read.
+        self.sampling_models.pop(str(safe_path), None)
+        return SaveWeightsForSamplerOutput(
+            path=None if request.ephemeral else str(safe_path),
+            sampling_session_id=request.sampling_session_id,
+        )
 
     def load_weights(self, model_id: str, request: LoadWeightsInput) -> LoadWeightsOutput:
         model = self._get_model(model_id)

@@ -14,6 +14,8 @@ from fastapi.testclient import TestClient
 
 from mlx_tinker.api.server import create_app
 from mlx_tinker.config import EngineConfig
+from mlx_tinker.db.database import get_session
+from mlx_tinker.db.models import FutureDB, SamplingSessionDB
 
 
 @pytest.fixture
@@ -57,7 +59,7 @@ class TestHealthEndpoints:
         data = response.json()
         assert len(data["supported_models"]) == 1
         model = data["supported_models"][0]
-        assert model["name"] == "test-model"
+        assert model["model_name"] == "test-model"
         assert model["base_model"] == "test-model"
 
 
@@ -111,7 +113,7 @@ class TestModelLifecycle:
         assert resp.status_code == 200
         data = resp.json()
         assert "model_id" in data
-        assert data["status"] == "creating"
+        assert "request_id" in data
 
     def test_get_info(self, client):
         # Create session + model
@@ -157,24 +159,25 @@ class TestTrainingEndpoints:
             "/api/v1/forward_backward",
             json={
                 "model_id": model_id,
-                "data": [
-                    {
-                        "model_input": {"chunks": [{"type": "encoded_text", "tokens": [1, 2, 3]}]},
-                        "loss_fn_inputs": {
-                            "target_tokens": {"data": [2, 3, 4]},
-                            "weights": {"data": [1.0, 1.0, 1.0]},
-                            "advantages": {"data": [0.0, 0.0, 0.0]},
-                            "logprobs": {"data": [0.0, 0.0, 0.0]},
-                        },
-                    }
-                ],
-                "loss_fn": "cross_entropy",
+                "forward_backward_input": {
+                    "data": [
+                        {
+                            "model_input": {"chunks": [{"type": "encoded_text", "tokens": [1, 2, 3]}]},
+                            "loss_fn_inputs": {
+                                "target_tokens": {"data": [2, 3, 4]},
+                                "weights": {"data": [1.0, 1.0, 1.0]},
+                                "advantages": {"data": [0.0, 0.0, 0.0]},
+                                "logprobs": {"data": [0.0, 0.0, 0.0]},
+                            },
+                        }
+                    ],
+                    "loss_fn": "cross_entropy",
+                },
             },
         )
         assert resp.status_code == 200
         data = resp.json()
-        assert data["status"] == "pending"
-        assert "future_id" in data
+        assert "request_id" in data
 
     def test_optim_step_creates_future(self, client):
         model_id = self._create_model(client)
@@ -186,7 +189,7 @@ class TestTrainingEndpoints:
             },
         )
         assert resp.status_code == 200
-        assert resp.json()["status"] == "pending"
+        assert "request_id" in resp.json()
 
 
 class TestFutureLifecycle:
@@ -208,29 +211,32 @@ class TestFutureLifecycle:
             "/api/v1/forward_backward",
             json={
                 "model_id": model_id,
-                "data": [
-                    {
-                        "model_input": {"chunks": [{"type": "encoded_text", "tokens": [1]}]},
-                        "loss_fn_inputs": {
-                            "target_tokens": {"data": [2]},
-                            "weights": {"data": [1.0]},
-                            "advantages": {"data": [0.0]},
-                            "logprobs": {"data": [0.0]},
-                        },
-                    }
-                ],
-                "loss_fn": "cross_entropy",
+                "forward_backward_input": {
+                    "data": [
+                        {
+                            "model_input": {"chunks": [{"type": "encoded_text", "tokens": [1]}]},
+                            "loss_fn_inputs": {
+                                "target_tokens": {"data": [2]},
+                                "weights": {"data": [1.0]},
+                                "advantages": {"data": [0.0]},
+                                "logprobs": {"data": [0.0]},
+                            },
+                        }
+                    ],
+                    "loss_fn": "cross_entropy",
+                },
             },
         )
-        future_id = resp.json()["future_id"]
+        request_id = resp.json()["request_id"]
 
         # Retrieve — should be pending (engine hasn't processed it)
-        resp = client.post("/api/v1/retrieve_future", json={"future_id": future_id})
+        resp = client.post("/api/v1/retrieve_future", json={"request_id": request_id})
         assert resp.status_code == 200
-        assert resp.json()["status"] == "pending"
+        data = resp.json()
+        assert data.get("type") == "try_again" or "error" in data
 
     def test_retrieve_nonexistent_future(self, client):
-        resp = client.post("/api/v1/retrieve_future", json={"future_id": "99999"})
+        resp = client.post("/api/v1/retrieve_future", json={"request_id": "99999"})
         assert resp.status_code == 404
 
 
@@ -238,6 +244,19 @@ class TestTelemetry:
     def test_telemetry(self, client):
         resp = client.post(
             "/api/v1/telemetry", json={"event": "test_event", "data": {"key": "val"}}
+        )
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "accepted"
+
+    def test_telemetry_sdk_format(self, client):
+        resp = client.post(
+            "/api/v1/telemetry",
+            json={
+                "events": [{"event": "SESSION_START", "event_id": "abc", "severity": "INFO"}],
+                "platform": "Darwin",
+                "sdk_version": "0.16.1",
+                "session_id": "test-session-id",
+            },
         )
         assert resp.status_code == 200
         assert resp.json()["status"] == "accepted"
@@ -252,12 +271,12 @@ class TestRequestValidation:
             "/api/v1/create_model",
             json={"session_id": session_id, "base_model": "test-model"},
         )
-        assert resp.status_code == 422  # Pydantic validation error
+        assert resp.status_code == 200
 
     def test_forward_backward_missing_data(self, client):
         resp = client.post(
             "/api/v1/forward_backward",
-            json={"model_id": "x", "loss_fn": "cross_entropy"},
+            json={"model_id": "x", "forward_backward_input": {"loss_fn": "cross_entropy"}},
         )
         assert resp.status_code == 422
 
@@ -266,18 +285,20 @@ class TestRequestValidation:
             "/api/v1/forward_backward",
             json={
                 "model_id": "x",
-                "data": [
-                    {
-                        "model_input": {"chunks": [{"type": "encoded_text", "tokens": [1]}]},
-                        "loss_fn_inputs": {
-                            "target_tokens": {"data": [2]},
-                            "weights": {"data": [1.0]},
-                            "advantages": {"data": [0.0]},
-                            "logprobs": {"data": [0.0]},
-                        },
-                    }
-                ],
-                "loss_fn": "invalid_loss",
+                "forward_backward_input": {
+                    "data": [
+                        {
+                            "model_input": {"chunks": [{"type": "encoded_text", "tokens": [1]}]},
+                            "loss_fn_inputs": {
+                                "target_tokens": {"data": [2]},
+                                "weights": {"data": [1.0]},
+                                "advantages": {"data": [0.0]},
+                                "logprobs": {"data": [0.0]},
+                            },
+                        }
+                    ],
+                    "loss_fn": "invalid_loss",
+                },
             },
         )
         assert resp.status_code == 422
@@ -295,7 +316,8 @@ class TestRequestValidation:
         )
         assert resp.status_code == 200
         data = resp.json()
-        assert data["base_model"] == "test-model"
+        assert "model_id" in data
+        assert "request_id" in data
 
 
 class TestMoreEndpoints:
@@ -327,7 +349,7 @@ class TestMoreEndpoints:
             json={"model_id": model_id, "path": "checkpoints/test"},
         )
         assert resp.status_code == 200
-        assert resp.json()["status"] == "pending"
+        assert "request_id" in resp.json()
 
     def test_sample_creates_future(self, client):
         resp = client.post(
@@ -338,4 +360,74 @@ class TestMoreEndpoints:
             },
         )
         assert resp.status_code == 200
-        assert resp.json()["status"] == "pending"
+        assert "request_id" in resp.json()
+
+    def test_sample_preserves_model_id(self, client):
+        model_id = self._create_model(client)
+        resp = client.post(
+            "/api/v1/asample",
+            json={
+                "model_id": model_id,
+                "prompt": {"chunks": [{"type": "encoded_text", "tokens": [1, 2, 3]}]},
+                "sampling_params": {"temperature": 1.0, "max_tokens": 5},
+            },
+        )
+        assert resp.status_code == 200
+        assert resp.json()["model_id"] == model_id
+
+    def test_save_weights_for_sampler_creates_sampling_session(self, client, config):
+        model_id = self._create_model(client)
+        resp = client.post(
+            "/api/v1/save_weights_for_sampler",
+            json={"model_id": model_id, "sampling_session_seq_id": 0},
+        )
+        assert resp.status_code == 200
+        request_id = int(resp.json()["request_id"])
+
+        async def _load_rows():
+            async with get_session() as session:
+                future = await session.get(FutureDB, request_id)
+                assert future is not None
+                sampling_session_id = future.request_data["sampling_session_id"]
+                sampling_session = await session.get(SamplingSessionDB, sampling_session_id)
+                return future, sampling_session
+
+        future, sampling_session = asyncio.run(_load_rows())
+        assert future.request_data["path"].startswith(str(config.checkpoints_base / model_id / "sampler"))
+        assert future.request_data["ephemeral"] is True
+        assert sampling_session is not None
+        assert sampling_session.model_path == future.request_data["path"]
+
+    def test_sample_resolves_sampling_session_path(self, client):
+        session_resp = client.post("/api/v1/create_session", json={"sdk_version": "0.1.0"})
+        session_id = session_resp.json()["session_id"]
+        sampling_resp = client.post(
+            "/api/v1/create_sampling_session",
+            json={
+                "session_id": session_id,
+                "base_model": "test-model",
+                "model_path": "checkpoints/sampler-1",
+            },
+        )
+        sampling_session_id = sampling_resp.json()["sampling_session_id"]
+
+        resp = client.post(
+            "/api/v1/asample",
+            json={
+                "sampling_session_id": sampling_session_id,
+                "prompt": {"chunks": [{"type": "encoded_text", "tokens": [1, 2, 3]}]},
+                "sampling_params": {"temperature": 1.0, "max_tokens": 5},
+            },
+        )
+        assert resp.status_code == 200
+        request_id = int(resp.json()["request_id"])
+        assert resp.json()["model_id"] is None
+
+        async def _load_future():
+            async with get_session() as session:
+                return await session.get(FutureDB, request_id)
+
+        future = asyncio.run(_load_future())
+        assert future is not None
+        assert future.request_data["model_path"] == "checkpoints/sampler-1"
+        assert future.request_data["base_model"] == "test-model"

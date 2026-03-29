@@ -1,4 +1,4 @@
-"""Checkpoint save/load for model weights and optimizer state."""
+"""Checkpoint save/load helpers for model weights, adapters, and optimizer state."""
 
 from __future__ import annotations
 
@@ -82,25 +82,29 @@ def load_training_checkpoint(
 def save_sampler_weights(
     model: nn.Module,
     output_dir: Path,
-    model_config: dict | None = None,
+    base_model: str,
+    lora_config: dict | None = None,
     tokenizer_config: dict | None = None,
 ) -> Path:
-    """Save model weights for inference (sampler checkpoint).
+    """Save a LoRA sampler checkpoint for inference.
 
-    Lighter than full training checkpoint — no optimizer state.
+    Sampler checkpoints are expected to be lightweight adapter-only exports plus
+    enough metadata to reconstruct the base model at inference time.
     """
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    weights = dict(tree_flatten(model.parameters()))
-    mx.save_safetensors(str(output_dir / "model.safetensors"), weights)
+    adapter_weights = dict(tree_flatten(model.trainable_parameters()))
+    mx.save_safetensors(str(output_dir / "adapters.safetensors"), adapter_weights)
 
-    if model_config:
-        (output_dir / "config.json").write_text(json.dumps(model_config, indent=2))
+    config_payload = {"base_model": base_model}
+    if lora_config:
+        config_payload["lora_config"] = lora_config
+    (output_dir / "config.json").write_text(json.dumps(config_payload, indent=2))
 
     if tokenizer_config:
         (output_dir / "tokenizer_config.json").write_text(json.dumps(tokenizer_config, indent=2))
 
-    logger.info("Saved sampler weights to %s (%d tensors)", output_dir, len(weights))
+    logger.info("Saved sampler adapter weights to %s (%d tensors)", output_dir, len(adapter_weights))
     return output_dir
 
 
@@ -117,7 +121,22 @@ def _load_optimizer_state(opt_dir: Path) -> dict:
     state_path = opt_dir / "state.npz"
     if not state_path.exists():
         return {}
-    return dict(mx.load(str(state_path)))
+    flat = dict(mx.load(str(state_path)))
+    return _unflatten_state(flat)
+
+
+def _unflatten_state(flat: dict[str, mx.array]) -> dict:
+    """Reconstruct nested state dict from flat key-value pairs."""
+    nested: dict = {}
+    for dotted_key, value in flat.items():
+        parts = dotted_key.split(".")
+        target = nested
+        for part in parts[:-1]:
+            if part not in target:
+                target[part] = {}
+            target = target[part]
+        target[parts[-1]] = value
+    return nested
 
 
 def _flatten_state(state: dict, prefix: str = "") -> dict[str, mx.array]:

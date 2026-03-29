@@ -1,11 +1,15 @@
 """Tests for the engine scheduler — barrier-aware batching logic."""
 
+from types import SimpleNamespace
+
 import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from mlx_tinker.config import EngineConfig
 from mlx_tinker.db.database import close_db, get_session, init_db
 from mlx_tinker.db.models import FutureDB
+from mlx_tinker.engine.engine import TinkerEngine
 from mlx_tinker.engine.scheduler import (
     complete_future,
     fail_future,
@@ -128,6 +132,41 @@ class TestFindSampleRequests:
         async with get_session() as session:
             batch = await find_sample_requests(session)
             assert len(batch) == 2
+
+
+class TestGroupSampleFutures:
+    def test_groups_by_sampling_tuple_key(self):
+        engine = TinkerEngine(EngineConfig(), backend=SimpleNamespace())
+        futures = [
+            SimpleNamespace(
+                model_id="model-1",
+                request_data={
+                    "prompt": {"chunks": [{"type": "encoded_text", "tokens": [1, 2, 3]}]},
+                    "sampling_params": {"temperature": 1.0, "max_tokens": 4, "seed": 7},
+                    "prompt_logprobs": False,
+                },
+            ),
+            SimpleNamespace(
+                model_id="model-1",
+                request_data={
+                    "prompt": {"chunks": [{"type": "encoded_text", "tokens": [1, 2, 3]}]},
+                    "sampling_params": {"max_tokens": 4, "seed": 7, "temperature": 1.0},
+                    "prompt_logprobs": False,
+                },
+            ),
+            SimpleNamespace(
+                model_id="model-1",
+                request_data={
+                    "prompt": {"chunks": [{"type": "encoded_text", "tokens": [1, 2, 3]}]},
+                    "sampling_params": {"temperature": 1.0, "max_tokens": 4, "seed": 9},
+                    "prompt_logprobs": False,
+                },
+            ),
+        ]
+
+        groups = engine._group_sample_futures(futures)
+
+        assert [len(group) for group in groups] == [2, 1]
 
 
 class TestCompleteFuture:

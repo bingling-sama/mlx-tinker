@@ -14,13 +14,9 @@ logger = logging.getLogger(__name__)
 
 def _has_kv_cache_support(model: nn.Module) -> bool:
     """Check if a model supports KV cache (i.e., is a real mlx-lm model)."""
-    if not hasattr(model, "layers"):
+    if not hasattr(model, "layers") or len(model.layers) == 0:
         return False
-    if len(model.layers) == 0:
-        return False
-    # Check if layers have attention with KV cache support
-    layer = model.layers[0]
-    return hasattr(layer, "self_attn") or hasattr(layer, "attention")
+    return hasattr(model, "make_cache") or model.__class__.__module__.startswith("mlx_lm.")
 
 
 def _sample_token(logits: mx.array, temperature: float, top_p: float) -> int:
@@ -50,8 +46,78 @@ def _sample_token(logits: mx.array, temperature: float, top_p: float) -> int:
     return token.item()
 
 
+def _make_mlx_sampler(sp: SamplingParams):
+    """Build an mlx-lm sampler matching the request's sampling params."""
+    from mlx_lm.sample_utils import make_sampler
+
+    top_k = sp.top_k if sp.top_k > 0 else 0
+    return make_sampler(temp=sp.temperature, top_p=sp.top_p, top_k=top_k)
+
+
+def _sampling_params_key(sp: SamplingParams) -> tuple:
+    """Hashable compatibility key for grouping sample requests."""
+    return (
+        sp.temperature,
+        sp.max_tokens,
+        sp.seed,
+        tuple(sp.stop_tokens or []),
+        tuple(sp.stop_strings or []),
+        sp.top_k,
+        sp.top_p,
+    )
+
+
 class InferenceBackend:
     """Token generation using mlx-lm, with per-request sampling parameters."""
+
+    def __init__(self, max_kv_cache_size: int | None = None) -> None:
+        self.max_kv_cache_size = max_kv_cache_size
+
+    @staticmethod
+    def _seed_rng(sp: SamplingParams) -> None:
+        """Honor per-request seed without changing the public API."""
+        if sp.seed is not None:
+            mx.random.seed(sp.seed)
+
+    def sample_batch(
+        self,
+        model: nn.Module,
+        tokenizer: object,
+        requests: list[SampleInput],
+    ) -> list[SampleOutput]:
+        """Generate samples for multiple compatible requests in one backend call."""
+        if not requests:
+            return []
+
+        if len(requests) == 1:
+            return [self.sample(model, tokenizer, requests[0])]
+
+        if any(request.prompt_logprobs for request in requests):
+            return [self.sample(model, tokenizer, request) for request in requests]
+
+        if not _has_kv_cache_support(model):
+            return [self.sample(model, tokenizer, request) for request in requests]
+
+        first_key = _sampling_params_key(requests[0].sampling_params)
+        if any(_sampling_params_key(request.sampling_params) != first_key for request in requests[1:]):
+            return [self.sample(model, tokenizer, request) for request in requests]
+
+        sp = requests[0].sampling_params
+        self._seed_rng(sp)
+        flat_prompts: list[list[int]] = []
+        request_slices: list[tuple[int, int]] = []
+        for request in requests:
+            start = len(flat_prompts)
+            prompt_tokens = request.prompt.get_tokens()
+            for _ in range(request.num_samples):
+                flat_prompts.append(list(prompt_tokens))
+            request_slices.append((start, len(flat_prompts)))
+
+        sequences = self._sample_prompt_batch(model, flat_prompts, sp)
+        outputs: list[SampleOutput] = []
+        for start, end in request_slices:
+            outputs.append(SampleOutput(sequences=sequences[start:end], prompt_logprobs=None))
+        return outputs
 
     def sample(
         self,
@@ -66,14 +132,36 @@ class InferenceBackend:
         """
         prompt_tokens = request.prompt.get_tokens()
         sp = request.sampling_params
+        self._seed_rng(sp)
+        use_batched_rollouts = request.num_samples > 1 and request.model_path is None
 
         if _has_kv_cache_support(model):
-            sequences = self._sample_with_generate_step(
-                model,
-                prompt_tokens,
-                sp,
-                request.num_samples,
-            )
+            if use_batched_rollouts:
+                try:
+                    sequences = self._sample_with_batch_generator(
+                        model,
+                        prompt_tokens,
+                        sp,
+                        request.num_samples,
+                    )
+                except Exception:
+                    logger.warning(
+                        "batched sampling failed; falling back to sequential generation",
+                        exc_info=True,
+                    )
+                    sequences = self._sample_with_generate_step(
+                        model,
+                        prompt_tokens,
+                        sp,
+                        request.num_samples,
+                    )
+            else:
+                sequences = self._sample_with_generate_step(
+                    model,
+                    prompt_tokens,
+                    sp,
+                    request.num_samples,
+                )
         else:
             sequences = self._sample_simple(model, prompt_tokens, sp, request.num_samples)
 
@@ -91,6 +179,57 @@ class InferenceBackend:
 
         return SampleOutput(sequences=sequences, prompt_logprobs=prompt_lp)
 
+    def _sample_prompt_batch(
+        self,
+        model: nn.Module,
+        prompts: list[list[int]],
+        sp: SamplingParams,
+    ) -> list[GeneratedSequence]:
+        """Generate one output sequence for each prompt in a prompt batch."""
+        from mlx_lm.generate import BatchGenerator
+
+        sampler = _make_mlx_sampler(sp)
+        max_tokens = [sp.max_tokens] * len(prompts)
+        samplers = [sampler] * len(prompts)
+
+        generator = BatchGenerator(
+            model,
+            stop_tokens=set(sp.stop_tokens or []),
+            max_kv_size=self.max_kv_cache_size,
+        )
+        uids = generator.insert(prompts, max_tokens=max_tokens, samplers=samplers)
+        by_uid = {
+            uid: GeneratedSequence(stop_reason="length", tokens=[], logprobs=[]) for uid in uids
+        }
+
+        try:
+            while responses := generator.next():
+                for response in responses:
+                    token_id = int(response.token)
+                    sequence = by_uid[response.uid]
+                    sequence.tokens.append(token_id)
+                    if response.logprobs is not None:
+                        sequence.logprobs.append(response.logprobs.reshape(-1)[token_id].item())
+                    else:
+                        sequence.logprobs.append(0.0)
+                    if response.finish_reason is not None:
+                        sequence.stop_reason = response.finish_reason
+        finally:
+            generator.close()
+
+        return [by_uid[uid] for uid in uids]
+
+    def _sample_with_batch_generator(
+        self,
+        model: nn.Module,
+        prompt_tokens: list[int],
+        sp: SamplingParams,
+        num_samples: int,
+    ) -> list[GeneratedSequence]:
+        """Batch identical prompts to avoid repeated prefill per rollout."""
+        prompts = [list(prompt_tokens) for _ in range(num_samples)]
+        return self._sample_prompt_batch(model, prompts, sp)
+
     def _sample_with_generate_step(
         self,
         model: nn.Module,
@@ -100,9 +239,8 @@ class InferenceBackend:
     ) -> list[GeneratedSequence]:
         """Use mlx-lm's generate_step for models with KV cache."""
         from mlx_lm.generate import generate_step
-        from mlx_lm.sample_utils import make_sampler
 
-        sampler = make_sampler(temp=sp.temperature, top_p=sp.top_p)
+        sampler = _make_mlx_sampler(sp)
         sequences: list[GeneratedSequence] = []
 
         for _ in range(num_samples):
@@ -115,8 +253,9 @@ class InferenceBackend:
                 model=model,
                 max_tokens=sp.max_tokens,
                 sampler=sampler,
+                max_kv_size=self.max_kv_cache_size,
             ):
-                token_id = token.item()
+                token_id = token.item() if hasattr(token, "item") else int(token)
                 log_probs_all = logprobs - mx.logsumexp(logprobs, axis=-1, keepdims=True)
                 token_logprob = log_probs_all.reshape(-1)[token_id].item()
 

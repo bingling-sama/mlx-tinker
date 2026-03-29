@@ -1,33 +1,36 @@
-"""FastAPI server implementing the Tinker API endpoints."""
+"""FastAPI server implementing the Tinker API endpoints.
+
+Wire-compatible with the tinker SDK: submit endpoints return UntypedAPIFuture,
+retrieve_future returns the raw typed result or TryAgainResponse.
+"""
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import JSONResponse
 
 from mlx_tinker.api.models import (
     CreateModelRequest,
-    CreateModelResponse,
     CreateSamplingSessionRequest,
     CreateSamplingSessionResponse,
     CreateSessionRequest,
     CreateSessionResponse,
     ForwardBackwardRequest,
     ForwardRequest,
-    FutureResponse,
     GetInfoRequest,
+    GetInfoResponse,
     GetServerCapabilitiesResponse,
     HealthResponse,
     LoadWeightsRequest,
     ModelData,
-    ModelInfoResponse,
     OptimStepRequest,
     RetrieveFutureRequest,
-    RetrieveFutureResponse,
     SampleRequest,
     SaveWeightsForSamplerRequest,
     SaveWeightsRequest,
@@ -36,8 +39,9 @@ from mlx_tinker.api.models import (
     SupportedModel,
     TelemetryRequest,
     TelemetryResponse,
+    TryAgainResponse,
     UnloadModelRequest,
-    UnloadModelResponse,
+    UntypedAPIFuture,
 )
 from mlx_tinker.backend.mlx_backend import MLXBackend
 from mlx_tinker.config import EngineConfig
@@ -102,7 +106,10 @@ def _register_routes(app: FastAPI) -> None:
     async def get_server_capabilities() -> GetServerCapabilitiesResponse:
         return GetServerCapabilitiesResponse(
             supported_models=[
-                SupportedModel(name=_config.base_model, base_model=_config.base_model)
+                SupportedModel(
+                    model_name=_config.base_model,
+                    base_model=_config.base_model,
+                )
             ]
         )
 
@@ -126,7 +133,7 @@ def _register_routes(app: FastAPI) -> None:
             session = SessionDB(
                 session_id=session_id,
                 tags=request.tags,
-                user_metadata=request.user_metadata,
+                user_metadata=request.user_metadata or {},
                 sdk_version=request.sdk_version,
             )
             db.add(session)
@@ -165,25 +172,24 @@ def _register_routes(app: FastAPI) -> None:
     # ------------------------------------------------------------------
 
     @app.post("/api/v1/create_model")
-    async def create_model(request: CreateModelRequest) -> CreateModelResponse:
+    async def create_model(request: CreateModelRequest) -> UntypedAPIFuture:
         model_id = str(uuid.uuid4())
+        lora_config_data = request.lora_config.model_dump() if request.lora_config else {}
 
-        # Create future for engine processing
         async with get_session() as db:
             future = FutureDB(
                 request_type=RequestType.CREATE_MODEL,
                 model_id=model_id,
-                request_data={"lora_config": request.lora_config.model_dump()},
+                request_data={"lora_config": lora_config_data},
             )
             db.add(future)
             await db.commit()
             await db.refresh(future)
 
-            # Also register model in DB
             model_db = ModelDB(
                 model_id=model_id,
                 base_model=request.base_model or _config.base_model,
-                lora_config=request.lora_config.model_dump(),
+                lora_config=lora_config_data,
                 status="creating",
                 request_id=future.request_id,
                 session_id=request.session_id,
@@ -191,16 +197,13 @@ def _register_routes(app: FastAPI) -> None:
             db.add(model_db)
             await db.commit()
 
-        return CreateModelResponse(
-            model_id=model_id,
-            base_model=request.base_model or _config.base_model,
-            lora_config=request.lora_config,
-            status="creating",
+        return UntypedAPIFuture(
             request_id=str(future.request_id),
+            model_id=model_id,
         )
 
     @app.post("/api/v1/unload_model")
-    async def unload_model(request: UnloadModelRequest) -> UnloadModelResponse:
+    async def unload_model(request: UnloadModelRequest) -> UntypedAPIFuture:
         async with get_session() as db:
             future = FutureDB(
                 request_type=RequestType.UNLOAD_MODEL,
@@ -211,54 +214,60 @@ def _register_routes(app: FastAPI) -> None:
             await db.commit()
             await db.refresh(future)
 
-        return UnloadModelResponse(
+        return UntypedAPIFuture(
             request_id=str(future.request_id),
             model_id=request.model_id,
         )
 
     @app.post("/api/v1/get_info")
-    async def get_info(request: GetInfoRequest) -> ModelInfoResponse:
+    async def get_info(request: GetInfoRequest) -> GetInfoResponse:
         async with get_session() as db:
             model = await db.get(ModelDB, request.model_id)
             if model is None:
                 raise HTTPException(status_code=404, detail=f"Model {request.model_id} not found")
 
-        return ModelInfoResponse(
+        lora_config = model.lora_config or {}
+        return GetInfoResponse(
             model_id=model.model_id,
-            status=model.status,
             model_data=ModelData(
-                base_model=model.base_model,
-                lora_config=model.lora_config,
-                status=model.status,
+                arch=None,
+                model_name=model.base_model,
+                tokenizer_id=model.base_model,
             ),
+            is_lora=True,
+            lora_rank=lora_config.get("rank"),
+            model_name=model.base_model,
+            type="get_info",
         )
 
     # ------------------------------------------------------------------
-    # Training operations (return futures)
+    # Training operations — return UntypedAPIFuture
     # ------------------------------------------------------------------
 
     @app.post("/api/v1/forward_backward")
-    async def forward_backward(request: ForwardBackwardRequest) -> FutureResponse:
+    async def forward_backward(request: ForwardBackwardRequest) -> UntypedAPIFuture:
+        fbi = request.forward_backward_input
         return await _create_future(
             RequestType.FORWARD_BACKWARD,
             request.model_id,
             {
-                "data": [d.model_dump() for d in request.data],
-                "loss_fn": request.loss_fn,
-                "loss_fn_config": request.loss_fn_config,
+                "data": [d.model_dump() for d in fbi.data],
+                "loss_fn": fbi.loss_fn,
+                "loss_fn_config": fbi.loss_fn_config,
             },
         )
 
     @app.post("/api/v1/forward")
-    async def forward(request: ForwardRequest) -> FutureResponse:
+    async def forward(request: ForwardRequest) -> UntypedAPIFuture:
+        fi = request.forward_input
         return await _create_future(
             RequestType.FORWARD,
             request.model_id,
-            {"data": [d.model_dump() for d in request.data]},
+            {"data": [d.model_dump() for d in fi.data]},
         )
 
     @app.post("/api/v1/optim_step")
-    async def optim_step(request: OptimStepRequest) -> FutureResponse:
+    async def optim_step(request: OptimStepRequest) -> UntypedAPIFuture:
         return await _create_future(
             RequestType.OPTIM_STEP,
             request.model_id,
@@ -266,11 +275,11 @@ def _register_routes(app: FastAPI) -> None:
         )
 
     # ------------------------------------------------------------------
-    # Weight management (return futures)
+    # Weight management — return UntypedAPIFuture
     # ------------------------------------------------------------------
 
     @app.post("/api/v1/save_weights")
-    async def save_weights(request: SaveWeightsRequest) -> FutureResponse:
+    async def save_weights(request: SaveWeightsRequest) -> UntypedAPIFuture:
         return await _create_future(
             RequestType.SAVE_WEIGHTS,
             request.model_id,
@@ -278,19 +287,45 @@ def _register_routes(app: FastAPI) -> None:
         )
 
     @app.post("/api/v1/save_weights_for_sampler")
-    async def save_weights_for_sampler(request: SaveWeightsForSamplerRequest) -> FutureResponse:
+    async def save_weights_for_sampler(request: SaveWeightsForSamplerRequest) -> UntypedAPIFuture:
+        request_payload = {
+            "path": request.path,
+            "sampling_session_seq_id": request.sampling_session_seq_id,
+            "seq_id": request.seq_id,
+            "ephemeral": False,
+        }
+        if request.path is None:
+            sampling_session_id = str(uuid.uuid4())
+            if _config is None:
+                raise RuntimeError("Server config is not initialized")
+            sampler_dir = _config.checkpoints_base / request.model_id / "sampler" / sampling_session_id
+            async with get_session() as db:
+                model = await db.get(ModelDB, request.model_id)
+                if model is None:
+                    raise HTTPException(
+                        status_code=404,
+                        detail=f"Model {request.model_id} not found",
+                    )
+                sampling_session = SamplingSessionDB(
+                    sampling_session_id=sampling_session_id,
+                    session_id=model.session_id,
+                    base_model=model.base_model,
+                    model_path=str(sampler_dir),
+                )
+                db.add(sampling_session)
+                await db.commit()
+            request_payload["path"] = str(sampler_dir)
+            request_payload["sampling_session_id"] = sampling_session_id
+            request_payload["ephemeral"] = True
+
         return await _create_future(
             RequestType.SAVE_WEIGHTS_FOR_SAMPLER,
             request.model_id,
-            {
-                "path": request.path,
-                "sampling_session_seq_id": request.sampling_session_seq_id,
-                "seq_id": request.seq_id,
-            },
+            request_payload,
         )
 
     @app.post("/api/v1/load_weights")
-    async def load_weights(request: LoadWeightsRequest) -> FutureResponse:
+    async def load_weights(request: LoadWeightsRequest) -> UntypedAPIFuture:
         return await _create_future(
             RequestType.LOAD_WEIGHTS,
             request.model_id,
@@ -301,39 +336,59 @@ def _register_routes(app: FastAPI) -> None:
         )
 
     # ------------------------------------------------------------------
-    # Sampling (returns future)
+    # Sampling — returns UntypedAPIFuture
     # ------------------------------------------------------------------
 
     @app.post("/api/v1/asample")
-    async def asample(request: SampleRequest) -> FutureResponse:
+    async def asample(request: SampleRequest) -> UntypedAPIFuture:
+        resolved_model_id, resolved_request = await _resolve_sampling_request(request)
         return await _create_future(
             RequestType.SAMPLE,
-            None,
-            request.model_dump(),
+            resolved_model_id,
+            resolved_request,
         )
 
     # ------------------------------------------------------------------
-    # Futures
+    # Futures — SDK protocol: return raw typed result or TryAgainResponse
     # ------------------------------------------------------------------
 
     @app.post("/api/v1/retrieve_future")
-    async def retrieve_future(request: RetrieveFutureRequest) -> RetrieveFutureResponse:
-        async with get_session() as db:
-            future = await db.get(FutureDB, int(request.future_id))
-            if future is None:
-                raise HTTPException(status_code=404, detail=f"Future {request.future_id} not found")
+    async def retrieve_future(request: RetrieveFutureRequest):
+        deadline = asyncio.get_running_loop().time() + 1.0
+        future = None
+        while True:
+            async with get_session() as db:
+                future = await db.get(FutureDB, int(request.request_id))
+                if future is None:
+                    raise HTTPException(
+                        status_code=404, detail=f"Future {request.request_id} not found"
+                    )
+            if future.status != RequestStatus.PENDING:
+                break
+            if asyncio.get_running_loop().time() >= deadline:
+                break
+            await asyncio.sleep(0.1)
 
         if future.status == RequestStatus.PENDING:
-            return RetrieveFutureResponse(status="pending")
+            return TryAgainResponse(
+                request_id=request.request_id,
+                queue_state="active",
+            )
         elif future.status == RequestStatus.FAILED:
             error = (
                 future.result_data.get("error", "Unknown error")
                 if future.result_data
                 else "Unknown error"
             )
-            return RetrieveFutureResponse(status="failed", error=error)
+            return JSONResponse(
+                status_code=200,
+                content={"error": error, "category": "execution_error"},
+            )
         else:
-            return RetrieveFutureResponse(status="completed", result=future.result_data)
+            return JSONResponse(
+                status_code=200,
+                content=future.result_data or {},
+            )
 
     # ------------------------------------------------------------------
     # Telemetry
@@ -348,8 +403,8 @@ async def _create_future(
     request_type: RequestType,
     model_id: str | None,
     request_data: dict,
-) -> FutureResponse:
-    """Helper to insert a future into the DB and return a FutureResponse."""
+) -> UntypedAPIFuture:
+    """Helper to insert a future into the DB and return an UntypedAPIFuture."""
     async with get_session() as db:
         future = FutureDB(
             request_type=request_type,
@@ -360,8 +415,33 @@ async def _create_future(
         await db.commit()
         await db.refresh(future)
 
-    return FutureResponse(
-        future_id=str(future.request_id),
-        status="pending",
+    return UntypedAPIFuture(
         request_id=str(future.request_id),
+        model_id=model_id,
     )
+
+
+async def _resolve_sampling_request(
+    request: SampleRequest,
+) -> tuple[str | None, dict]:
+    """Resolve a sample request into concrete backend request data."""
+    resolved_model_id = request.model_id
+    resolved_request = request.model_dump()
+
+    if request.sampling_session_id:
+        async with get_session() as db:
+            sampling_session = await db.get(SamplingSessionDB, request.sampling_session_id)
+            if sampling_session is None:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Sampling session {request.sampling_session_id} not found",
+                )
+
+        resolved_request["model_path"] = sampling_session.model_path
+        resolved_request["base_model"] = sampling_session.base_model or resolved_request.get(
+            "base_model"
+        )
+        # Sampling sessions refer to exported weights, not an in-memory training model.
+        resolved_model_id = None
+
+    return resolved_model_id, resolved_request

@@ -1,5 +1,8 @@
 """Unit tests for the inference backend (sample)."""
 
+import importlib
+from types import SimpleNamespace
+
 import mlx.core as mx
 import mlx.nn as nn
 import pytest
@@ -7,6 +10,7 @@ import pytest
 from mlx_tinker.backend.inference import InferenceBackend
 from mlx_tinker.types import (
     EncodedTextChunk,
+    GeneratedSequence,
     ModelInput,
     SampleInput,
     SamplingParams,
@@ -75,6 +79,44 @@ def inference():
 
 
 class TestSample:
+    def test_same_seed_repeats_identical_simple_samples(self, model, tokenizer, monkeypatch):
+        inference = InferenceBackend()
+        inference_module = importlib.import_module("mlx_tinker.backend.inference")
+        monkeypatch.setattr(inference_module, "_has_kv_cache_support", lambda _model: False)
+
+        request = SampleInput(
+            prompt=ModelInput(chunks=[EncodedTextChunk(tokens=[1, 2, 3])]),
+            sampling_params=SamplingParams(temperature=1.0, max_tokens=6, seed=7),
+            num_samples=1,
+        )
+
+        first = inference.sample(model, tokenizer, request)
+        second = inference.sample(model, tokenizer, request)
+
+        assert first.sequences[0].tokens == second.sequences[0].tokens
+        assert first.sequences[0].logprobs == second.sequences[0].logprobs
+
+    def test_different_seeds_can_diverge_for_simple_samples(self, model, tokenizer, monkeypatch):
+        inference = InferenceBackend()
+        inference_module = importlib.import_module("mlx_tinker.backend.inference")
+        monkeypatch.setattr(inference_module, "_has_kv_cache_support", lambda _model: False)
+
+        request_a = SampleInput(
+            prompt=ModelInput(chunks=[EncodedTextChunk(tokens=[1, 2, 3])]),
+            sampling_params=SamplingParams(temperature=1.0, max_tokens=8, seed=7),
+            num_samples=1,
+        )
+        request_b = SampleInput(
+            prompt=ModelInput(chunks=[EncodedTextChunk(tokens=[1, 2, 3])]),
+            sampling_params=SamplingParams(temperature=1.0, max_tokens=8, seed=9),
+            num_samples=1,
+        )
+
+        result_a = inference.sample(model, tokenizer, request_a)
+        result_b = inference.sample(model, tokenizer, request_b)
+
+        assert result_a.sequences[0].tokens != result_b.sequences[0].tokens
+
     def test_basic_generation(self, model, tokenizer, inference):
         request = SampleInput(
             prompt=ModelInput(chunks=[EncodedTextChunk(tokens=[1, 2, 3])]),
@@ -96,6 +138,294 @@ class TestSample:
 
         result = inference.sample(model, tokenizer, request)
         assert len(result.sequences) == 3
+
+    def test_multiple_samples_uses_batched_generation(self, model, tokenizer, inference, monkeypatch):
+        class FakeBatchGenerator:
+            instances = []
+
+            def __init__(self, _model, stop_tokens=None, max_kv_size=None):
+                self.stop_tokens = stop_tokens
+                self.max_kv_size = max_kv_size
+                self.calls = 0
+                self.closed = False
+                self.prompts = None
+                self.max_tokens = None
+                self.samplers = None
+                FakeBatchGenerator.instances.append(self)
+
+            def insert(self, prompts, max_tokens=None, samplers=None, **_kwargs):
+                self.prompts = prompts
+                self.max_tokens = max_tokens
+                self.samplers = samplers
+                return [10, 11]
+
+            def next(self):
+                self.calls += 1
+                if self.calls == 1:
+                    return [
+                        SimpleNamespace(
+                            uid=10,
+                            token=4,
+                            logprobs=mx.array([-5.0, -4.0, -3.0, -2.0, -1.0]),
+                            finish_reason=None,
+                        ),
+                        SimpleNamespace(
+                            uid=11,
+                            token=2,
+                            logprobs=mx.array([-6.0, -5.0, -0.5, -3.0, -4.0]),
+                            finish_reason=None,
+                        ),
+                    ]
+                if self.calls == 2:
+                    return [
+                        SimpleNamespace(
+                            uid=10,
+                            token=0,
+                            logprobs=mx.array([-0.25, -4.0, -5.0, -6.0, -7.0]),
+                            finish_reason="stop",
+                        ),
+                        SimpleNamespace(
+                            uid=11,
+                            token=3,
+                            logprobs=mx.array([-7.0, -6.0, -5.0, -0.75, -4.0]),
+                            finish_reason="length",
+                        ),
+                    ]
+                return []
+
+            def close(self):
+                self.closed = True
+
+        generate_module = importlib.import_module("mlx_lm.generate")
+        monkeypatch.setattr(generate_module, "BatchGenerator", FakeBatchGenerator)
+        inference_module = importlib.import_module("mlx_tinker.backend.inference")
+        monkeypatch.setattr(inference_module, "_has_kv_cache_support", lambda _model: True)
+
+        request = SampleInput(
+            prompt=ModelInput(chunks=[EncodedTextChunk(tokens=[1, 2, 3])]),
+            sampling_params=SamplingParams(temperature=1.0, max_tokens=2, stop_tokens=[0]),
+            num_samples=2,
+        )
+
+        result = inference.sample(model, tokenizer, request)
+
+        assert len(result.sequences) == 2
+        assert result.sequences[0].tokens == [4, 0]
+        assert result.sequences[0].stop_reason == "stop"
+        assert result.sequences[0].logprobs == [-1.0, -0.25]
+        assert result.sequences[1].tokens == [2, 3]
+        assert result.sequences[1].stop_reason == "length"
+        assert result.sequences[1].logprobs == [-0.5, -0.75]
+
+        fake = FakeBatchGenerator.instances[0]
+        assert fake.prompts == [[1, 2, 3], [1, 2, 3]]
+        assert fake.max_tokens == [2, 2]
+        assert len(fake.samplers) == 2
+        assert fake.stop_tokens == {0}
+        assert fake.max_kv_size is None
+        assert fake.closed is True
+
+    def test_multiple_samples_with_model_path_avoids_batched_generation(
+        self, model, tokenizer, inference, monkeypatch
+    ):
+        calls = {"batch": 0, "step": 0}
+
+        def fake_batch(*args, **kwargs):
+            calls["batch"] += 1
+            raise AssertionError("Batch generator should not be used for sampler checkpoints")
+
+        def fake_step(model, prompt_tokens, sp, num_samples):
+            calls["step"] += 1
+            return [
+                GeneratedSequence(stop_reason="length", tokens=[1], logprobs=[-0.1])
+                for _ in range(num_samples)
+            ]
+
+        monkeypatch.setattr(inference, "_sample_with_batch_generator", fake_batch)
+        monkeypatch.setattr(inference, "_sample_with_generate_step", fake_step)
+        inference_module = importlib.import_module("mlx_tinker.backend.inference")
+        monkeypatch.setattr(inference_module, "_has_kv_cache_support", lambda _model: True)
+
+        request = SampleInput(
+            prompt=ModelInput(chunks=[EncodedTextChunk(tokens=[1, 2, 3])]),
+            sampling_params=SamplingParams(temperature=1.0, max_tokens=2, stop_tokens=[0]),
+            num_samples=8,
+            model_path="checkpoints/sampler-1",
+        )
+
+        result = inference.sample(model, tokenizer, request)
+
+        assert len(result.sequences) == 8
+        assert calls == {"batch": 0, "step": 1}
+
+    def test_generate_step_forwards_max_kv_cache_size(self, model, tokenizer, monkeypatch):
+        captured = {}
+
+        def fake_generate_step(*, prompt, model, max_tokens, sampler, max_kv_size):
+            captured["max_kv_size"] = max_kv_size
+            yield mx.array(0), mx.array([-0.25, -4.0, -5.0])
+
+        generate_module = importlib.import_module("mlx_lm.generate")
+        monkeypatch.setattr(generate_module, "generate_step", fake_generate_step)
+        inference_module = importlib.import_module("mlx_tinker.backend.inference")
+        monkeypatch.setattr(inference_module, "_has_kv_cache_support", lambda _model: True)
+
+        inference = InferenceBackend(max_kv_cache_size=77)
+        request = SampleInput(
+            prompt=ModelInput(chunks=[EncodedTextChunk(tokens=[1, 2, 3])]),
+            sampling_params=SamplingParams(temperature=1.0, max_tokens=1, stop_tokens=[0]),
+            num_samples=1,
+        )
+
+        result = inference.sample(model, tokenizer, request)
+
+        assert result.sequences[0].tokens == [0]
+        assert captured["max_kv_size"] == 77
+
+    def test_sample_batch_batches_multiple_requests(self, model, tokenizer, inference, monkeypatch):
+        class FakeBatchGenerator:
+            instances = []
+
+            def __init__(self, _model, stop_tokens=None, max_kv_size=None):
+                self.stop_tokens = stop_tokens
+                self.max_kv_size = max_kv_size
+                self.calls = 0
+                self.closed = False
+                self.prompts = None
+                FakeBatchGenerator.instances.append(self)
+
+            def insert(self, prompts, max_tokens=None, samplers=None, **_kwargs):
+                self.prompts = prompts
+                return [10, 11, 12]
+
+            def next(self):
+                self.calls += 1
+                if self.calls == 1:
+                    return [
+                        SimpleNamespace(
+                            uid=10,
+                            token=4,
+                            logprobs=mx.array([-5.0, -4.0, -3.0, -2.0, -1.0]),
+                            finish_reason=None,
+                        ),
+                        SimpleNamespace(
+                            uid=11,
+                            token=2,
+                            logprobs=mx.array([-6.0, -5.0, -0.5, -3.0, -4.0]),
+                            finish_reason=None,
+                        ),
+                        SimpleNamespace(
+                            uid=12,
+                            token=1,
+                            logprobs=mx.array([-6.0, -0.1, -0.5, -3.0, -4.0]),
+                            finish_reason=None,
+                        ),
+                    ]
+                if self.calls == 2:
+                    return [
+                        SimpleNamespace(
+                            uid=10,
+                            token=0,
+                            logprobs=mx.array([-0.25, -4.0, -5.0, -6.0, -7.0]),
+                            finish_reason="stop",
+                        ),
+                        SimpleNamespace(
+                            uid=11,
+                            token=3,
+                            logprobs=mx.array([-7.0, -6.0, -5.0, -0.75, -4.0]),
+                            finish_reason="length",
+                        ),
+                        SimpleNamespace(
+                            uid=12,
+                            token=0,
+                            logprobs=mx.array([-0.2, -4.0, -5.0, -6.0, -7.0]),
+                            finish_reason="stop",
+                        ),
+                    ]
+                return []
+
+            def close(self):
+                self.closed = True
+
+        generate_module = importlib.import_module("mlx_lm.generate")
+        monkeypatch.setattr(generate_module, "BatchGenerator", FakeBatchGenerator)
+        inference_module = importlib.import_module("mlx_tinker.backend.inference")
+        monkeypatch.setattr(inference_module, "_has_kv_cache_support", lambda _model: True)
+
+        requests = [
+            SampleInput(
+                prompt=ModelInput(chunks=[EncodedTextChunk(tokens=[1, 2, 3])]),
+                sampling_params=SamplingParams(temperature=1.0, max_tokens=2, stop_tokens=[0]),
+                num_samples=2,
+            ),
+            SampleInput(
+                prompt=ModelInput(chunks=[EncodedTextChunk(tokens=[9, 8, 7])]),
+                sampling_params=SamplingParams(temperature=1.0, max_tokens=2, stop_tokens=[0]),
+                num_samples=1,
+            ),
+        ]
+
+        results = inference.sample_batch(model, tokenizer, requests)
+
+        assert len(results) == 2
+        assert [seq.tokens for seq in results[0].sequences] == [[4, 0], [2, 3]]
+        assert [seq.tokens for seq in results[1].sequences] == [[1, 0]]
+
+        fake = FakeBatchGenerator.instances[0]
+        assert fake.prompts == [[1, 2, 3], [1, 2, 3], [9, 8, 7]]
+        assert fake.stop_tokens == {0}
+        assert fake.max_kv_size is None
+        assert fake.closed is True
+
+    def test_batch_generator_forwards_max_kv_cache_size(self, model, tokenizer, monkeypatch):
+        class FakeBatchGenerator:
+            instances = []
+
+            def __init__(self, _model, stop_tokens=None, max_kv_size=None):
+                self.max_kv_size = max_kv_size
+                self.calls = 0
+                FakeBatchGenerator.instances.append(self)
+
+            def insert(self, prompts, max_tokens=None, samplers=None, **_kwargs):
+                return list(range(10, 10 + len(prompts)))
+
+            def next(self):
+                self.calls += 1
+                if self.calls == 1:
+                    return [
+                        SimpleNamespace(
+                            uid=10,
+                            token=0,
+                            logprobs=mx.array([-0.25, -4.0, -5.0]),
+                            finish_reason="stop",
+                        ),
+                        SimpleNamespace(
+                            uid=11,
+                            token=0,
+                            logprobs=mx.array([-0.25, -4.0, -5.0]),
+                            finish_reason="stop",
+                        ),
+                    ]
+                return []
+
+            def close(self):
+                return None
+
+        generate_module = importlib.import_module("mlx_lm.generate")
+        monkeypatch.setattr(generate_module, "BatchGenerator", FakeBatchGenerator)
+        inference_module = importlib.import_module("mlx_tinker.backend.inference")
+        monkeypatch.setattr(inference_module, "_has_kv_cache_support", lambda _model: True)
+
+        inference = InferenceBackend(max_kv_cache_size=99)
+        request = SampleInput(
+            prompt=ModelInput(chunks=[EncodedTextChunk(tokens=[1, 2, 3])]),
+            sampling_params=SamplingParams(temperature=1.0, max_tokens=2, stop_tokens=[0]),
+            num_samples=2,
+        )
+
+        inference.sample(model, tokenizer, request)
+
+        assert FakeBatchGenerator.instances[0].max_kv_size == 99
 
     def test_stop_token(self, model, tokenizer, inference):
         request = SampleInput(
