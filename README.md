@@ -110,11 +110,11 @@ All losses use **sum reduction** to match Tinker's official formulas.
 
 Non-MoE Qwen3.5 family:
 
-| Model | Recommended RAM | Status |
-|-------|:--------------:|:------:|
-| Qwen/Qwen3.5-0.8B | 16 GB | Tested |
-| Qwen/Qwen3.5-4B | 32 GB | Tested |
-| Qwen/Qwen3.5-9B | 64 GB | Tested |
+| Model | Status |
+|-------|:------:|
+| Qwen/Qwen3.5-0.8B | Tested |
+| Qwen/Qwen3.5-4B | Tested |
+| Qwen/Qwen3.5-9B | Tested |
 
 ### OpenAI-Compatible Inference
 
