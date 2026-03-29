@@ -1,0 +1,7744 @@
+[
+  {
+    "id": "1-1745843-8:What is the part 4 of the word with the part 1 \"heizan\"?",
+    "table_id": "1-1745843-8",
+    "question": "What is the part 4 of the word with the part 1 \"heizan\"?",
+    "sql": "SELECT \"Part 4\" FROM table WHERE \"Part 1\" = 'heizan'",
+    "columns": [
+      "Class",
+      "Part 1",
+      "Part 2",
+      "Part 3",
+      "Part 4",
+      "Verb meaning"
+    ],
+    "rows": [
+      [
+        "1",
+        "r\u012btan",
+        "reit",
+        "ritun",
+        "giritan",
+        "to ride"
+      ],
+      [
+        "2a",
+        "friosan",
+        "fr\u014ds",
+        "frurun",
+        "gifroran",
+        "to freeze"
+      ],
+      [
+        "2b",
+        "s\u016bfan",
+        "souf",
+        "sufun",
+        "gisoffan",
+        "to close"
+      ],
+      [
+        "3a",
+        "bintan",
+        "bant",
+        "buntun",
+        "buntan",
+        "to bind"
+      ],
+      [
+        "3b",
+        "werdan",
+        "ward",
+        "wurtun",
+        "giwortan",
+        "to become"
+      ],
+      [
+        "4",
+        "beran",
+        "bar",
+        "b\u0101run",
+        "giboran",
+        "to bear"
+      ],
+      [
+        "5",
+        "lesan",
+        "las",
+        "l\u0101run",
+        "gileran",
+        "to gather, to read"
+      ],
+      [
+        "6",
+        "tragan",
+        "truog",
+        "truogun",
+        "gitragan",
+        "to carry"
+      ]
+    ]
+  },
+  {
+    "id": "1-18461045-1:What was the little league team from Ohio when the little league team from Kentucky was Warren County South LL Bowling Green?",
+    "table_id": "1-18461045-1",
+    "question": "What was the little league team from Ohio when the little league team from Kentucky was Warren County South LL Bowling Green?",
+    "sql": "SELECT \"Ohio\" FROM table WHERE \"Kentucky\" = 'Warren County South LL Bowling Green'",
+    "columns": [
+      "Year",
+      "Illinois",
+      "Indiana",
+      "Kentucky",
+      "Michigan",
+      "Ohio",
+      "Wisconsin"
+    ],
+    "rows": [
+      [
+        "2001",
+        "Lansing East LL Lansing",
+        "Brownsburg LL Brownsburg",
+        "Owensboro Southern LL Owensboro",
+        "Roosevelt Park LL Roosevelt Park",
+        "Fairborn American LL Fairborn",
+        "Appleton Kiwanis LL Appleton"
+      ],
+      [
+        "2002",
+        "Bradley-Bourbonnais American LL Bourbonnais",
+        "Brownsburg LL Brownsburg",
+        "Valley Sports LL Louisville",
+        "Grosse Pointe Farms-City LL Grosse Pointe Farms",
+        "West Side American LL Hamilton",
+        "Merrill LL Merrill"
+      ],
+      [
+        "2003",
+        "Moline National LL Moline",
+        "Brooklyn LL Anderson",
+        "Owensboro Southern LL Owensboro",
+        "Midland Northeast LL Midland",
+        "Tallmadge LL Tallmadge",
+        "Wausau Western LL Wausau"
+      ],
+      [
+        "2004",
+        "Mundelein National LL Mundelein",
+        "Highland LL Highland",
+        "Owensboro Southern LL Owensboro",
+        "Western LL Grand Rapids",
+        "West Side LL Hamilton",
+        "Appleton Einstein LL Appleton"
+      ],
+      [
+        "2005",
+        "Limestone LL Kankakee",
+        "Seymour LL Seymour",
+        "Owensboro Southern LL Owensboro",
+        "Western LL Grand Rapids",
+        "Boardman Community East LL Boardman",
+        "Lakeland National LL Bristol"
+      ],
+      [
+        "2006",
+        "Lemont LL Lemont",
+        "New Castle LL New Castle",
+        "Owensboro Southern LL Owensboro",
+        "Union Township Kids LL Mount Pleasant",
+        "West Side LL Hamilton",
+        "Appleton Einstein LL Appleton"
+      ],
+      [
+        "2007",
+        "Western Springs LL Western Springs",
+        "New Albany LL New Albany",
+        "Warren County Southern LL Bowling Green",
+        "Taylor Northwest LL Taylor",
+        "West Side LL Hamilton",
+        "Wausau Northern LL Wausau"
+      ],
+      [
+        "2008",
+        "Jackie Robinson LL Chicago",
+        "Jeff/GRC LL Jeffersonville",
+        "Bowling Green Eastern LL Bowling Green",
+        "Bay City Southwest LL Bay City",
+        "Mt. Vernon LL Mt. Vernon",
+        "Appleton Einstein LL Appleton"
+      ]
+    ]
+  },
+  {
+    "id": "2-10809444-12:Where was the game played where the away team has a score of 7.6 (48)?",
+    "table_id": "2-10809444-12",
+    "question": "Where was the game played where the away team has a score of 7.6 (48)?",
+    "sql": "SELECT \"Venue\" FROM table WHERE \"Away team score\" = '7.6 (48)'",
+    "columns": [
+      "Home team",
+      "Home team score",
+      "Away team",
+      "Away team score",
+      "Venue",
+      "Crowd",
+      "Date"
+    ],
+    "rows": [
+      [
+        "North Melbourne",
+        "4.10 (34)",
+        "Richmond",
+        "12.11 (83)",
+        "Arden Street Oval",
+        "7,500",
+        "5 July 1947"
+      ],
+      [
+        "Footscray",
+        "5.14 (44)",
+        "St Kilda",
+        "6.8 (44)",
+        "Western Oval",
+        "10,000",
+        "5 July 1947"
+      ],
+      [
+        "Hawthorn",
+        "12.11 (83)",
+        "Geelong",
+        "16.21 (117)",
+        "Glenferrie Oval",
+        "5,500",
+        "5 July 1947"
+      ],
+      [
+        "South Melbourne",
+        "8.14 (62)",
+        "Essendon",
+        "11.17 (83)",
+        "Lake Oval",
+        "18,000",
+        "5 July 1947"
+      ],
+      [
+        "Fitzroy",
+        "9.11 (65)",
+        "Collingwood",
+        "7.6 (48)",
+        "Brunswick Street Oval",
+        "18,000",
+        "5 July 1947"
+      ],
+      [
+        "Melbourne",
+        "9.10 (64)",
+        "Carlton",
+        "10.9 (69)",
+        "MCG",
+        "38,000",
+        "5 July 1947"
+      ]
+    ]
+  },
+  {
+    "id": "1-27539272-5:what is the record that had a score of 5-3?",
+    "table_id": "1-27539272-5",
+    "question": "what is the record that had a score of 5-3?",
+    "sql": "SELECT \"Record\" FROM table WHERE \"Score\" = '5-3'",
+    "columns": [
+      "Game",
+      "November",
+      "Opponent",
+      "Score",
+      "Location/Attendance",
+      "Record",
+      "Points"
+    ],
+    "rows": [
+      [
+        "13",
+        "1",
+        "@ Vancouver Canucks",
+        "0-3",
+        "Rogers Arena - 18,860",
+        "3-9-1",
+        "7"
+      ],
+      [
+        "14",
+        "3",
+        "@ Chicago Blackhawks",
+        "5-3",
+        "United Center - 21,044",
+        "4-9-1",
+        "9"
+      ],
+      [
+        "15",
+        "5",
+        "New York Rangers",
+        "0-3",
+        "Prudential Center - 17,625",
+        "4-10-1",
+        "9"
+      ],
+      [
+        "16",
+        "10",
+        "Buffalo Sabres",
+        "4-5 (SO)",
+        "Prudential Center - 14,566",
+        "4-10-2",
+        "10"
+      ],
+      [
+        "17",
+        "12",
+        "Edmonton Oilers",
+        "4-3 (OT)",
+        "Prudential Center - 14,650",
+        "5-10-2",
+        "12"
+      ],
+      [
+        "18",
+        "15",
+        "@ Boston Bruins",
+        "0-3",
+        "TD Garden - 17,565",
+        "5-11-2",
+        "12"
+      ],
+      [
+        "19",
+        "18",
+        "@ Toronto Maple Leafs",
+        "1-3",
+        "Air Canada Centre - 19,271",
+        "5-12-2",
+        "12"
+      ],
+      [
+        "20",
+        "20",
+        "@ St. Louis Blues",
+        "2-3",
+        "Scottrade Center - 19,150",
+        "5-13-2",
+        "12"
+      ]
+    ]
+  },
+  {
+    "id": "2-14242137-4:Which Oberliga Bayern has a Season of 1981-82?",
+    "table_id": "2-14242137-4",
+    "question": "Which Oberliga Bayern has a Season of 1981-82?",
+    "sql": "SELECT \"Oberliga Bayern\" FROM table WHERE \"Season\" = '1981-82'",
+    "columns": [
+      "Season",
+      "Oberliga Bayern",
+      "Oberliga Hessen",
+      "Oberliga Baden-W\u00fcrttemberg",
+      "Oberliga S\u00fcdwest"
+    ],
+    "rows": [
+      [
+        "1981-82",
+        "FC Augsburg",
+        "FSV Frankfurt",
+        "SSV Ulm 1846",
+        "FC Homburg"
+      ],
+      [
+        "1982-83",
+        "SpVgg Unterhaching",
+        "VfR Oli B\u00fcrstadt",
+        "SSV Ulm 1846",
+        "1. FC Saarbr\u00fccken"
+      ],
+      [
+        "1983-84",
+        "TSV 1860 Munich",
+        "VfR Oli B\u00fcrstadt",
+        "Freiburger FC",
+        "FC Homburg"
+      ],
+      [
+        "1984-85",
+        "SpVgg Bayreuth",
+        "Viktoria Aschaffenburg",
+        "SV Sandhausen",
+        "FSV Salmrohr"
+      ],
+      [
+        "1985-86",
+        "TSV 1860 Munich",
+        "Kickers Offenbach",
+        "SSV Ulm 1846",
+        "FSV Salmrohr"
+      ],
+      [
+        "1986-87",
+        "SpVgg Bayreuth",
+        "Kickers Offenbach",
+        "SV Sandhausen",
+        "Eintracht Trier"
+      ],
+      [
+        "1987-88",
+        "SpVgg Unterhaching",
+        "Viktoria Aschaffenburg",
+        "FV 09 Weinheim",
+        "FSV Mainz 05"
+      ],
+      [
+        "1988-89",
+        "SpVgg Unterhaching",
+        "Hessen Kassel",
+        "SSV Reutlingen",
+        "SV Edenkoben"
+      ]
+    ]
+  },
+  {
+    "id": "1-2508633-5:What pick number did the buffalo bills get?",
+    "table_id": "1-2508633-5",
+    "question": "What pick number did the buffalo bills get?",
+    "sql": "SELECT \"Pick #\" FROM table WHERE \"NFL Team\" = 'Buffalo Bills'",
+    "columns": [
+      "Pick #",
+      "NFL Team",
+      "Player",
+      "Position",
+      "College"
+    ],
+    "rows": [
+      [
+        "113",
+        "Baltimore Colts",
+        "Sid Abramowitz",
+        "Tackle",
+        "Tulsa"
+      ],
+      [
+        "114",
+        "Houston Oilers",
+        "Larry Moriarty",
+        "Running back",
+        "Notre Dame"
+      ],
+      [
+        "115",
+        "Detroit Lions",
+        "Demetrious Johnson",
+        "Defensive back",
+        "Missouri"
+      ],
+      [
+        "116",
+        "Denver Broncos",
+        "Weedy Harris",
+        "Linebacker",
+        "Houston"
+      ],
+      [
+        "117",
+        "San Francisco 49ers",
+        "Riki Ellison",
+        "Linebacker",
+        "USC"
+      ],
+      [
+        "118",
+        "New England Patriots",
+        "Smiley Creswell",
+        "Defensive end",
+        "Michigan State"
+      ],
+      [
+        "119",
+        "Kansas City Chiefs",
+        "Jim Arnold",
+        "Punter",
+        "Vanderbilt"
+      ],
+      [
+        "120",
+        "Philadelphia Eagles",
+        "Byron Darby",
+        "Defensive tackle",
+        "USC"
+      ]
+    ]
+  },
+  {
+    "id": "2-10747009-11:Who was the away team playing the home team North Melbourne?",
+    "table_id": "2-10747009-11",
+    "question": "Who was the away team playing the home team North Melbourne?",
+    "sql": "SELECT \"Away team\" FROM table WHERE \"Home team\" = 'north melbourne'",
+    "columns": [
+      "Home team",
+      "Home team score",
+      "Away team",
+      "Away team score",
+      "Venue",
+      "Crowd",
+      "Date"
+    ],
+    "rows": [
+      [
+        "Geelong",
+        "10.12 (72)",
+        "South Melbourne",
+        "9.12 (66)",
+        "Corio Oval",
+        "13,500",
+        "9 July 1927"
+      ],
+      [
+        "Fitzroy",
+        "8.7 (55)",
+        "Richmond",
+        "17.9 (111)",
+        "Brunswick Street Oval",
+        "18,000",
+        "9 July 1927"
+      ],
+      [
+        "North Melbourne",
+        "9.18 (72)",
+        "Footscray",
+        "15.10 (100)",
+        "Arden Street Oval",
+        "12,000",
+        "9 July 1927"
+      ],
+      [
+        "Hawthorn",
+        "9.17 (71)",
+        "Essendon",
+        "11.12 (78)",
+        "Glenferrie Oval",
+        "6,000",
+        "9 July 1927"
+      ],
+      [
+        "Melbourne",
+        "10.12 (72)",
+        "Collingwood",
+        "11.13 (79)",
+        "MCG",
+        "27,092",
+        "9 July 1927"
+      ],
+      [
+        "St Kilda",
+        "6.8 (44)",
+        "Carlton",
+        "21.9 (135)",
+        "Junction Oval",
+        "19,000",
+        "9 July 1927"
+      ]
+    ]
+  },
+  {
+    "id": "2-117452-2:Who was the clerk when the highway commissioner was Albert Lewis?",
+    "table_id": "2-117452-2",
+    "question": "Who was the clerk when the highway commissioner was Albert Lewis?",
+    "sql": "SELECT \"Clerk\" FROM table WHERE \"Highway Commissioners\" = 'albert lewis'",
+    "columns": [
+      "Years",
+      "Supervisor",
+      "Clerk",
+      "Treasurer",
+      "Highway Commissioners"
+    ],
+    "rows": [
+      [
+        "1846",
+        "Alfred Pond",
+        "Francis Brotherton",
+        "Theron Wallace",
+        "Richard C. Goyer, John C. Clement, Jon Nash"
+      ],
+      [
+        "1916",
+        "Walter Morrison",
+        "Earl West",
+        "John Kountz",
+        "Albert Lewis"
+      ],
+      [
+        "Years",
+        "Supervisor",
+        "Clerk",
+        "Treasurer",
+        "Trustees"
+      ],
+      [
+        "2004\u20132008",
+        "Roderick Shumaker",
+        "Sally Lurvey",
+        "Beth Perkins Patti Mlynek (Interim)",
+        "Roger Meier"
+      ],
+      [
+        "2008\u20132009",
+        "Bruce Beatty 1. (11/3/2009)",
+        "Dennis Milem",
+        "Natalie Dennings",
+        "Glenn Huffman 1. (11/3/2009)"
+      ],
+      [
+        "2009\u20132010",
+        "Roger Meier 3. (12/10/09)",
+        "Dennis Milem",
+        "Natalie Dennings",
+        "John Sayer 3. (12/10/09)"
+      ],
+      [
+        "2010\u20132011",
+        "Brian Sepanak",
+        "Dennis Milem",
+        "Natalie Dennings",
+        "Chris Gehringer"
+      ]
+    ]
+  },
+  {
+    "id": "2-17100961-48:What is the average overall that has a pick less than 20, North Carolina as the college, with a round less than 8?",
+    "table_id": "2-17100961-48",
+    "question": "What is the average overall that has a pick less than 20, North Carolina as the college, with a round less than 8?",
+    "sql": "SELECT AVG(\"Overall\") FROM table WHERE \"Pick\" < 20 AND \"College\" = 'north carolina' AND \"Round\" < 8",
+    "columns": [
+      "Round",
+      "Pick",
+      "Overall",
+      "Name",
+      "Position",
+      "College"
+    ],
+    "rows": [
+      [
+        "6",
+        "21",
+        "159",
+        "Tony Green",
+        "RB",
+        "Florida"
+      ],
+      [
+        "8",
+        "8",
+        "202",
+        "Walker Lee",
+        "WR",
+        "North Carolina"
+      ],
+      [
+        "8",
+        "25",
+        "219",
+        "Don Hover",
+        "LB",
+        "Washington State"
+      ],
+      [
+        "9",
+        "21",
+        "243",
+        "John Hurley",
+        "QB",
+        "Santa Clara [d ]"
+      ],
+      [
+        "10",
+        "20",
+        "270",
+        "Scott Hertenstein",
+        "DE",
+        "Azusa Pacific"
+      ],
+      [
+        "11",
+        "19",
+        "297",
+        "Mike Williams",
+        "DB",
+        "Texas A&M"
+      ],
+      [
+        "12",
+        "18",
+        "324",
+        "Steve McCabe",
+        "G",
+        "Bowdoin"
+      ]
+    ]
+  },
+  {
+    "id": "2-1608306-4:What is the lowest Top-25 with Wins less than 0?",
+    "table_id": "2-1608306-4",
+    "question": "What is the lowest Top-25 with Wins less than 0?",
+    "sql": "SELECT MIN(\"Top-25\") FROM table WHERE \"Wins\" < 0",
+    "columns": [
+      "Tournament",
+      "Wins",
+      "Top-25",
+      "Events",
+      "Cuts made"
+    ],
+    "rows": [
+      [
+        "Masters Tournament",
+        "0",
+        "0",
+        "2",
+        "0"
+      ],
+      [
+        "U.S. Open",
+        "0",
+        "0",
+        "3",
+        "2"
+      ],
+      [
+        "The Open Championship",
+        "0",
+        "1",
+        "7",
+        "4"
+      ],
+      [
+        "PGA Championship",
+        "0",
+        "0",
+        "7",
+        "2"
+      ],
+      [
+        "Totals",
+        "0",
+        "1",
+        "19",
+        "8"
+      ]
+    ]
+  },
+  {
+    "id": "2-12017602-23:What gender has a local board of albert\u2013eden with a roll of more than 232 and Decile of 5?",
+    "table_id": "2-12017602-23",
+    "question": "What gender has a local board of albert\u2013eden with a roll of more than 232 and Decile of 5?",
+    "sql": "SELECT \"Gender\" FROM table WHERE \"Local board\" = 'albert\u2013eden' AND \"Roll\" > 232 AND \"Decile\" = 5",
+    "columns": [
+      "Name",
+      "Gender",
+      "Local board",
+      "Suburb",
+      "Authority",
+      "Decile",
+      "Roll"
+    ],
+    "rows": [
+      [
+        "ACG Parnell College",
+        "Coed",
+        "Waitemata",
+        "Parnell",
+        "Private",
+        "10",
+        "741"
+      ],
+      [
+        "ACG Strathallan",
+        "Coed",
+        "Papakura",
+        "Karaka",
+        "Private",
+        "10",
+        "889"
+      ],
+      [
+        "ACG Sunderland",
+        "Coed",
+        "Henderson\u2013Massey",
+        "Lincoln",
+        "Private",
+        "9",
+        "262"
+      ],
+      [
+        "Al-Madinah School",
+        "Coed",
+        "Mangere\u2013Otahuhu",
+        "Mangere",
+        "Integrated",
+        "2",
+        "509"
+      ],
+      [
+        "Carey College",
+        "Coed",
+        "Maungakiekie\u2013Tamaki",
+        "Panmure",
+        "Private",
+        "6",
+        "33"
+      ],
+      [
+        "Destiny School",
+        "Coed",
+        "Maungakiekie\u2013Tamaki",
+        "Mount Wellington",
+        "Private",
+        "n/a",
+        "158"
+      ],
+      [
+        "Dilworth School",
+        "Boys",
+        "Albert\u2013Eden",
+        "Remuera",
+        "Private",
+        "5",
+        "591"
+      ],
+      [
+        "Diocesan School for Girls",
+        "Girls",
+        "Albert\u2013Eden",
+        "Epsom",
+        "Private",
+        "10",
+        "1376"
+      ]
+    ]
+  },
+  {
+    "id": "2-18943807-1:What is the sum of the erp w of the k222al call sign?",
+    "table_id": "2-18943807-1",
+    "question": "What is the sum of the erp w of the k222al call sign?",
+    "sql": "SELECT SUM(\"ERP W\") FROM table WHERE \"Call sign\" = 'k222al'",
+    "columns": [
+      "Call sign",
+      "Frequency MHz",
+      "City of license",
+      "ERP W",
+      "Class",
+      "FCC info"
+    ],
+    "rows": [
+      [
+        "KGKD",
+        "90.5",
+        "Columbus, Nebraska",
+        "10,000",
+        "C2",
+        "FCC"
+      ],
+      [
+        "KGRJ",
+        "89.9",
+        "Chamberlain, South Dakota",
+        "21,500",
+        "C3",
+        "FCC"
+      ],
+      [
+        "KGRH",
+        "88.1",
+        "Loomis, South Dakota",
+        "800",
+        "A",
+        "FCC"
+      ],
+      [
+        "K205CU",
+        "88.9",
+        "Burwell, Nebraska",
+        "235",
+        "D",
+        "FCC"
+      ],
+      [
+        "K217CT",
+        "91.3",
+        "Ainsworth, Nebraska",
+        "222",
+        "D",
+        "FCC"
+      ],
+      [
+        "K220FV",
+        "91.9",
+        "Yankton, South Dakota",
+        "140",
+        "D",
+        "FCC"
+      ],
+      [
+        "K222AL",
+        "92.3",
+        "Platte, South Dakota",
+        "75",
+        "D",
+        "FCC"
+      ]
+    ]
+  },
+  {
+    "id": "2-1097158-4:Name the catalogue for australia",
+    "table_id": "2-1097158-4",
+    "question": "Name the catalogue for australia",
+    "sql": "SELECT \"Catalogue\" FROM table WHERE \"Region\" = 'australia'",
+    "columns": [
+      "Region",
+      "Date",
+      "Label",
+      "Format",
+      "Catalogue"
+    ],
+    "rows": [
+      [
+        "United States",
+        "September 28, 2004",
+        "Reprise",
+        "CD",
+        "48789-2"
+      ],
+      [
+        "Japan",
+        "October 6, 2004",
+        "Reprise",
+        "CD",
+        "WPCR11912, WPCR-11940"
+      ],
+      [
+        "Australia",
+        "October 15, 2004",
+        "Reprise",
+        "CD",
+        "9362487892"
+      ],
+      [
+        "United States",
+        "December 7, 2004",
+        "Reprise",
+        "12\" vinyl picture disc",
+        "ER2002-21"
+      ],
+      [
+        "United Kingdom",
+        "January 24, 2005",
+        "Reprise",
+        "CD",
+        "9362-48789-2"
+      ]
+    ]
+  },
+  {
+    "id": "2-11190694-12:what is at 10:00 when at 9:00 it is reaper?",
+    "table_id": "2-11190694-12",
+    "question": "what is at 10:00 when at 9:00 it is reaper?",
+    "sql": "SELECT \"10:00\" FROM table WHERE \"9:00\" = 'reaper'",
+    "columns": [
+      "8:00",
+      "8:30",
+      "9:00",
+      "9:30",
+      "10:00"
+    ],
+    "rows": [
+      [
+        "Ugly Betty",
+        "Ugly Betty",
+        "Grey's Anatomy (#10, 5.6 rating)",
+        "Grey's Anatomy (#10, 5.6 rating)",
+        "Big Shots"
+      ],
+      [
+        "Lost (Reruns)",
+        "Lost (Reruns)",
+        "Lost (#19, 4.6 rating)",
+        "Lost (#19, 4.6 rating)",
+        "Eli Stone"
+      ],
+      [
+        "Miss Guided",
+        "Miss Guided",
+        "Lost (#19, 4.6 rating)",
+        "Lost (#19, 4.6 rating)",
+        "Eli Stone"
+      ],
+      [
+        "Ugly Betty",
+        "Ugly Betty",
+        "Grey's Anatomy (#10, 5.6 rating)",
+        "Grey's Anatomy (#10, 5.6 rating)",
+        "Lost (#19, 4.6 rating)"
+      ],
+      [
+        "Survivor: Micronesia (#17, 4.8 rating)",
+        "Survivor: Micronesia (#17, 4.8 rating)",
+        "CSI: Crime Scene Investigation (#9, 5.8 rating)",
+        "CSI: Crime Scene Investigation (#9, 5.8 rating)",
+        "Without a Trace (#19, 4.6 rating)"
+      ],
+      [
+        "Smallville",
+        "Smallville",
+        "Supernatural",
+        "Supernatural",
+        "Local Programming"
+      ],
+      [
+        "Smallville",
+        "Smallville",
+        "Reaper",
+        "Reaper",
+        "Local Programming"
+      ],
+      [
+        "Are You Smarter Than a 5th Grader?",
+        "Are You Smarter Than a 5th Grader?",
+        "Don't Forget the Lyrics!",
+        "Don't Forget the Lyrics!",
+        "Local Programming"
+      ]
+    ]
+  },
+  {
+    "id": "2-1557752-1:Which Bleeding has a Condition of congenital afibrinogenemia?",
+    "table_id": "2-1557752-1",
+    "question": "Which Bleeding has a Condition of congenital afibrinogenemia?",
+    "sql": "SELECT \"Bleeding time\" FROM table WHERE \"Condition\" = 'congenital afibrinogenemia'",
+    "columns": [
+      "Condition",
+      "Prothrombin time",
+      "Partial thromboplastin time",
+      "Bleeding time",
+      "Platelet count"
+    ],
+    "rows": [
+      [
+        "Vitamin K deficiency or warfarin",
+        "Prolonged",
+        "Normal or mildly prolonged",
+        "Unaffected",
+        "Unaffected"
+      ],
+      [
+        "Disseminated intravascular coagulation",
+        "Prolonged",
+        "Prolonged",
+        "Prolonged",
+        "Decreased"
+      ],
+      [
+        "Von Willebrand disease",
+        "Unaffected",
+        "Prolonged or unaffected",
+        "Prolonged",
+        "Unaffected"
+      ],
+      [
+        "Hemophilia",
+        "Unaffected",
+        "Prolonged",
+        "Unaffected",
+        "Unaffected"
+      ],
+      [
+        "Aspirin",
+        "Unaffected",
+        "Unaffected",
+        "Prolonged",
+        "Unaffected"
+      ],
+      [
+        "Thrombocytopenia",
+        "Unaffected",
+        "Unaffected",
+        "Prolonged",
+        "Decreased"
+      ],
+      [
+        "Liver failure , early",
+        "Prolonged",
+        "Unaffected",
+        "Unaffected",
+        "Unaffected"
+      ],
+      [
+        "Liver failure, end-stage",
+        "Prolonged",
+        "Prolonged",
+        "Prolonged",
+        "Decreased"
+      ]
+    ]
+  },
+  {
+    "id": "2-18692014-7:What is the lowest number in the Labour Party for the Fianna Fail higher than 5?",
+    "table_id": "2-18692014-7",
+    "question": "What is the lowest number in the Labour Party for the Fianna Fail higher than 5?",
+    "sql": "SELECT MIN(\"Labour Party\") FROM table WHERE \"Fianna F\u00e1il\" > 5",
+    "columns": [
+      "Town",
+      "Fianna F\u00e1il",
+      "Fine Gael",
+      "Labour Party",
+      "Green Party",
+      "Total"
+    ],
+    "rows": [
+      [
+        "Ardee",
+        "2",
+        "2",
+        "1",
+        "1",
+        "9"
+      ],
+      [
+        "Arklow",
+        "3",
+        "1",
+        "2",
+        "0",
+        "9"
+      ],
+      [
+        "Athlone",
+        "3",
+        "3",
+        "1",
+        "0",
+        "9"
+      ],
+      [
+        "Athy",
+        "1",
+        "2",
+        "4",
+        "0",
+        "9"
+      ],
+      [
+        "Balbriggan",
+        "1",
+        "1",
+        "3",
+        "1",
+        "9"
+      ],
+      [
+        "Ballina",
+        "3",
+        "3",
+        "0",
+        "0",
+        "9"
+      ],
+      [
+        "Ballinasloe",
+        "2",
+        "3",
+        "0",
+        "0",
+        "9"
+      ],
+      [
+        "Ballybay",
+        "4",
+        "4",
+        "0",
+        "0",
+        "9"
+      ]
+    ]
+  },
+  {
+    "id": "2-11563671-1:What is the largest total for a team with fewer than 12 bronze, 1 silver and 0 gold medals?",
+    "table_id": "2-11563671-1",
+    "question": "What is the largest total for a team with fewer than 12 bronze, 1 silver and 0 gold medals?",
+    "sql": "SELECT MAX(\"Total\") FROM table WHERE \"Bronze\" < 12 AND \"Gold\" = 0 AND \"Silver\" = 1",
+    "columns": [
+      "Rank",
+      "Gold",
+      "Silver",
+      "Bronze",
+      "Total"
+    ],
+    "rows": [
+      [
+        "1",
+        "4",
+        "1",
+        "2",
+        "7"
+      ],
+      [
+        "2",
+        "3",
+        "3",
+        "1",
+        "7"
+      ],
+      [
+        "3",
+        "3",
+        "1",
+        "2",
+        "6"
+      ],
+      [
+        "4",
+        "2",
+        "6",
+        "3",
+        "11"
+      ],
+      [
+        "5",
+        "0",
+        "1",
+        "0",
+        "1"
+      ],
+      [
+        "6",
+        "0",
+        "0",
+        "2",
+        "2"
+      ],
+      [
+        "7",
+        "0",
+        "0",
+        "1",
+        "1"
+      ],
+      [
+        "Total",
+        "12",
+        "12",
+        "12",
+        "36"
+      ]
+    ]
+  },
+  {
+    "id": "1-28846752-12:How many innings for the player with an average of 22.61?",
+    "table_id": "1-28846752-12",
+    "question": "How many innings for the player with an average of 22.61?",
+    "sql": "SELECT \"Innings\" FROM table WHERE \"Average\" = 22.61",
+    "columns": [
+      "Player",
+      "Matches",
+      "Innings",
+      "Runs",
+      "Average",
+      "Strike rate",
+      "Highest Score",
+      "50s"
+    ],
+    "rows": [
+      [
+        "James Hildreth Category:Articles with hCards",
+        "19",
+        "19",
+        "459",
+        "32.78",
+        "110.60",
+        "77*",
+        "2"
+      ],
+      [
+        "Kieron Pollard Category:Articles with hCards",
+        "17",
+        "16",
+        "354",
+        "32.18",
+        "175.24",
+        "89*",
+        "2"
+      ],
+      [
+        "Marcus Trescothick Category:Articles with hCards",
+        "19",
+        "19",
+        "572",
+        "31.77",
+        "157.14",
+        "83",
+        "6"
+      ],
+      [
+        "Zander de Bruyn Category:Articles with hCards",
+        "19",
+        "18",
+        "303",
+        "30.30",
+        "124.18",
+        "95*",
+        "1"
+      ],
+      [
+        "Jos Buttler Category:Articles with hCards",
+        "19",
+        "14",
+        "240",
+        "30.00",
+        "160.00",
+        "55*",
+        "1"
+      ],
+      [
+        "Peter Trego Category:Articles with hCards",
+        "16",
+        "15",
+        "294",
+        "22.61",
+        "135.48",
+        "72*",
+        "1"
+      ],
+      [
+        "Craig Kieswetter Category:Articles with hCards",
+        "10",
+        "10",
+        "220",
+        "22.00",
+        "102.32",
+        "71",
+        "1"
+      ]
+    ]
+  },
+  {
+    "id": "2-14835821-3:What is the team 1 with team 2 Mount Cameroon FC?",
+    "table_id": "2-14835821-3",
+    "question": "What is the team 1 with team 2 Mount Cameroon FC?",
+    "sql": "SELECT \"Team 1\" FROM table WHERE \"Team 2\" = 'mount cameroon fc'",
+    "columns": [
+      "Team 1",
+      "Agg.",
+      "Team 2",
+      "1st leg",
+      "2nd leg"
+    ],
+    "rows": [
+      [
+        "US Mass\u00e9da",
+        "2\u20136",
+        "Esp\u00e9rance",
+        "1\u20130",
+        "1\u20136"
+      ],
+      [
+        "Djoliba",
+        "5\u20132",
+        "AS Mangasport",
+        "3\u20131",
+        "2\u20131"
+      ],
+      [
+        "ASC Lingu\u00e8re",
+        "4\u20134( a )",
+        "CS Sfaxien",
+        "3\u20132",
+        "1\u20132"
+      ],
+      [
+        "Les Astres FC",
+        "( a )1\u20131",
+        "AS Vita Club",
+        "0\u20130",
+        "1\u20131"
+      ],
+      [
+        "Al Akhdar",
+        "1\u20132",
+        "Haras El Hodood",
+        "1\u20131",
+        "0\u20131"
+      ],
+      [
+        "Highlanders FC",
+        "1\u20135",
+        "Al-Merrikh",
+        "0\u20132",
+        "1\u20133"
+      ],
+      [
+        "Ajax Cape Town",
+        "5\u20136",
+        "Mount Cameroon FC",
+        "5\u20131",
+        "0\u20135"
+      ],
+      [
+        "Dolphins",
+        "3\u20134",
+        "Asante Kotoko",
+        "2\u20130",
+        "1\u20134 1"
+      ]
+    ]
+  },
+  {
+    "id": "2-10813310-8:What were the tries on 14/6/97?",
+    "table_id": "2-10813310-8",
+    "question": "What were the tries on 14/6/97?",
+    "sql": "SELECT \"Tries\" FROM table WHERE \"Date\" = '14/6/97'",
+    "columns": [
+      "Date",
+      "Competition",
+      "Venue",
+      "Result",
+      "Score",
+      "Tries",
+      "Goals"
+    ],
+    "rows": [
+      [
+        "9/6/97",
+        "WCC",
+        "Odsal Stadium",
+        "L",
+        "16\u201320",
+        "Peacock , Scales , Spruce",
+        "McNamara 2/3"
+      ],
+      [
+        "14/6/97",
+        "WCC",
+        "Odsal Stadium",
+        "L",
+        "16\u201320",
+        "Bradley , Forshaw",
+        "McNamara 3/3, Loughlin 1/1"
+      ],
+      [
+        "20/6/97",
+        "WCC",
+        "Odsal Stadium",
+        "L",
+        "10\u201330",
+        "Loughlin , Nickle",
+        "Loughlin 1/2"
+      ],
+      [
+        "20/7/97",
+        "WCC",
+        "Mount Smart Stadium",
+        "L",
+        "14\u201364",
+        "Bradley , Lowes , McDermott",
+        "Loughlin 1/3"
+      ],
+      [
+        "28/7/97",
+        "WCC",
+        "Penrith Park",
+        "L",
+        "14\u201354",
+        "Calland , Forshaw , Peacock",
+        "Hodgson 1/3"
+      ],
+      [
+        "2/8/97",
+        "WCC",
+        "Endeavour Field",
+        "L",
+        "12\u201340",
+        "Bradley (2)",
+        "McNamara 2/2"
+      ],
+      [
+        "3/10/97",
+        "WCC",
+        "Mount Smart Stadium",
+        "L",
+        "14\u201362",
+        "Bradley , Ekoku",
+        "McNamara 3/3"
+      ]
+    ]
+  },
+  {
+    "id": "2-1853235-2:How many international builders are there?",
+    "table_id": "2-1853235-2",
+    "question": "How many international builders are there?",
+    "sql": "SELECT \"Total\" FROM table WHERE \"Builder\" = 'international'",
+    "columns": [
+      "Year",
+      "Builder",
+      "Model",
+      "Length (ft)",
+      "Propulsion",
+      "Fleet series",
+      "Total",
+      "Notes"
+    ],
+    "rows": [
+      [
+        "N/A",
+        "Ford",
+        "E450",
+        "25",
+        "Diesel",
+        "S002-S056, S062-S102",
+        "92",
+        "Commercial Body Builders Ltd Polar V body"
+      ],
+      [
+        "N/A",
+        "Ford",
+        "E450",
+        "25",
+        "Diesel",
+        "S057-S061",
+        "5",
+        "Champion CH-251FL body"
+      ],
+      [
+        "N/A",
+        "GMC",
+        "C5500",
+        "25",
+        "Diesel",
+        "S200-S236",
+        "37",
+        "El Dorado Aero Elite body"
+      ],
+      [
+        "N/A",
+        "GMC",
+        "C5500",
+        "25",
+        "Diesel",
+        "S237-S374",
+        "148",
+        "El Dorado Aero Elite body"
+      ],
+      [
+        "N/A",
+        "International",
+        "AC Series",
+        "25",
+        "Diesel",
+        "S410-S434",
+        "24 in service, more being readied",
+        "IC Bus AC Series body"
+      ]
+    ]
+  },
+  {
+    "id": "2-1201864-1:What is the average year of the Fantasia Section Award?",
+    "table_id": "2-1201864-1",
+    "question": "What is the average year of the Fantasia Section Award?",
+    "sql": "SELECT AVG(\"Year\") FROM table WHERE \"Award\" = 'fantasia section award'",
+    "columns": [
+      "Festival",
+      "Year",
+      "Result",
+      "Award",
+      "Category"
+    ],
+    "rows": [
+      [
+        "Fant-Asia Film Festival",
+        "1999",
+        "2nd",
+        "Best Asian Film",
+        "Best Asian Film"
+      ],
+      [
+        "Fantasporto",
+        "1999",
+        "Won",
+        "Fantasia Section Award",
+        "Best Film \u2013 Animation"
+      ],
+      [
+        "Fantasporto",
+        "1999",
+        "Won",
+        "International Fantasy Film Special Jury Award",
+        "Special Jury Award"
+      ],
+      [
+        "Fantasporto",
+        "1999",
+        "Nominated",
+        "International Fantasy Film Award",
+        "Best Film"
+      ],
+      [
+        "Yubari International Fantastic Film Festival",
+        "2000",
+        "Won",
+        "Minami Toshiko Award",
+        "International Competition"
+      ],
+      [
+        "Mainichi Film Concours",
+        "2000",
+        "Won",
+        "Mainichi Film Concours",
+        "Best Animated Film"
+      ],
+      [
+        "Japanese Professional Movie Awards",
+        "2001",
+        "Won",
+        "Special Award",
+        "Special Award"
+      ]
+    ]
+  },
+  {
+    "id": "2-15584441-1:Which season had fewer than 13 episodes and aired its season finale on February 20, 2011?",
+    "table_id": "2-15584441-1",
+    "question": "Which season had fewer than 13 episodes and aired its season finale on February 20, 2011?",
+    "sql": "SELECT COUNT(\"Season\") FROM table WHERE \"Episodes\" < 13 AND \"Season Finale\" = 'february 20, 2011'",
+    "columns": [
+      "Season",
+      "Episodes",
+      "Season Premiere",
+      "Season Finale",
+      "DVD Release Date"
+    ],
+    "rows": [
+      [
+        "1",
+        "6",
+        "August 17, 2006",
+        "September 21, 2006",
+        "August 28, 2007"
+      ],
+      [
+        "2",
+        "13",
+        "January 18, 2007",
+        "May 17, 2007",
+        "January 2009"
+      ],
+      [
+        "3",
+        "13",
+        "July 19, 2007",
+        "December 13, 2007",
+        "July 2009"
+      ],
+      [
+        "4",
+        "13",
+        "January 24, 2008",
+        "May 1, 2008",
+        "TBA"
+      ],
+      [
+        "5",
+        "13",
+        "June 29, 2008",
+        "October 16, 2008",
+        "TBA"
+      ],
+      [
+        "6",
+        "13",
+        "January 15, 2009",
+        "May 9, 2009",
+        "TBA"
+      ],
+      [
+        "7",
+        "13",
+        "July 19, 2009",
+        "October 29, 2009",
+        "TBA"
+      ],
+      [
+        "8",
+        "12",
+        "January 21, 2010",
+        "April 22, 2010",
+        "TBA"
+      ]
+    ]
+  },
+  {
+    "id": "2-1821178-1:What is the Airport in Oslo?",
+    "table_id": "2-1821178-1",
+    "question": "What is the Airport in Oslo?",
+    "sql": "SELECT \"Airport\" FROM table WHERE \"City\" = 'oslo'",
+    "columns": [
+      "City",
+      "Country",
+      "Airport",
+      "IATA",
+      "ICAO"
+    ],
+    "rows": [
+      [
+        "Aberdeen",
+        "United Kingdom",
+        "Aberdeen Airport",
+        "ABZ",
+        "EGPD"
+      ],
+      [
+        "Bergen",
+        "Norway",
+        "Bergen Airport, Flesland",
+        "BGO",
+        "ENBR"
+      ],
+      [
+        "Copenhagen",
+        "Denmark",
+        "Copenhagen Airport",
+        "CPH",
+        "EKCH"
+      ],
+      [
+        "Fagernes",
+        "Norway",
+        "Fagernes Airport, Leirin",
+        "VBD",
+        "ENFG"
+      ],
+      [
+        "Haugesund",
+        "Norway",
+        "Haugesund Airport, Karm\u00f8y",
+        "HAU",
+        "ENHD"
+      ],
+      [
+        "Molde",
+        "Norway",
+        "Molde Airport, \u00c5r\u00f8",
+        "MOL",
+        "ENML"
+      ],
+      [
+        "Oslo",
+        "Norway",
+        "Oslo Airport, Gardermoen",
+        "OSL",
+        "ENGM"
+      ],
+      [
+        "R\u00f8ros",
+        "Norway",
+        "R\u00f8ros Airport",
+        "RRS",
+        "ENRO"
+      ]
+    ]
+  },
+  {
+    "id": "1-20016339-1:How many fastest laps did I.C. Team have?",
+    "table_id": "1-20016339-1",
+    "question": "How many fastest laps did I.C. Team have?",
+    "sql": "SELECT COUNT(\"Fastest Laps\") FROM table WHERE \"Team\" = 'I.C. Team'",
+    "columns": [
+      "Season",
+      "Class",
+      "Team",
+      "Motorcycle",
+      "Type",
+      "Races",
+      "Wins",
+      "Podiums",
+      "Poles",
+      "Fastest Laps",
+      "Pts",
+      "Position"
+    ],
+    "rows": [
+      [
+        "2007",
+        "125cc",
+        "MotoGP Academy",
+        "Honda",
+        "Honda RS125R",
+        "1",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "NC"
+      ],
+      [
+        "2008",
+        "125cc",
+        "I.C. Team",
+        "Aprilia",
+        "Aprilia RS125",
+        "17",
+        "0",
+        "0",
+        "0",
+        "0",
+        "12",
+        "24th"
+      ],
+      [
+        "2009",
+        "125cc",
+        "Ongetta Team I.S.P.A.",
+        "Aprilia",
+        "Aprilia RS125",
+        "16",
+        "0",
+        "0",
+        "0",
+        "0",
+        "43",
+        "16th"
+      ],
+      [
+        "2011",
+        "Moto2",
+        "Italtrans Racing Team",
+        "Suter",
+        "Suter MMXI",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "NC"
+      ],
+      [
+        "2012",
+        "Moto2",
+        "Italtrans Racing Team",
+        "Kalex",
+        "Kalex Moto2",
+        "17",
+        "0",
+        "0",
+        "0",
+        "0",
+        "56",
+        "15th"
+      ]
+    ]
+  },
+  {
+    "id": "2-10640687-11:What is the home team score when the away team is Melbourne?",
+    "table_id": "2-10640687-11",
+    "question": "What is the home team score when the away team is Melbourne?",
+    "sql": "SELECT \"Home team score\" FROM table WHERE \"Away team\" = 'melbourne'",
+    "columns": [
+      "Home team",
+      "Home team score",
+      "Away team",
+      "Away team score",
+      "Venue",
+      "Crowd",
+      "Date"
+    ],
+    "rows": [
+      [
+        "Hawthorn",
+        "5.12 (42)",
+        "Melbourne",
+        "11.14 (80)",
+        "Glenferrie Oval",
+        "15,500",
+        "30 June 1956"
+      ],
+      [
+        "Geelong",
+        "9.8 (62)",
+        "St Kilda",
+        "8.9 (57)",
+        "Kardinia Park",
+        "11,052",
+        "30 June 1956"
+      ],
+      [
+        "Collingwood",
+        "15.18 (108)",
+        "Essendon",
+        "7.12 (54)",
+        "Victoria Park",
+        "23,814",
+        "30 June 1956"
+      ],
+      [
+        "North Melbourne",
+        "5.9 (39)",
+        "Footscray",
+        "6.13 (49)",
+        "Arden Street Oval",
+        "14,000",
+        "30 June 1956"
+      ],
+      [
+        "Richmond",
+        "15.12 (102)",
+        "Fitzroy",
+        "12.14 (86)",
+        "Punt Road Oval",
+        "12,000",
+        "30 June 1956"
+      ],
+      [
+        "South Melbourne",
+        "9.19 (73)",
+        "Carlton",
+        "7.12 (54)",
+        "Lake Oval",
+        "27,000",
+        "30 June 1956"
+      ]
+    ]
+  },
+  {
+    "id": "2-10577-3:When there was a net gain/loss of +34, what was the percentage of seats that party held?",
+    "table_id": "2-10577-3",
+    "question": "When there was a net gain/loss of +34, what was the percentage of seats that party held?",
+    "sql": "SELECT \"% of seats\" FROM table WHERE \"Net gain/loss\" = +34",
+    "columns": [
+      "Party",
+      "Seats",
+      "Net gain/loss",
+      "% of seats",
+      "% of votes"
+    ],
+    "rows": [
+      [
+        "National Coalition Party",
+        "44",
+        "\u22126",
+        "22.0",
+        "20.4"
+      ],
+      [
+        "Social Democratic Party",
+        "42",
+        "-3",
+        "21.0",
+        "19.1"
+      ],
+      [
+        "True Finns",
+        "39",
+        "+34",
+        "19.5",
+        "19.1"
+      ],
+      [
+        "Centre Party",
+        "35",
+        "-16",
+        "17.5",
+        "15.8"
+      ],
+      [
+        "Left Alliance",
+        "14",
+        "-2",
+        "7.0",
+        "8.1"
+      ],
+      [
+        "Green League",
+        "10",
+        "-5",
+        "5.0",
+        "7.3"
+      ],
+      [
+        "Swedish People's Party",
+        "9",
+        "0",
+        "4.5",
+        "4.3"
+      ],
+      [
+        "Christian Democrats",
+        "6",
+        "-1",
+        "3.0",
+        "4.0"
+      ]
+    ]
+  },
+  {
+    "id": "2-10809271-9:What was the Away team score for Footscray?",
+    "table_id": "2-10809271-9",
+    "question": "What was the Away team score for Footscray?",
+    "sql": "SELECT \"Away team score\" FROM table WHERE \"Away team\" = 'footscray'",
+    "columns": [
+      "Home team",
+      "Home team score",
+      "Away team",
+      "Away team score",
+      "Venue",
+      "Crowd",
+      "Date"
+    ],
+    "rows": [
+      [
+        "Hawthorn",
+        "12.10 (82)",
+        "South Melbourne",
+        "20.10 (130)",
+        "Glenferrie Oval",
+        "13,000",
+        "16 June 1945"
+      ],
+      [
+        "Essendon",
+        "12.20 (92)",
+        "North Melbourne",
+        "18.14 (122)",
+        "Windy Hill",
+        "20,000",
+        "16 June 1945"
+      ],
+      [
+        "Collingwood",
+        "13.12 (90)",
+        "Richmond",
+        "8.13 (61)",
+        "Victoria Park",
+        "20,000",
+        "16 June 1945"
+      ],
+      [
+        "Carlton",
+        "11.11 (77)",
+        "Footscray",
+        "11.20 (86)",
+        "Princes Park",
+        "20,000",
+        "16 June 1945"
+      ],
+      [
+        "St Kilda",
+        "14.17 (101)",
+        "Geelong",
+        "14.12 (96)",
+        "Junction Oval",
+        "7,000",
+        "16 June 1945"
+      ],
+      [
+        "Melbourne",
+        "11.15 (81)",
+        "Fitzroy",
+        "14.17 (101)",
+        "Punt Road Oval",
+        "13,000",
+        "16 June 1945"
+      ]
+    ]
+  },
+  {
+    "id": "1-26375386-23:What is the number of public that was there when the vote percentage was 22.9%?",
+    "table_id": "1-26375386-23",
+    "question": "What is the number of public that was there when the vote percentage was 22.9%?",
+    "sql": "SELECT COUNT(\"Public\") FROM table WHERE \"Vote percentage\" = '22.9%'",
+    "columns": [
+      "Rank",
+      "Couple",
+      "Judges",
+      "Public",
+      "Total",
+      "Vote percentage",
+      "Result"
+    ],
+    "rows": [
+      [
+        "1",
+        "Hayley and Daniel",
+        "6",
+        "6",
+        "12",
+        "44.8%",
+        "Safe"
+      ],
+      [
+        "2",
+        "Gary and Maria",
+        "3",
+        "4",
+        "7",
+        "13.7%",
+        "Safe"
+      ],
+      [
+        "3",
+        "Kieron and Brianne",
+        "4",
+        "3",
+        "7",
+        "7.9%",
+        "Safe"
+      ],
+      [
+        "4",
+        "Danny and Frankie",
+        "5",
+        "2",
+        "7",
+        "5.6%",
+        "Safe"
+      ],
+      [
+        "5",
+        "Mikey and Melanie",
+        "1",
+        "5",
+        "6",
+        "22.9%",
+        "Eliminated"
+      ]
+    ]
+  },
+  {
+    "id": "2-12526990-1:What is the Total Region number of hte one that has Eidsvold at 970 and Biggenden larger than 1,570?",
+    "table_id": "2-12526990-1",
+    "question": "What is the Total Region number of hte one that has Eidsvold at 970 and Biggenden larger than 1,570?",
+    "sql": "SELECT COUNT(\"Total Region\") FROM table WHERE \"Eidsvold\" = 970 AND \"Biggenden\" > '1,570'",
+    "columns": [
+      "Year",
+      "Total Region",
+      "Biggenden",
+      "Eidsvold",
+      "Gayndah",
+      "Monto",
+      "Mundubbera",
+      "Perry"
+    ],
+    "rows": [
+      [
+        "1933",
+        "14,322",
+        "2,476",
+        "1,475",
+        "3,760",
+        "3,514",
+        "2,302",
+        "795"
+      ],
+      [
+        "1947",
+        "13,861",
+        "2,179",
+        "1,313",
+        "3,407",
+        "4,270",
+        "2,064",
+        "628"
+      ],
+      [
+        "1954",
+        "13,917",
+        "1,974",
+        "1,311",
+        "3,352",
+        "4,458",
+        "2,326",
+        "496"
+      ],
+      [
+        "1961",
+        "13,993",
+        "1,882",
+        "1,242",
+        "3,400",
+        "4,397",
+        "2,617",
+        "455"
+      ],
+      [
+        "1966",
+        "13,715",
+        "1,722",
+        "1,702",
+        "3,182",
+        "4,155",
+        "2,580",
+        "374"
+      ],
+      [
+        "1971",
+        "12,230",
+        "1,639",
+        "1,222",
+        "3,107",
+        "3,495",
+        "2,391",
+        "376"
+      ],
+      [
+        "1976",
+        "11,504",
+        "1,532",
+        "1,231",
+        "2,814",
+        "3,228",
+        "2,395",
+        "304"
+      ],
+      [
+        "1981",
+        "11,565",
+        "1,411",
+        "1,256",
+        "2,859",
+        "3,249",
+        "2,481",
+        "309"
+      ]
+    ]
+  },
+  {
+    "id": "2-16799784-8:What is the average Year Named, when Latitude is 37.9N, and when Diameter (km) is greater than 76?",
+    "table_id": "2-16799784-8",
+    "question": "What is the average Year Named, when Latitude is 37.9N, and when Diameter (km) is greater than 76?",
+    "sql": "SELECT AVG(\"Year named\") FROM table WHERE \"Latitude\" = '37.9n' AND \"Diameter (km)\" > 76",
+    "columns": [
+      "Name",
+      "Latitude",
+      "Longitude",
+      "Diameter (km)",
+      "Year named"
+    ],
+    "rows": [
+      [
+        "Aitchison Patera",
+        "16.7S",
+        "349.4E",
+        "28.0",
+        "1994"
+      ],
+      [
+        "Anning Paterae",
+        "66.5N",
+        "57.8E",
+        "0.0",
+        "1991"
+      ],
+      [
+        "Anthony Patera",
+        "48.2N",
+        "32.6E",
+        "70.0",
+        "1991"
+      ],
+      [
+        "Apgar Patera",
+        "43.1N",
+        "83.8E",
+        "126.0",
+        "1991"
+      ],
+      [
+        "Aspasia Patera",
+        "56.4N",
+        "189.0E",
+        "200.0",
+        "1985"
+      ],
+      [
+        "Ayrton Patera",
+        "6.0N",
+        "227.3E",
+        "85.0",
+        "1994"
+      ],
+      [
+        "Ba'het Patera",
+        "48.4N",
+        "0.1E",
+        "145.0",
+        "1991"
+      ],
+      [
+        "Bakhtadze Patera",
+        "45.5N",
+        "219.5E",
+        "50.0",
+        "1997"
+      ]
+    ]
+  },
+  {
+    "id": "2-1106979-2:I want the D 46 for D 45 of r 5",
+    "table_id": "2-1106979-2",
+    "question": "I want the D 46 for D 45 of r 5",
+    "sql": "SELECT \"D 46\" FROM table WHERE \"D 45\" = 'r 5'",
+    "columns": [
+      "D 49",
+      "D 48",
+      "D 47",
+      "D 46",
+      "D 45",
+      "D 44",
+      "D 43",
+      "D 42",
+      "D 41",
+      "D 40"
+    ],
+    "rows": [
+      [
+        "D 10",
+        "D 11",
+        "D 12",
+        "D 13",
+        "D 14",
+        "D 15",
+        "D 16",
+        "D 17",
+        "D 18",
+        "D 19"
+      ],
+      [
+        "D 29",
+        "D 28",
+        "D 27",
+        "D 26",
+        "D 25",
+        "D 24",
+        "D 23",
+        "D 22",
+        "D 21",
+        "D 20"
+      ],
+      [
+        "D 30",
+        "D 31",
+        "D 32",
+        "D 33",
+        "D 34",
+        "D 35",
+        "D 36",
+        "D 37",
+        "D 38",
+        "D 39"
+      ],
+      [
+        "D 49",
+        "D 48",
+        "D 47",
+        "D 46",
+        "D 45",
+        "D 44",
+        "D 43",
+        "D 42",
+        "D 41",
+        "D 40"
+      ],
+      [
+        "D 50",
+        "\u2190 Majority",
+        "\u2190 Majority",
+        "\u2190 Majority",
+        "\u2190 Majority",
+        "\u2190 Majority",
+        "\u2190 Majority",
+        "\u2190 Majority",
+        "\u2190 Majority",
+        "\u2190 Majority"
+      ],
+      [
+        "D 50",
+        "D 51",
+        "D 52",
+        "D 53",
+        "D 54",
+        "D 55",
+        "D 56",
+        "D 57",
+        "R 41",
+        "R 40"
+      ],
+      [
+        "R 30",
+        "R 31",
+        "R 32",
+        "R 33",
+        "R 34",
+        "R 35",
+        "R 36",
+        "R 37",
+        "R 38",
+        "R 39"
+      ],
+      [
+        "R 29",
+        "R 28",
+        "R 27",
+        "R 26",
+        "R 25",
+        "R 24",
+        "R 23",
+        "R 22",
+        "R 21",
+        "R 20"
+      ]
+    ]
+  },
+  {
+    "id": "1-191105-2:When zachary sanders is the performer how many people is the music by?",
+    "table_id": "1-191105-2",
+    "question": "When zachary sanders is the performer how many people is the music by?",
+    "sql": "SELECT COUNT(\"Music by\") FROM table WHERE \"Performed by\" = 'Zachary Sanders'",
+    "columns": [
+      "Episode title",
+      "Subject",
+      "Music by",
+      "Lyrics by",
+      "Performed by",
+      "First aired"
+    ],
+    "rows": [
+      [
+        "Conjunction Junction",
+        "conjunction",
+        "Bob Dorough",
+        "Jack Sheldon and Terri Morel",
+        "Jack Sheldon",
+        "1973"
+      ],
+      [
+        "Unpack Your Adjectives",
+        "adjective",
+        "George R. Newall",
+        "George R. Newall",
+        "Blossom Dearie",
+        "1975"
+      ],
+      [
+        "Lolly, Lolly, Lolly, Get Your Adverbs Here",
+        "adverb",
+        "Bob Dorough",
+        "Bob Dorough",
+        "Bob Dorough",
+        "1974"
+      ],
+      [
+        "Interjections!",
+        "interjection",
+        "Lynn Ahrens",
+        "Lynn Ahrens",
+        "Essra Mohawk",
+        "1974"
+      ],
+      [
+        "Rufus Xavier Sarsaparilla",
+        "pronoun",
+        "Bob Dorough",
+        "Kathy Mandary",
+        "Jack Sheldon",
+        "1977"
+      ],
+      [
+        "Verb: That's What's Happenin'",
+        "verb",
+        "Bob Dorough",
+        "Bob Dorough",
+        "Zachary Sanders",
+        "1974"
+      ],
+      [
+        "A Noun Is A Person, Place Or Thing",
+        "noun",
+        "Lynn Ahrens",
+        "Lynn Ahrens",
+        "Lynn Ahrens",
+        "1973"
+      ],
+      [
+        "Busy Prepositions",
+        "preposition",
+        "Bob Dorough",
+        "Bob Dorough",
+        "Jack Sheldon and Bob Dorough",
+        "October 1993"
+      ]
+    ]
+  },
+  {
+    "id": "2-10932739-3:What is the total stellar mass of the type m0?",
+    "table_id": "2-10932739-3",
+    "question": "What is the total stellar mass of the type m0?",
+    "sql": "SELECT SUM(\"Stellar mass ( M\u2609 )\") FROM table WHERE \"Type\" = 'm0'",
+    "columns": [
+      "Stellar mass ( M\u2609 )",
+      "Planetary mass ( M\u2295 )",
+      "Lum. (L 0 )",
+      "Type",
+      "RHAB ( AU )",
+      "RV (cm/s)",
+      "Period (days)"
+    ],
+    "rows": [
+      [
+        "0.10",
+        "1.0",
+        "8 \u00d7 10\u2212",
+        "M8",
+        "0.028",
+        "168",
+        "6"
+      ],
+      [
+        "0.21",
+        "1.0",
+        "7.9 \u00d7 10\u2212",
+        "M5",
+        "0.089",
+        "65",
+        "21"
+      ],
+      [
+        "0.47",
+        "1.0",
+        "6.3 \u00d7 10\u2212",
+        "M0",
+        "0.25",
+        "26",
+        "67"
+      ],
+      [
+        "0.65",
+        "1.0",
+        "1.6 \u00d7 10\u2212",
+        "K5",
+        "0.40",
+        "18",
+        "115"
+      ],
+      [
+        "0.78",
+        "2.0",
+        "4.0 \u00d7 10\u2212",
+        "K0",
+        "0.63",
+        "25",
+        "209"
+      ]
+    ]
+  },
+  {
+    "id": "1-15986020-3:What was the total opponents points for the game were the Oilers scored 21?",
+    "table_id": "1-15986020-3",
+    "question": "What was the total opponents points for the game were the Oilers scored 21?",
+    "sql": "SELECT \"Opponents\" FROM table WHERE \"Oilers points\" = 21",
+    "columns": [
+      "Game",
+      "Date",
+      "Opponent",
+      "Result",
+      "Oilers points",
+      "Opponents",
+      "Oilers first downs",
+      "Record",
+      "Attendance"
+    ],
+    "rows": [
+      [
+        "1",
+        "Sept. 7",
+        "at Pittsburgh Steelers",
+        "Loss",
+        "17",
+        "31",
+        "16",
+        "0\u20131",
+        "54386"
+      ],
+      [
+        "2",
+        "Sept. 15",
+        "at Cleveland Browns",
+        "Win",
+        "16",
+        "7",
+        "23",
+        "1\u20131",
+        "80243"
+      ],
+      [
+        "3",
+        "Sept. 21",
+        "Baltimore Colts",
+        "Win",
+        "21",
+        "16",
+        "27",
+        "2\u20131",
+        "47878"
+      ],
+      [
+        "4",
+        "Sept. 28",
+        "at Cincinnati Bengals",
+        "Win",
+        "13",
+        "10",
+        "20",
+        "3\u20131",
+        "50413"
+      ],
+      [
+        "5",
+        "Oct. 5",
+        "Seattle Seahawks",
+        "Loss",
+        "7",
+        "26",
+        "16",
+        "3\u20132",
+        "46860"
+      ],
+      [
+        "6",
+        "Oct. 12",
+        "at Kansas City Chiefs",
+        "Loss",
+        "20",
+        "21",
+        "21",
+        "3\u20133",
+        "75048"
+      ],
+      [
+        "7",
+        "Oct. 19",
+        "Tampa Bay Buccaneers",
+        "Win",
+        "20",
+        "14",
+        "23",
+        "4\u20133",
+        "48167"
+      ],
+      [
+        "8",
+        "Oct. 26",
+        "Cincinnati Bengals",
+        "Win",
+        "23",
+        "3",
+        "17",
+        "5\u20133",
+        "49189"
+      ]
+    ]
+  },
+  {
+    "id": "1-28715942-2:Who arranged song(s) with tom lyle on the vocal percussion?",
+    "table_id": "1-28715942-2",
+    "question": "Who arranged song(s) with tom lyle on the vocal percussion?",
+    "sql": "SELECT \"Arranger(s)\" FROM table WHERE \"Vocal Percussionist(s)\" = 'Tom Lyle'",
+    "columns": [
+      "Track no.",
+      "Track",
+      "Original Artist",
+      "Soloist(s)",
+      "Vocal Percussionist(s)",
+      "Arranger(s)"
+    ],
+    "rows": [
+      [
+        "1",
+        "You Give Love A Bad Name",
+        "Jon Bon Jovi",
+        "Nick Pritchard",
+        "Jacob Taee",
+        "Scott Riseborough, Benjamin Wingfield"
+      ],
+      [
+        "2",
+        "Tell Her About It",
+        "Billy Joel",
+        "David Wisby",
+        "Harry Martin",
+        "Edmund Thomson Jones"
+      ],
+      [
+        "3",
+        "Knocks Me Off My Feet",
+        "Stevie Wonder",
+        "George Eddy",
+        "Tom Lyle",
+        "Edmund Thomson Jones"
+      ],
+      [
+        "4",
+        "Harder To Breathe",
+        "Maroon 5",
+        "Laurie Cottam Tom Lyle",
+        "Laurence Osbourn",
+        "Jack Stamp"
+      ],
+      [
+        "5",
+        "Love It When You Call",
+        "The Feeling",
+        "Laurence Osbourn",
+        "Jacob Taee",
+        "Edmund Thomson Jones"
+      ],
+      [
+        "6",
+        "Let Love Be Your Energy",
+        "Robbie Williams",
+        "Harry Martin",
+        "Edmund Thomson Jones",
+        "Edmund Thomson Jones"
+      ],
+      [
+        "7",
+        "Shake Ya Hey Ya",
+        "The Five Du-Tones , Ray Charles OutKast",
+        "Laurie Cottam Tom Lyle",
+        "Scott Riseborough",
+        "Joe Hasell"
+      ],
+      [
+        "8",
+        "Lullabye",
+        "Billy Joel",
+        "Edmund Thomson Jones",
+        "none",
+        "Benjamin Woodgates"
+      ]
+    ]
+  },
+  {
+    "id": "1-18220102-1:How many number of screenings have an opening film of the journey of vaan nguyen?",
+    "table_id": "1-18220102-1",
+    "question": "How many number of screenings have an opening film of the journey of vaan nguyen?",
+    "sql": "SELECT COUNT(\"Number of Screening\") FROM table WHERE \"Opening Film\" = 'The Journey of Vaan Nguyen'",
+    "columns": [
+      "Year",
+      "Date (Opening)",
+      "Date (Closing)",
+      "Opening Film",
+      "Number of Screening",
+      "Award-Winning Film"
+    ],
+    "rows": [
+      [
+        "2004",
+        "August 30",
+        "September 5",
+        "Deconstruction of Korean Housewife",
+        "129 films 99 televised",
+        "Last Home Standing"
+      ],
+      [
+        "2005",
+        "August 29",
+        "September 4",
+        "Another Myanmar, Mae Sot",
+        "98 films 94 televised",
+        "Bunso \u2013 The Youngest"
+      ],
+      [
+        "2006",
+        "July 10",
+        "July 16",
+        "The Journey of Vaan Nguyen",
+        "83 films 83 televised",
+        "Out of Bounds"
+      ],
+      [
+        "2007",
+        "August 27",
+        "September 2",
+        "Heimatkl\u00e4nge",
+        "58 films 54 televised",
+        "Puujee"
+      ],
+      [
+        "2008",
+        "September 22",
+        "September 28",
+        "Encounters at the End of the World",
+        "43 films 43 televised",
+        "If We Knew"
+      ],
+      [
+        "2009",
+        "September 21",
+        "September 27",
+        "Google Baby",
+        "50 films 50 televised",
+        "Unmistaken"
+      ],
+      [
+        "2010",
+        "August 23",
+        "August 29",
+        "Planet of Snail",
+        "49 films 49 televised",
+        "Last Train Home"
+      ],
+      [
+        "2011",
+        "August 19",
+        "August 25",
+        "How Are You Doing, Rudolf Ming?",
+        "51 films 43 televised",
+        "Marathon Boy"
+      ]
+    ]
+  },
+  {
+    "id": "2-13741576-5:What was the tries against when they had 32 tries for?",
+    "table_id": "2-13741576-5",
+    "question": "What was the tries against when they had 32 tries for?",
+    "sql": "SELECT \"Tries against\" FROM table WHERE \"Tries for\" = 32",
+    "columns": [
+      "Club",
+      "Played",
+      "Drawn",
+      "Lost",
+      "Points for",
+      "Points against",
+      "Tries for",
+      "Tries against",
+      "Try bonus",
+      "Losing bonus",
+      "Points"
+    ],
+    "rows": [
+      [
+        "Club",
+        "Played",
+        "Drawn",
+        "Lost",
+        "Points for",
+        "Points against",
+        "Tries for",
+        "Tries against",
+        "Try bonus",
+        "Losing bonus",
+        "Points"
+      ],
+      [
+        "Gwernyfed RFC",
+        "20",
+        "0",
+        "2",
+        "536",
+        "183",
+        "73",
+        "22",
+        "11",
+        "1",
+        "84"
+      ],
+      [
+        "Abertillery/Blaenau Gwent RFC",
+        "20",
+        "1",
+        "4",
+        "423",
+        "208",
+        "55",
+        "24",
+        "5",
+        "3",
+        "70"
+      ],
+      [
+        "Nantyglo RFC",
+        "20",
+        "1",
+        "5",
+        "370",
+        "213",
+        "51",
+        "27",
+        "6",
+        "3",
+        "67"
+      ],
+      [
+        "Llandaff RFC",
+        "20",
+        "0",
+        "8",
+        "382",
+        "288",
+        "54",
+        "41",
+        "6",
+        "3",
+        "57"
+      ],
+      [
+        "Rhiwbina RFC",
+        "20",
+        "0",
+        "9",
+        "372",
+        "317",
+        "51",
+        "41",
+        "6",
+        "6",
+        "56"
+      ],
+      [
+        "Risca RFC",
+        "20",
+        "0",
+        "10",
+        "386",
+        "271",
+        "53",
+        "37",
+        "6",
+        "8",
+        "54"
+      ],
+      [
+        "Tredegar Ironsides RFC",
+        "20",
+        "1",
+        "11",
+        "278",
+        "314",
+        "32",
+        "37",
+        "2",
+        "7",
+        "43"
+      ]
+    ]
+  },
+  {
+    "id": "1-15824796-4:Which Season originally aired on September 17, 1955",
+    "table_id": "1-15824796-4",
+    "question": "Which Season originally aired on September 17, 1955",
+    "sql": "SELECT \"Season #\" FROM table WHERE \"Original air date\" = 'September 17, 1955'",
+    "columns": [
+      "Series #",
+      "Season #",
+      "Title",
+      "Directed by:",
+      "Written by:",
+      "Original air date"
+    ],
+    "rows": [
+      [
+        "53",
+        "1",
+        "\"Through the Time Barrier\"",
+        "Harry Gerstad",
+        "David Chantler",
+        "April 23, 1955"
+      ],
+      [
+        "54",
+        "2",
+        "\"The Talking Clue\"",
+        "Harry Gerstad",
+        "David Chantler",
+        "April 30, 1955"
+      ],
+      [
+        "55",
+        "3",
+        "\"The Lucky Cat\"",
+        "Harry Gerstad",
+        "Jackson Gillis",
+        "May 7, 1955"
+      ],
+      [
+        "56",
+        "4",
+        "\" Superman Week\"",
+        "Harry Gerstad",
+        "Peggy Chantler Dick",
+        "May 14, 1955"
+      ],
+      [
+        "57",
+        "5",
+        "\"Great Caesar's Ghost\"",
+        "Harry Gerstad",
+        "Jackson Gillis",
+        "May 21, 1955"
+      ],
+      [
+        "58",
+        "6",
+        "\"Test of a Warrior\"",
+        "George Blair",
+        "Leroy H. Zehren",
+        "May 28, 1955"
+      ],
+      [
+        "59",
+        "7",
+        "\"Olsen's Millions\"",
+        "George Blair",
+        "David Chantler",
+        "June 4, 1955"
+      ],
+      [
+        "60",
+        "8",
+        "\"Clark Kent, Outlaw\"",
+        "George Blair",
+        "Leroy H. Zehren",
+        "September 10, 1955"
+      ]
+    ]
+  },
+  {
+    "id": "2-13810103-1:what year was michele assaf nominated",
+    "table_id": "2-13810103-1",
+    "question": "what year was michele assaf nominated",
+    "sql": "SELECT \"Year\" FROM table WHERE \"Nominee\" = 'michele assaf'",
+    "columns": [
+      "Year",
+      "Award",
+      "Category",
+      "Nominee",
+      "Result"
+    ],
+    "rows": [
+      [
+        "1989",
+        "Tony Award",
+        "Best Musical",
+        "Best Musical",
+        "Nominated"
+      ],
+      [
+        "1989",
+        "Tony Award",
+        "Best Performance by a Leading Actor in a Musical",
+        "Gabriel Barre",
+        "Nominated"
+      ],
+      [
+        "1989",
+        "Tony Award",
+        "Best Performance by a Leading Actor in a Musical",
+        "Brian Lane Green",
+        "Nominated"
+      ],
+      [
+        "1989",
+        "Tony Award",
+        "Best Performance by a Leading Actress in a Musical",
+        "Sharon McNight",
+        "Nominated"
+      ],
+      [
+        "1989",
+        "Tony Award",
+        "Best Direction of a Musical",
+        "Larry Carpenter",
+        "Nominated"
+      ],
+      [
+        "1989",
+        "Tony Award",
+        "Best Choreography",
+        "Michele Assaf",
+        "Nominated"
+      ],
+      [
+        "1989",
+        "Theatre World Award",
+        "Theatre World Award",
+        "Sharon McNight",
+        "Won"
+      ]
+    ]
+  },
+  {
+    "id": "2-11280842-4:what is the year when the date is not played?",
+    "table_id": "2-11280842-4",
+    "question": "what is the year when the date is not played?",
+    "sql": "SELECT \"Year\" FROM table WHERE \"Date\" = 'not played'",
+    "columns": [
+      "Year",
+      "Competition",
+      "Date",
+      "Location",
+      "Score",
+      "Result"
+    ],
+    "rows": [
+      [
+        "1989",
+        "World Group, 1st Round",
+        "01 - 09 Oct",
+        "Tokyo",
+        "0-3",
+        "Loss"
+      ],
+      [
+        "1989",
+        "World Group, Consolation Round",
+        "01 - 09 Oct",
+        "Tokyo",
+        "1-2",
+        "Loss"
+      ],
+      [
+        "1989",
+        "World Group, Qualifying Round",
+        "01 - 09 Oct",
+        "Tokyo",
+        "3-0",
+        "Win"
+      ],
+      [
+        "1988",
+        "World Group, 1st Round",
+        "04 - 11 Dec",
+        "Melbourne",
+        "1-2",
+        "Loss"
+      ],
+      [
+        "1988",
+        "World Group, Consolation Round",
+        "04 - 11 Dec",
+        "Melbourne",
+        "0-3",
+        "Loss"
+      ],
+      [
+        "1987",
+        "World Group, 1st Round",
+        "26 Jul - 02 Aug",
+        "Vancouver",
+        "1-2",
+        "Loss"
+      ],
+      [
+        "1987",
+        "World Group, Consolation Round",
+        "26 Jul - 02 Aug",
+        "Vancouver",
+        "0-3",
+        "Loss"
+      ],
+      [
+        "1987",
+        "World Group, Qualifying Round",
+        "26 Jul - 02 Aug",
+        "Vancouver",
+        "2-1",
+        "Win"
+      ]
+    ]
+  },
+  {
+    "id": "2-14519555-8:Which conference is in Portland, Oregon?",
+    "table_id": "2-14519555-8",
+    "question": "Which conference is in Portland, Oregon?",
+    "sql": "SELECT \"Conference\" FROM table WHERE \"City\" = 'portland, oregon'",
+    "columns": [
+      "Conference",
+      "Division",
+      "Team",
+      "City",
+      "Home Arena"
+    ],
+    "rows": [
+      [
+        "Eastern",
+        "Atlantic",
+        "Boston Celtics",
+        "Boston, Massachusetts",
+        "TD Garden"
+      ],
+      [
+        "Eastern",
+        "Atlantic",
+        "Brooklyn Nets",
+        "New York, New York ( Brooklyn )",
+        "Barclays Center"
+      ],
+      [
+        "Eastern",
+        "Atlantic",
+        "New York Knicks",
+        "New York, New York ( Manhattan )",
+        "Madison Square Garden"
+      ],
+      [
+        "Eastern",
+        "Atlantic",
+        "Philadelphia 76ers",
+        "Philadelphia, Pennsylvania",
+        "Wells Fargo Center"
+      ],
+      [
+        "Eastern",
+        "Atlantic",
+        "Toronto Raptors",
+        "Toronto, Ontario",
+        "Air Canada Centre"
+      ],
+      [
+        "Eastern",
+        "Central",
+        "Chicago Bulls",
+        "Chicago, Illinois",
+        "United Center"
+      ],
+      [
+        "Eastern",
+        "Central",
+        "Cleveland Cavaliers",
+        "Cleveland, Ohio",
+        "Quicken Loans Arena"
+      ],
+      [
+        "Eastern",
+        "Central",
+        "Detroit Pistons",
+        "Auburn Hills, Michigan",
+        "The Palace of Auburn Hills"
+      ]
+    ]
+  },
+  {
+    "id": "2-17310913-4:What is Record, when Game is \"24\"?",
+    "table_id": "2-17310913-4",
+    "question": "What is Record, when Game is \"24\"?",
+    "sql": "SELECT \"Record\" FROM table WHERE \"Game\" = 24",
+    "columns": [
+      "Game",
+      "December",
+      "Opponent",
+      "Score",
+      "Record"
+    ],
+    "rows": [
+      [
+        "24",
+        "3",
+        "@ Minnesota North Stars",
+        "4 - 0",
+        "10-12-2"
+      ],
+      [
+        "25",
+        "4",
+        "Minnesota North Stars",
+        "4 - 4",
+        "10-12-3"
+      ],
+      [
+        "26",
+        "7",
+        "Philadelphia Flyers",
+        "3 - 3",
+        "10-12-4"
+      ],
+      [
+        "27",
+        "8",
+        "@ Philadelphia Flyers",
+        "7 - 4",
+        "10-13-4"
+      ],
+      [
+        "28",
+        "11",
+        "Boston Bruins",
+        "8 - 2",
+        "10-14-4"
+      ],
+      [
+        "29",
+        "14",
+        "@ Chicago Black Hawks",
+        "2 - 2",
+        "10-14-5"
+      ],
+      [
+        "30",
+        "15",
+        "@ Detroit Red Wings",
+        "5 - 5",
+        "10-14-6"
+      ],
+      [
+        "31",
+        "17",
+        "@ Cleveland Barons",
+        "4 - 2",
+        "10-15-6"
+      ]
+    ]
+  },
+  {
+    "id": "2-18493740-3:What is the total number of cuts made for events played more than 3 times and under 2 top-25s?",
+    "table_id": "2-18493740-3",
+    "question": "What is the total number of cuts made for events played more than 3 times and under 2 top-25s?",
+    "sql": "SELECT COUNT(\"Cuts made\") FROM table WHERE \"Events\" > 3 AND \"Top-25\" < 2",
+    "columns": [
+      "Tournament",
+      "Wins",
+      "Top-10",
+      "Top-25",
+      "Events",
+      "Cuts made"
+    ],
+    "rows": [
+      [
+        "Masters Tournament",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0"
+      ],
+      [
+        "U.S. Open",
+        "0",
+        "0",
+        "0",
+        "2",
+        "1"
+      ],
+      [
+        "The Open Championship",
+        "0",
+        "1",
+        "2",
+        "5",
+        "2"
+      ],
+      [
+        "PGA Championship",
+        "0",
+        "0",
+        "0",
+        "3",
+        "2"
+      ],
+      [
+        "Totals",
+        "0",
+        "1",
+        "2",
+        "10",
+        "5"
+      ]
+    ]
+  },
+  {
+    "id": "1-26173063-2:What is orthodoxy when x is wehdat?",
+    "table_id": "1-26173063-2",
+    "question": "What is orthodoxy when x is wehdat?",
+    "sql": "SELECT \"Orthodoxy\" FROM table WHERE \"\u00d7\" = 'Wehdat'",
+    "columns": [
+      "\u00d7",
+      "Faisaly",
+      "Wehdat",
+      "Ramtha",
+      "Ahli",
+      "Jazeera",
+      "Hussein",
+      "Amman",
+      "Orthodoxy",
+      "Jeel",
+      "Ain Karem"
+    ],
+    "rows": [
+      [
+        "Faisaly",
+        "XXX",
+        "0-0",
+        "1-2",
+        "0-1",
+        "0-0",
+        "1-0",
+        "2-1",
+        "4-0",
+        "1-0",
+        "2-0"
+      ],
+      [
+        "Wehdat",
+        "1-2",
+        "XXX",
+        "1-1",
+        "2-1",
+        "2-0",
+        "0-1",
+        "3-3",
+        "1-0",
+        "1-0",
+        "0-1"
+      ],
+      [
+        "Ramtha",
+        "0-0",
+        "0-0",
+        "XXX",
+        "3-0",
+        "1-0",
+        "6-1",
+        "0-1",
+        "1-0",
+        "5-0",
+        "0-0"
+      ],
+      [
+        "Ahli",
+        "0-2",
+        "0-0",
+        "0-2",
+        "XXX",
+        "2-1",
+        "2-1",
+        "3-2",
+        "3-2",
+        "2-0",
+        "1-0"
+      ],
+      [
+        "Jazeera",
+        "1-0",
+        "2-3",
+        "0-3",
+        "3-1",
+        "XXX",
+        "0-0",
+        "3-0",
+        "0-2",
+        "2-0",
+        "1-1"
+      ],
+      [
+        "Hussein",
+        "1-1",
+        "1-0",
+        "1-5",
+        "1-1",
+        "1-1",
+        "XXX",
+        "4-0",
+        "1-0",
+        "2-0",
+        "3-1"
+      ],
+      [
+        "Amman",
+        "1-2",
+        "0-1",
+        "0-1",
+        "0-1",
+        "0-4",
+        "2-3",
+        "XXX",
+        "4-0",
+        "2-2",
+        "1-1"
+      ],
+      [
+        "Orthodoxy",
+        "0-3",
+        "2-3",
+        "0-7",
+        "1-2",
+        "2-2",
+        "2-1",
+        "0-1",
+        "XXX",
+        "2-2",
+        "0-0"
+      ]
+    ]
+  },
+  {
+    "id": "1-24399615-3:What is the cable rank for bbc three weekly ranking of n/a?",
+    "table_id": "1-24399615-3",
+    "question": "What is the cable rank for bbc three weekly ranking of n/a?",
+    "sql": "SELECT \"Cable rank\" FROM table WHERE \"BBC Three weekly ranking\" = 'N/A'",
+    "columns": [
+      "Episode no.",
+      "Airdate",
+      "Viewers",
+      "BBC Three weekly ranking",
+      "Cable rank"
+    ],
+    "rows": [
+      [
+        "1",
+        "22 October 2009",
+        "492000",
+        "N/A",
+        "N/A"
+      ],
+      [
+        "2",
+        "29 October 2009",
+        "515000",
+        "N/A",
+        "N/A"
+      ],
+      [
+        "3",
+        "5 November 2009",
+        "818000",
+        "3",
+        "15"
+      ],
+      [
+        "4",
+        "12 November 2009",
+        "598000",
+        "10",
+        "N/A"
+      ],
+      [
+        "5",
+        "19 November 2009",
+        "656000",
+        "7",
+        "N/A"
+      ],
+      [
+        "6",
+        "26 November 2009",
+        "849000",
+        "4",
+        "15"
+      ],
+      [
+        "7",
+        "3 December 2009",
+        "648000",
+        "7",
+        "N/A"
+      ],
+      [
+        "8",
+        "10 December 2009",
+        "705000",
+        "6",
+        "19"
+      ]
+    ]
+  },
+  {
+    "id": "1-26202788-7:In the championship Indian Wells, United States (2), who are the opponents in the final?",
+    "table_id": "1-26202788-7",
+    "question": "In the championship Indian Wells, United States (2), who are the opponents in the final?",
+    "sql": "SELECT \"Opponent in the final\" FROM table WHERE \"Championship\" = 'Indian Wells, United States (2)'",
+    "columns": [
+      "Outcome",
+      "No.",
+      "Date",
+      "Championship",
+      "Surface",
+      "Opponent in the final",
+      "Score in the final"
+    ],
+    "rows": [
+      [
+        "Winner",
+        "23.",
+        "January 9, 2005",
+        "Doha , Qatar",
+        "Hard",
+        "Ivan Ljubi\u010di\u0107",
+        "6\u20133, 6\u20131"
+      ],
+      [
+        "Winner",
+        "25.",
+        "February 27, 2005",
+        "Dubai, United Arab Emirates (3)",
+        "Hard",
+        "Ivan Ljubi\u010di\u0107",
+        "6\u20131, 6\u20137 (6\u20138) , 6\u20133"
+      ],
+      [
+        "Winner",
+        "26.",
+        "March 20, 2005",
+        "Indian Wells, United States (2)",
+        "Hard",
+        "Lleyton Hewitt",
+        "6\u20132, 6\u20134, 6\u20134"
+      ],
+      [
+        "Winner",
+        "27.",
+        "April 3, 2005",
+        "Miami , United States",
+        "Hard",
+        "Rafael Nadal",
+        "2\u20136, 6\u20137 (4\u20137) , 7\u20136 (7\u20135) , 6\u20133, 6\u20131"
+      ],
+      [
+        "Winner",
+        "28.",
+        "May 15, 2005",
+        "Hamburg, Germany (3)",
+        "Clay",
+        "Richard Gasquet",
+        "6\u20133, 7\u20135, 7\u20136 (7\u20134)"
+      ],
+      [
+        "Winner",
+        "29.",
+        "June 13, 2005",
+        "Halle, Germany (3)",
+        "Grass",
+        "Marat Safin",
+        "6\u20134, 6\u20137 (6\u20138) , 6\u20134"
+      ],
+      [
+        "Winner",
+        "30.",
+        "July 3, 2005",
+        "Wimbledon, London, England, UK (3)",
+        "Grass",
+        "Andy Roddick",
+        "6\u20132, 7\u20136 (7\u20132) , 6\u20134"
+      ],
+      [
+        "Winner",
+        "32.",
+        "September 11, 2005",
+        "US Open, New York City, United States (2)",
+        "Hard",
+        "Andre Agassi",
+        "6\u20133, 2\u20136, 7\u20136 (7\u20131) , 6\u20131"
+      ]
+    ]
+  },
+  {
+    "id": "2-1876262-5:What is the date when internet explorer was 62.2%",
+    "table_id": "2-1876262-5",
+    "question": "What is the date when internet explorer was 62.2%",
+    "sql": "SELECT \"Date\" FROM table WHERE \"Internet Explorer\" = '62.2%'",
+    "columns": [
+      "Date",
+      "Internet Explorer",
+      "Firefox",
+      "Safari",
+      "Opera"
+    ],
+    "rows": [
+      [
+        "October 2013",
+        "27.8%",
+        "16.0%",
+        "13.1%",
+        "2.3%"
+      ],
+      [
+        "September 2013",
+        "25.2%",
+        "16.8%",
+        "14.3%",
+        "2.4%"
+      ],
+      [
+        "August 2013",
+        "24.0%",
+        "17.8%",
+        "14.2%",
+        "2.4%"
+      ],
+      [
+        "July 2013",
+        "22.2%",
+        "18.5%",
+        "14.7%",
+        "2.3%"
+      ],
+      [
+        "June 2013",
+        "21.7%",
+        "19.5%",
+        "15.4%",
+        "2.2%"
+      ],
+      [
+        "May 2013",
+        "22.0%",
+        "19.2%",
+        "14.8%",
+        "2.2%"
+      ],
+      [
+        "April 2013",
+        "23.1%",
+        "20.7%",
+        "15.1%",
+        "2.3%"
+      ],
+      [
+        "March 2013",
+        "24.6%",
+        "19.3%",
+        "16.3%",
+        "2.3%"
+      ]
+    ]
+  },
+  {
+    "id": "2-12333215-7:What place did the player from England come in?",
+    "table_id": "2-12333215-7",
+    "question": "What place did the player from England come in?",
+    "sql": "SELECT \"Place\" FROM table WHERE \"Country\" = 'england'",
+    "columns": [
+      "Place",
+      "Player",
+      "Country",
+      "Score",
+      "To par",
+      "Money ( $ )"
+    ],
+    "rows": [
+      [
+        "1",
+        "Tiger Woods",
+        "United States",
+        "71-63-69-69=272",
+        "\u20138",
+        "1,260,000"
+      ],
+      [
+        "2",
+        "Woody Austin",
+        "United States",
+        "68-70-69-67=274",
+        "\u20136",
+        "756,000"
+      ],
+      [
+        "3",
+        "Ernie Els",
+        "South Africa",
+        "72-68-69-66=275",
+        "\u20135",
+        "476,000"
+      ],
+      [
+        "T4",
+        "Arron Oberholser",
+        "United States",
+        "68-72-70-69=279",
+        "\u20131",
+        "308,000"
+      ],
+      [
+        "T4",
+        "John Senden",
+        "Australia",
+        "69-70-69-71=279",
+        "\u20131",
+        "308,000"
+      ],
+      [
+        "T6",
+        "Simon Dyson",
+        "England",
+        "73-71-72-64=280",
+        "E",
+        "227,500"
+      ],
+      [
+        "T6",
+        "Trevor Immelman",
+        "South Africa",
+        "75-70-66-69=280",
+        "E",
+        "227,500"
+      ],
+      [
+        "T6",
+        "Geoff Ogilvy",
+        "Australia",
+        "69-68-74-69=280",
+        "E",
+        "227,500"
+      ]
+    ]
+  },
+  {
+    "id": "1-145439-1:what's the\u00a0economics\u00a0score with\u00a0education\u00a0being 92.0",
+    "table_id": "1-145439-1",
+    "question": "what's the\u00a0economics\u00a0score with\u00a0education\u00a0being 92.0",
+    "sql": "SELECT \"Economics\" FROM table WHERE \"Education\" = 92.0",
+    "columns": [
+      "Rank",
+      "Country",
+      "Overall",
+      "Justice",
+      "Health",
+      "Education",
+      "Economics",
+      "Politics"
+    ],
+    "rows": [
+      [
+        "1",
+        "Iceland",
+        "100.0",
+        "100.0",
+        "90.5",
+        "96.7",
+        "88.0",
+        "92.8"
+      ],
+      [
+        "2",
+        "Sweden",
+        "99.2",
+        "90.8",
+        "94.8",
+        "95.5",
+        "90.3",
+        "93.1"
+      ],
+      [
+        "3",
+        "Canada",
+        "96.6",
+        "100.0",
+        "92.7",
+        "92.0",
+        "91.0",
+        "66.9"
+      ],
+      [
+        "4",
+        "Denmark",
+        "95.3",
+        "86.1",
+        "94.9",
+        "97.6",
+        "88.5",
+        "78.4"
+      ],
+      [
+        "5",
+        "Finland",
+        "92.8",
+        "80.2",
+        "91.4",
+        "91.3",
+        "86.8",
+        "100.0"
+      ],
+      [
+        "6",
+        "Switzerland",
+        "91.9",
+        "87.9",
+        "94.4",
+        "97.3",
+        "82.6",
+        "74.6"
+      ],
+      [
+        "7",
+        "Norway",
+        "91.3",
+        "79.3",
+        "100.0",
+        "74.0",
+        "93.5",
+        "93.9"
+      ],
+      [
+        "8",
+        "United States",
+        "89.8",
+        "82.9",
+        "92.8",
+        "97.3",
+        "83.9",
+        "68.6"
+      ]
+    ]
+  },
+  {
+    "id": "1-1805191-14:Who were the candidates when the first elected was a republican in 1998? ",
+    "table_id": "1-1805191-14",
+    "question": "Who were the candidates when the first elected was a republican in 1998?",
+    "sql": "SELECT \"Candidates\" FROM table WHERE \"First elected\" = 1998 AND \"Party\" = 'Republican'",
+    "columns": [
+      "District",
+      "Incumbent",
+      "Party",
+      "First elected",
+      "Results",
+      "Candidates"
+    ],
+    "rows": [
+      [
+        "Illinois 1",
+        "Bobby Rush",
+        "Democratic",
+        "1992",
+        "Re-elected",
+        "Bobby Rush (D) 84.1% Jason Tabour (R) 15.9%"
+      ],
+      [
+        "Illinois 3",
+        "Dan Lipinski",
+        "Democratic",
+        "2004",
+        "Re-elected",
+        "Dan Lipinski (D) 77.1% Ray Wardingly (R) 22.9%"
+      ],
+      [
+        "Illinois 4",
+        "Luis Gutierrez",
+        "Democratic",
+        "1992",
+        "Re-elected",
+        "Luis Gutierrez (D) 85.8% Ann Melichar (R) 14.2%"
+      ],
+      [
+        "Illinois 5",
+        "Rahm Emanuel",
+        "Democratic",
+        "2002",
+        "Re-elected",
+        "Rahm Emanuel (D) 78.0% Kevin White (R) 22.0%"
+      ],
+      [
+        "Illinois 6",
+        "Henry Hyde",
+        "Republican",
+        "1974",
+        "Retired Republican hold",
+        "Peter Roskam (R) 51.4% Tammy Duckworth (D) 48.6%"
+      ],
+      [
+        "Illinois 7",
+        "Danny Davis",
+        "Democratic",
+        "1996",
+        "Re-elected",
+        "Danny Davis (D) 86.7% Charles Hutchinson (R) 13.3%"
+      ],
+      [
+        "Illinois 9",
+        "Jan Schakowsky",
+        "Democratic",
+        "1998",
+        "Re-elected",
+        "Jan Schakowsky (D) 74.6% Michael Shannon (R) 25.4%"
+      ],
+      [
+        "Illinois 10",
+        "Mark Kirk",
+        "Republican",
+        "2000",
+        "Re-elected",
+        "Mark Kirk (R) 53.4% Daniel Seals (D) 46.6%"
+      ]
+    ]
+  },
+  {
+    "id": "2-10351118-1:Tell me the rank for bronze less than 17 and gold less than 1",
+    "table_id": "2-10351118-1",
+    "question": "Tell me the rank for bronze less than 17 and gold less than 1",
+    "sql": "SELECT \"Rank\" FROM table WHERE \"Bronze\" < 17 AND \"Silver\" > 1 AND \"Gold\" < 1",
+    "columns": [
+      "Rank",
+      "Nation",
+      "Gold",
+      "Silver",
+      "Bronze",
+      "Total"
+    ],
+    "rows": [
+      [
+        "1",
+        "Great Britain",
+        "7",
+        "2",
+        "2",
+        "11"
+      ],
+      [
+        "2",
+        "Australia",
+        "2",
+        "0",
+        "4",
+        "6"
+      ],
+      [
+        "3",
+        "Netherlands",
+        "1",
+        "4",
+        "1",
+        "6"
+      ],
+      [
+        "4",
+        "France",
+        "1",
+        "2",
+        "1",
+        "4"
+      ],
+      [
+        "5",
+        "Cuba",
+        "1",
+        "1",
+        "0",
+        "2"
+      ],
+      [
+        "6",
+        "Czech Republic",
+        "1",
+        "0",
+        "1",
+        "2"
+      ],
+      [
+        "6",
+        "Spain",
+        "1",
+        "0",
+        "1",
+        "2"
+      ],
+      [
+        "6",
+        "United States",
+        "1",
+        "0",
+        "1",
+        "2"
+      ]
+    ]
+  },
+  {
+    "id": "2-15295737-1:Which Third has a Nation of scotland?",
+    "table_id": "2-15295737-1",
+    "question": "Which Third has a Nation of scotland?",
+    "sql": "SELECT \"Third\" FROM table WHERE \"Nation\" = 'scotland'",
+    "columns": [
+      "Nation",
+      "Skip",
+      "Third",
+      "Second",
+      "Lead"
+    ],
+    "rows": [
+      [
+        "Czech Republic",
+        "Jiri Snitil",
+        "Jindrich Kitzberger",
+        "Martin Snitil",
+        "Marek Vydra"
+      ],
+      [
+        "Denmark",
+        "Ulrik Schmidt",
+        "Johnny Frederiksen",
+        "Bo Jensen",
+        "Lars Vilandt"
+      ],
+      [
+        "France",
+        "Thomas Dufour",
+        "Tony Angiboust",
+        "Jan Ducroz",
+        "Raphael Mathieu"
+      ],
+      [
+        "Germany",
+        "Andy Kapp",
+        "Andreas Lang",
+        "Uli Kapp",
+        "Holger H\u00f6hne"
+      ],
+      [
+        "Ireland",
+        "Peter Wilson",
+        "Bill Gray",
+        "Neil Fyfe",
+        "John Furey"
+      ],
+      [
+        "Norway",
+        "Thomas Ulsrud",
+        "Torger Nerg\u00e5rd",
+        "Christoffer Svae",
+        "H\u00e5vard Vad Petersson"
+      ],
+      [
+        "Scotland",
+        "David Murdoch",
+        "Ewan MacDonald",
+        "Peter Smith",
+        "Euan Byers"
+      ],
+      [
+        "Spain",
+        "Antonio de Mollinedo",
+        "Martin Rios",
+        "Jose Manuel Sanguesa",
+        "Angel Garcia"
+      ]
+    ]
+  },
+  {
+    "id": "2-10823950-10:What is the home venue of essendon with a crowd larger than 19,760?",
+    "table_id": "2-10823950-10",
+    "question": "What is the home venue of essendon with a crowd larger than 19,760?",
+    "sql": "SELECT \"Venue\" FROM table WHERE \"Crowd\" > '19,760' AND \"Home team\" = 'essendon'",
+    "columns": [
+      "Home team",
+      "Home team score",
+      "Away team",
+      "Away team score",
+      "Venue",
+      "Crowd",
+      "Date"
+    ],
+    "rows": [
+      [
+        "Hawthorn",
+        "13.17 (95)",
+        "St Kilda",
+        "11.14 (80)",
+        "Princes Park",
+        "14,961",
+        "30 May 1981"
+      ],
+      [
+        "Geelong",
+        "14.8 (92)",
+        "South Melbourne",
+        "10.10 (70)",
+        "Kardinia Park",
+        "19,760",
+        "30 May 1981"
+      ],
+      [
+        "Fitzroy",
+        "22.15 (147)",
+        "Footscray",
+        "10.10 (70)",
+        "Junction Oval",
+        "11,630",
+        "30 May 1981"
+      ],
+      [
+        "Collingwood",
+        "17.10 (112)",
+        "Richmond",
+        "8.9 (57)",
+        "Victoria Park",
+        "37,177",
+        "30 May 1981"
+      ],
+      [
+        "Essendon",
+        "11.13 (79)",
+        "Carlton",
+        "6.8 (44)",
+        "Windy Hill",
+        "30,574",
+        "30 May 1981"
+      ],
+      [
+        "North Melbourne",
+        "25.22 (172)",
+        "Melbourne",
+        "6.7 (43)",
+        "VFL Park",
+        "17,015",
+        "30 May 1981"
+      ]
+    ]
+  },
+  {
+    "id": "2-14431362-5:Which batter has the last name Graham?",
+    "table_id": "2-14431362-5",
+    "question": "Which batter has the last name Graham?",
+    "sql": "SELECT \"Bats\" FROM table WHERE \"Surname\" = 'graham'",
+    "columns": [
+      "Surname",
+      "First",
+      "D.O.B.",
+      "Uni#",
+      "Bats",
+      "Throws",
+      "Position"
+    ],
+    "rows": [
+      [
+        "GRAHAM",
+        "Mitchell",
+        "17/02/86",
+        "1",
+        "R",
+        "R",
+        "INF"
+      ],
+      [
+        "HUGHES",
+        "Luke",
+        "2/08/84",
+        "4",
+        "R",
+        "R",
+        "INF"
+      ],
+      [
+        "SMIT",
+        "Jason",
+        "27/10/89",
+        "6",
+        "R",
+        "R",
+        "INF"
+      ],
+      [
+        "THOMAS",
+        "Brendan",
+        "28/02/79",
+        "7",
+        "R",
+        "L",
+        "LHP"
+      ],
+      [
+        "FLOYD",
+        "Daniel",
+        "17/01/83",
+        "8",
+        "R",
+        "R",
+        "OF"
+      ],
+      [
+        "EISSENS",
+        "Simon",
+        "10/01/68",
+        "9",
+        "R",
+        "R",
+        "RHP"
+      ],
+      [
+        "DALE",
+        "Lachlan",
+        "22/06/83",
+        "10",
+        "R",
+        "R",
+        "INF"
+      ],
+      [
+        "DE SAN MIGUEL",
+        "Allan",
+        "1/02/88",
+        "11",
+        "R",
+        "R",
+        "C"
+      ]
+    ]
+  },
+  {
+    "id": "2-16653153-11:What was the crowd size for the game with a score of 101-105?",
+    "table_id": "2-16653153-11",
+    "question": "What was the crowd size for the game with a score of 101-105?",
+    "sql": "SELECT \"Crowd\" FROM table WHERE \"Score\" = '101-105'",
+    "columns": [
+      "Date",
+      "Home team",
+      "Score",
+      "Away team",
+      "Venue",
+      "Crowd",
+      "Box Score",
+      "Report"
+    ],
+    "rows": [
+      [
+        "8 October",
+        "Melbourne Tigers",
+        "101-105",
+        "Perth Wildcats",
+        "State Netball and Hockey Centre",
+        "2,074",
+        "box score",
+        "report"
+      ],
+      [
+        "9 October",
+        "New Zealand Breakers",
+        "111-122",
+        "Cairns Taipans",
+        "North Shore Events Centre",
+        "4,066",
+        "box score",
+        "report"
+      ],
+      [
+        "10 October",
+        "Gold Coast Blaze",
+        "92-98",
+        "Sydney Spirit",
+        "Gold Coast Convention Centre",
+        "3,091",
+        "box score",
+        "report"
+      ],
+      [
+        "10 October",
+        "Wollongong Hawks",
+        "85-82",
+        "Perth Wildcats",
+        "WIN Entertainment Centre",
+        "2,338",
+        "box score",
+        "report"
+      ],
+      [
+        "11 October",
+        "Melbourne Tigers",
+        "119-91",
+        "Adelaide 36ers",
+        "State Netball and Hockey Centre",
+        "2,636",
+        "box score",
+        "report"
+      ],
+      [
+        "11 October",
+        "Sydney Spirit",
+        "101-86",
+        "Perth Wildcats",
+        "State Sports Centre",
+        "1,624",
+        "box score",
+        "report"
+      ]
+    ]
+  },
+  {
+    "id": "1-27733909-7:Name the team for score l 102\u2013122 (ot)",
+    "table_id": "1-27733909-7",
+    "question": "Name the team for score l 102\u2013122 (ot)",
+    "sql": "SELECT \"Team\" FROM table WHERE \"Score\" = 'L 102\u2013122 (OT)'",
+    "columns": [
+      "Game",
+      "Date",
+      "Team",
+      "Score",
+      "High points",
+      "High rebounds",
+      "High assists",
+      "Location Attendance",
+      "Record"
+    ],
+    "rows": [
+      [
+        "33",
+        "January 2",
+        "Boston",
+        "L 79\u201393 (OT)",
+        "DeMar DeRozan (27)",
+        "Joey Dorsey (13)",
+        "Jos\u00e9 Calder\u00f3n (10)",
+        "Air Canada Centre 19,986",
+        "11\u201322"
+      ],
+      [
+        "34",
+        "January 4",
+        "@ Chicago",
+        "L 91\u2013111 (OT)",
+        "Andrea Bargnani (23)",
+        "Andrea Bargnani (6)",
+        "Jerryd Bayless (8)",
+        "United Center 21,290",
+        "11\u201323"
+      ],
+      [
+        "35",
+        "January 5",
+        "@ Cleveland",
+        "W 120\u2013105 (OT)",
+        "Andrea Bargnani (25)",
+        "Julian Wright (9)",
+        "Jos\u00e9 Calder\u00f3n (17)",
+        "Quicken Loans Arena 20,562",
+        "12\u201323"
+      ],
+      [
+        "36",
+        "January 7",
+        "@ Boston",
+        "L 102\u2013122 (OT)",
+        "DeMar DeRozan (20)",
+        "Joey Dorsey , Linas Kleiza (6)",
+        "Jos\u00e9 Calder\u00f3n (9)",
+        "TD Garden 18,624",
+        "12\u201324"
+      ],
+      [
+        "37",
+        "January 9",
+        "Sacramento",
+        "W 118\u2013112 (OT)",
+        "Andrea Bargnani (30)",
+        "Amir Johnson (9)",
+        "Jos\u00e9 Calder\u00f3n (9)",
+        "Air Canada Centre 17,206",
+        "13\u201324"
+      ],
+      [
+        "38",
+        "January 12",
+        "Atlanta",
+        "L 101\u2013104 (OT)",
+        "Leandro Barbosa , Andrea Bargnani (26)",
+        "Amir Johnson (7)",
+        "Jos\u00e9 Calder\u00f3n (9)",
+        "Air Canada Centre 14,186",
+        "13\u201325"
+      ],
+      [
+        "39",
+        "January 14",
+        "Detroit",
+        "L 95\u2013101 (OT)",
+        "Andrea Bargnani (31)",
+        "Amir Johnson (10)",
+        "Jos\u00e9 Calder\u00f3n (13)",
+        "Air Canada Centre 16,924",
+        "13\u201326"
+      ],
+      [
+        "40",
+        "January 15",
+        "@ Washington",
+        "L 95\u201398 (OT)",
+        "Andrea Bargnani (25)",
+        "Amir Johnson (10)",
+        "Jos\u00e9 Calder\u00f3n (15)",
+        "Verizon Center 14,652",
+        "13\u201327"
+      ]
+    ]
+  },
+  {
+    "id": "1-1942366-9:How many different C_{high} values are there for the good category?",
+    "table_id": "1-1942366-9",
+    "question": "How many different C_{high} values are there for the good category?",
+    "sql": "SELECT COUNT(\"C_{high}\") FROM table WHERE \"Category\" = 'Good'",
+    "columns": [
+      "C_{low}",
+      "C_{high}",
+      "I_{low}",
+      "I_{high}",
+      "Category"
+    ],
+    "rows": [
+      [
+        "0",
+        "12.0",
+        "0",
+        "50",
+        "Good"
+      ],
+      [
+        "12.1",
+        "35.4",
+        "51",
+        "100",
+        "Moderate"
+      ],
+      [
+        "35.5",
+        "55.4",
+        "101",
+        "150",
+        "Unhealthy for Sensitive Groups"
+      ],
+      [
+        "55.5",
+        "150.4",
+        "151",
+        "200",
+        "Unhealthy"
+      ],
+      [
+        "150.5",
+        "250.4",
+        "201",
+        "300",
+        "Very Unhealthy"
+      ],
+      [
+        "250.5",
+        "350.4",
+        "301",
+        "400",
+        "Hazardous"
+      ]
+    ]
+  },
+  {
+    "id": "1-20867295-2:When twente came in third place and ajax was the winner what are the seasons?",
+    "table_id": "1-20867295-2",
+    "question": "When twente came in third place and ajax was the winner what are the seasons?",
+    "sql": "SELECT \"Season\" FROM table WHERE \"Winner\" = 'Ajax' AND \"Third Place\" = 'Twente'",
+    "columns": [
+      "Season",
+      "Winner",
+      "Runner Up",
+      "Third Place",
+      "Top scorer",
+      "Goals"
+    ],
+    "rows": [
+      [
+        "1956\u201357",
+        "Ajax",
+        "Fortuna '54",
+        "SC Enschede",
+        "Coen Dillen Category:Articles with hCards",
+        "43"
+      ],
+      [
+        "1957\u201358",
+        "D.O.S.",
+        "SC Enschede",
+        "Ajax",
+        "Leo Canjels Category:Articles with hCards",
+        "32"
+      ],
+      [
+        "1958\u201359",
+        "Sparta Rotterdam",
+        "Rapid JC",
+        "Fortuna '54",
+        "Leo Canjels Category:Articles with hCards",
+        "34"
+      ],
+      [
+        "1959\u201360",
+        "Ajax",
+        "Feyenoord",
+        "Blauw-Wit",
+        "Henk Groot Category:Articles with hCards",
+        "38"
+      ],
+      [
+        "1960-61",
+        "Feyenoord",
+        "Ajax",
+        "VVV",
+        "Henk Groot Category:Articles with hCards",
+        "41"
+      ],
+      [
+        "1961-62",
+        "Feyenoord",
+        "PSV Eindhoven",
+        "Blauw-Wit",
+        "Dick Tol Category:Articles with hCards",
+        "27"
+      ],
+      [
+        "1962-63",
+        "PSV Eindhoven",
+        "Ajax",
+        "Sparta Rotterdam",
+        "Pierre Kerkhofs Category:Articles with hCards",
+        "22"
+      ],
+      [
+        "1963\u201364",
+        "Door Wilskracht Sterk",
+        "PSV",
+        "SC Enschede",
+        "Frans Geurtsen Category:Articles with hCards",
+        "28"
+      ]
+    ]
+  },
+  {
+    "id": "2-19000748-1:Can you tell me the Nationality that has the Round smaller than 5, and the Player of bruce affleck?",
+    "table_id": "2-19000748-1",
+    "question": "Can you tell me the Nationality that has the Round smaller than 5, and the Player of bruce affleck?",
+    "sql": "SELECT \"Nationality\" FROM table WHERE \"Round\" < 5 AND \"Player\" = 'bruce affleck'",
+    "columns": [
+      "Round",
+      "Pick",
+      "Player",
+      "Nationality",
+      "College/Junior/Club Team"
+    ],
+    "rows": [
+      [
+        "1",
+        "3.",
+        "Rick Hampton",
+        "Canada",
+        "St. Catharines Black Hawks ( OHA )"
+      ],
+      [
+        "1",
+        "17.",
+        "Ron Chipperfield",
+        "Canada",
+        "Brandon Wheat Kings ( WCHL )"
+      ],
+      [
+        "2",
+        "21.",
+        "Bruce Affleck",
+        "Canada",
+        "University of Denver Pioneers ( WCHA )"
+      ],
+      [
+        "3",
+        "39.",
+        "Charlie Simmer",
+        "Canada",
+        "Sault Ste. Marie Greyhounds (OHA)"
+      ],
+      [
+        "4",
+        "57.",
+        "Tom Price",
+        "Canada",
+        "Ottawa 67's (OHA)"
+      ],
+      [
+        "5",
+        "75.",
+        "Jim Warden",
+        "United States",
+        "Michigan Tech Huskies (WCHA)"
+      ],
+      [
+        "6",
+        "93.",
+        "Tom Sundberg",
+        "United States",
+        "St. Paul Vulcans ( MidJHL )"
+      ],
+      [
+        "7",
+        "111.",
+        "Tom Anderson",
+        "United States",
+        "St. Paul Vulcans (MidJHL)"
+      ]
+    ]
+  },
+  {
+    "id": "2-1824778-2:When was the payload of Commercial Communications Satellite amc16?",
+    "table_id": "2-1824778-2",
+    "question": "When was the payload of Commercial Communications Satellite amc16?",
+    "sql": "SELECT \"Date and time( UTC )\" FROM table WHERE \"Type of payload\" = 'commercial communications satellite' AND \"Payload\" = 'amc16'",
+    "columns": [
+      "Date and time( UTC )",
+      "Type",
+      "Serial no.",
+      "Launch site",
+      "Payload",
+      "Type of payload",
+      "Orbit",
+      "Outcome"
+    ],
+    "rows": [
+      [
+        "August 21, 2002, 22:05",
+        "401",
+        "AV-001",
+        "CCAFS SLC-41",
+        "Hot Bird 6",
+        "Commercial communications satellite",
+        "GSO",
+        "Success"
+      ],
+      [
+        "May 13, 2003, 22:10",
+        "401",
+        "AV-002",
+        "CCAFS SLC-41",
+        "Hellas Sat 2",
+        "Commercial communications satellite",
+        "GSO",
+        "Success"
+      ],
+      [
+        "July 17, 2003, 23:45",
+        "521",
+        "AV-003",
+        "CCAFS SLC-41",
+        "Rainbow1",
+        "Commercial communications satellite",
+        "GSO",
+        "Success"
+      ],
+      [
+        "December 17, 2004, 12:07",
+        "521",
+        "AV-005",
+        "CCAFS SLC-41",
+        "AMC16",
+        "Commercial communications satellite",
+        "GSO",
+        "Success"
+      ],
+      [
+        "March 11, 2005, 21:42",
+        "431",
+        "AV-004",
+        "CCAFS SLC-41",
+        "Inmarsat4-F1",
+        "Commercial communications satellite",
+        "GSO",
+        "Success"
+      ],
+      [
+        "August 12, 2005, 11:43",
+        "401",
+        "AV-007",
+        "CCAFS SLC-41",
+        "Mars Reconnaissance Orbiter",
+        "Mars orbiter",
+        "Hyperbolic to Areocentric",
+        "Success"
+      ],
+      [
+        "January 19, 2006, 19:00",
+        "551",
+        "AV-010",
+        "CCAFS SLC-41",
+        "New Horizons",
+        "Pluto and Kuiper Belt probe",
+        "Hyperbolic",
+        "Success"
+      ],
+      [
+        "April 20, 2006, 20:27",
+        "411",
+        "AV-008",
+        "CCAFS SLC-41",
+        "Astra 1KR",
+        "Commercial communications satellite",
+        "GSO",
+        "Success"
+      ]
+    ]
+  },
+  {
+    "id": "2-10760098-2:What date was the 1500 m freestyle competition?",
+    "table_id": "2-10760098-2",
+    "question": "What date was the 1500 m freestyle competition?",
+    "sql": "SELECT \"Date\" FROM table WHERE \"Event\" = '1500 m freestyle'",
+    "columns": [
+      "Event",
+      "Time",
+      "Nationality",
+      "Date",
+      "Meet",
+      "Location"
+    ],
+    "rows": [
+      [
+        "50 m freestyle",
+        "22.06",
+        "Russia",
+        "14 July 2013",
+        "2013 Championships",
+        "Poznan , Poland"
+      ],
+      [
+        "100 m freestyle",
+        "48.48",
+        "Russia",
+        "10 July 2009",
+        "2009 Championships",
+        "Prague , Czech Republic"
+      ],
+      [
+        "200 m freestyle",
+        "1:46.58",
+        "France",
+        "18 July 2010",
+        "2010 Championships",
+        "Helsinki , Finland"
+      ],
+      [
+        "400 m freestyle",
+        "3:46.26",
+        "France",
+        "14 July 2010",
+        "2010 Championships",
+        "Helsinki , Finland"
+      ],
+      [
+        "800 m freestyle",
+        "7:56.90",
+        "Faroe Islands",
+        "2 August 2008",
+        "2008 Championships",
+        "Belgrade , Serbia"
+      ],
+      [
+        "1500 m freestyle",
+        "15:06.04",
+        "Poland",
+        "16 July 2005",
+        "2005 Championships",
+        "Budapest , Hungary"
+      ],
+      [
+        "50 m backstroke",
+        "25.40",
+        "Germany",
+        "9 July 2011",
+        "2011 Championships",
+        "Belgrade , Serbia"
+      ],
+      [
+        "100 m backstroke",
+        "54.63",
+        "Russia",
+        "10 July 2013",
+        "2013 Championships",
+        "Poznan , Poland"
+      ]
+    ]
+  },
+  {
+    "id": "2-18802185-4:What nation has 0 as the silver, 1 as the bronze, with 18 as the rank?",
+    "table_id": "2-18802185-4",
+    "question": "What nation has 0 as the silver, 1 as the bronze, with 18 as the rank?",
+    "sql": "SELECT \"Nation\" FROM table WHERE \"Silver\" = 0 AND \"Bronze\" = 1 AND \"Rank\" = 18",
+    "columns": [
+      "Rank",
+      "Nation",
+      "Gold",
+      "Silver",
+      "Bronze",
+      "Total"
+    ],
+    "rows": [
+      [
+        "1",
+        "Hungary",
+        "9",
+        "3",
+        "3",
+        "15"
+      ],
+      [
+        "2",
+        "Germany",
+        "3",
+        "5",
+        "5",
+        "13"
+      ],
+      [
+        "3",
+        "Poland",
+        "2",
+        "1",
+        "4",
+        "7"
+      ],
+      [
+        "4",
+        "Romania",
+        "1",
+        "4",
+        "1",
+        "6"
+      ],
+      [
+        "5",
+        "Canada",
+        "2",
+        "2",
+        "1",
+        "5"
+      ],
+      [
+        "6",
+        "Sweden",
+        "0",
+        "1",
+        "4",
+        "5"
+      ],
+      [
+        "7",
+        "Bulgaria",
+        "2",
+        "0",
+        "2",
+        "4"
+      ],
+      [
+        "8",
+        "Russia",
+        "1",
+        "1",
+        "1",
+        "3"
+      ]
+    ]
+  },
+  {
+    "id": "2-1228457-1:Which tires were in Class C in years before 1983?",
+    "table_id": "2-1228457-1",
+    "question": "Which tires were in Class C in years before 1983?",
+    "sql": "SELECT \"Tyres\" FROM table WHERE \"Class\" = 'c' AND \"Year\" < 1983",
+    "columns": [
+      "Year",
+      "Class",
+      "Tyres",
+      "Team",
+      "Co-Drivers",
+      "Pos.",
+      "Class Pos."
+    ],
+    "rows": [
+      [
+        "1971",
+        "P 2.0",
+        "D",
+        "Camel Filters Team Huron",
+        "Roger Enever",
+        "DNF",
+        "DNF"
+      ],
+      [
+        "1977",
+        "Gr.5",
+        "G",
+        "Porsche Kremer Racing",
+        "John Fitzpatrick Nick Faure",
+        "DNF",
+        "DNF"
+      ],
+      [
+        "1978",
+        "S +2.0",
+        "G",
+        "IBEC Racing Developments, Ltd.",
+        "Ian Grob",
+        "DNF",
+        "DNF"
+      ],
+      [
+        "1980",
+        "IMSA",
+        "G",
+        "JLP Racing",
+        "John Paul Sr. John Paul Jr.",
+        "9th",
+        "2nd"
+      ],
+      [
+        "1981",
+        "S +2.0",
+        "G",
+        "Team Lola",
+        "Emilio de Villota Juan Fern\u00e1ndez",
+        "15th",
+        "3rd"
+      ],
+      [
+        "1982",
+        "C",
+        "A",
+        "Ultramar Team Lola",
+        "Rupert Keegan Nick Faure",
+        "DNF",
+        "DNF"
+      ],
+      [
+        "1983",
+        "C",
+        "G",
+        "John Fitzpatrick Racing",
+        "John Fitzpatrick Rupert Keegan",
+        "5th",
+        "5th"
+      ],
+      [
+        "1984",
+        "C1",
+        "Y",
+        "Skoal Bandit Porsche Team",
+        "Rupert Keegan Roberto Moreno",
+        "DNF",
+        "DNF"
+      ]
+    ]
+  },
+  {
+    "id": "2-12955969-1:What is the year of the tournament played at Melbourne, Australia?",
+    "table_id": "2-12955969-1",
+    "question": "What is the year of the tournament played at Melbourne, Australia?",
+    "sql": "SELECT AVG(\"Year\") FROM table WHERE \"Venue\" = 'melbourne, australia'",
+    "columns": [
+      "Year",
+      "Tournament",
+      "Venue",
+      "Result",
+      "Event"
+    ],
+    "rows": [
+      [
+        "2001",
+        "World Youth Championships",
+        "Debrecen , Hungary",
+        "7th",
+        "10,000 m"
+      ],
+      [
+        "2002",
+        "World Junior Championships",
+        "Kingston, Jamaica",
+        "19th",
+        "10,000 m"
+      ],
+      [
+        "2004",
+        "World Race Walking Cup",
+        "Naumburg , Germany",
+        "75th",
+        "20km"
+      ],
+      [
+        "2005",
+        "World Championships",
+        "Helsinki , Finland",
+        "18th",
+        "20 km"
+      ],
+      [
+        "2006",
+        "Commonwealth Games",
+        "Melbourne , Australia",
+        "3rd",
+        "20km"
+      ],
+      [
+        "2006",
+        "World Race Walking Cup",
+        "La Coru\u00f1a , Spain",
+        "14th",
+        "20km"
+      ],
+      [
+        "2007",
+        "World Championships",
+        "Osaka, Japan",
+        "DSQ",
+        "20 km"
+      ],
+      [
+        "2008",
+        "World Race Walking Cup",
+        "Cheboksary , Russia",
+        "10th",
+        "20km"
+      ]
+    ]
+  },
+  {
+    "id": "2-15887683-3:What is Language, when Content is Sport, when HDTV is No, and when Television Service is ESPN America?",
+    "table_id": "2-15887683-3",
+    "question": "What is Language, when Content is Sport, when HDTV is No, and when Television Service is ESPN America?",
+    "sql": "SELECT \"Language\" FROM table WHERE \"Content\" = 'sport' AND \"HDTV\" = 'no' AND \"Television service\" = 'espn america'",
+    "columns": [
+      "Television service",
+      "Country",
+      "Language",
+      "Content",
+      "HDTV",
+      "Package/Option"
+    ],
+    "rows": [
+      [
+        "Sky Sport 24 HD",
+        "Italy",
+        "Italian",
+        "sport news",
+        "yes",
+        "Sky Sport o Sky Calcio o Sky TV + Sky HD"
+      ],
+      [
+        "Sky Sport 1 HD",
+        "Italy",
+        "Italian",
+        "sport",
+        "yes",
+        "Sky Sport + Sky HD"
+      ],
+      [
+        "Sky Sport 2 HD",
+        "Italy",
+        "Italian",
+        "sport",
+        "yes",
+        "Sky Sport + Sky HD"
+      ],
+      [
+        "Sky Sport 3 HD",
+        "Italy",
+        "Italian",
+        "sport",
+        "yes",
+        "Sky Sport + Sky HD"
+      ],
+      [
+        "Sky Sport Extra HD",
+        "Italy",
+        "Italian",
+        "sport",
+        "yes",
+        "Sky Sport + Sky HD"
+      ],
+      [
+        "FOX Sports HD",
+        "Italy",
+        "Italian",
+        "sport",
+        "yes",
+        "Sky Calcio + Sky HD"
+      ],
+      [
+        "Sky 3D",
+        "Italy",
+        "Italian",
+        "tematico",
+        "yes",
+        "Tutti i pacchetti + Sky HD"
+      ],
+      [
+        "Eurosport HD",
+        "Italy",
+        "Italian",
+        "sport",
+        "yes",
+        "Sky Sport + Sky HD"
+      ]
+    ]
+  },
+  {
+    "id": "2-10790099-18:What date is listed for the team that has an Away team score of 20.21 (141)?",
+    "table_id": "2-10790099-18",
+    "question": "What date is listed for the team that has an Away team score of 20.21 (141)?",
+    "sql": "SELECT \"Date\" FROM table WHERE \"Away team score\" = '20.21 (141)'",
+    "columns": [
+      "Home team",
+      "Home team score",
+      "Away team",
+      "Away team score",
+      "Venue",
+      "Crowd",
+      "Date"
+    ],
+    "rows": [
+      [
+        "Geelong",
+        "17.23 (125)",
+        "South Melbourne",
+        "9.15 (69)",
+        "Corio Oval",
+        "9,500",
+        "3 September 1932"
+      ],
+      [
+        "Footscray",
+        "9.10 (64)",
+        "North Melbourne",
+        "12.18 (90)",
+        "Western Oval",
+        "11,000",
+        "3 September 1932"
+      ],
+      [
+        "Fitzroy",
+        "10.7 (67)",
+        "Richmond",
+        "14.11 (95)",
+        "Brunswick Street Oval",
+        "14,000",
+        "3 September 1932"
+      ],
+      [
+        "Essendon",
+        "11.15 (81)",
+        "Hawthorn",
+        "4.10 (34)",
+        "Windy Hill",
+        "7,000",
+        "3 September 1932"
+      ],
+      [
+        "Melbourne",
+        "13.12 (90)",
+        "Collingwood",
+        "16.17 (113)",
+        "MCG",
+        "10,698",
+        "3 September 1932"
+      ],
+      [
+        "St Kilda",
+        "7.12 (54)",
+        "Carlton",
+        "20.21 (141)",
+        "Junction Oval",
+        "15,000",
+        "3 September 1932"
+      ]
+    ]
+  },
+  {
+    "id": "2-16404058-1:when was the death when the birth was 8 december 1542?",
+    "table_id": "2-16404058-1",
+    "question": "when was the death when the birth was 8 december 1542?",
+    "sql": "SELECT \"Death\" FROM table WHERE \"Birth\" = '8 december 1542'",
+    "columns": [
+      "Name",
+      "Birth",
+      "Marriage",
+      "Became Dauphine",
+      "Ceased to be Dauphine",
+      "Death",
+      "Husband"
+    ],
+    "rows": [
+      [
+        "Joan of Bourbon",
+        "3 February 1338",
+        "8 April 1350",
+        "22 August 1350 husband became the Dauphin",
+        "8 April 1364 became Queen",
+        "6 February 1378",
+        "Charles, 1st Dauphin"
+      ],
+      [
+        "Margaret of Burgundy",
+        "1393",
+        "31 August 1412",
+        "31 August 1412",
+        "18 December 1415 husband's death",
+        "2 February 1441",
+        "Louis, 6th Dauphin"
+      ],
+      [
+        "Jacqueline, Countess of Hainaut",
+        "16 August 1401",
+        "6 August 1415",
+        "18 December 1415 husband became the Dauphin",
+        "4 April 1417 husband's death",
+        "8 October 1436",
+        "John, 7th Dauphin"
+      ],
+      [
+        "Margaret Stewart of Scotland",
+        "25 December 1424",
+        "24 June 1436",
+        "24 June 1436",
+        "16 August 1445",
+        "16 August 1445",
+        "Louis, 9th Dauphin"
+      ],
+      [
+        "Charlotte of Savoy",
+        "11 November 1443/5",
+        "14 February 1451",
+        "14 February 1451",
+        "22 July 1461 became Queen",
+        "1 December 1483",
+        "Louis, 9th Dauphin"
+      ],
+      [
+        "Catherine de' Medici",
+        "13 April 1519",
+        "28 October 1533",
+        "10 August 1536 husband became the Dauphin",
+        "31 March 1547 became Queen",
+        "5 January 1589",
+        "Henry, 16th Dauphin"
+      ],
+      [
+        "Mary, Queen of Scots",
+        "8 December 1542",
+        "24 April 1558",
+        "24 April 1558",
+        "10 July 1559 became Queen",
+        "8 February 1587",
+        "Francis, 17th Dauphin"
+      ]
+    ]
+  },
+  {
+    "id": "2-1636806-2:What is Gold, when Silver is 5, and when Nation is Belgium?",
+    "table_id": "2-1636806-2",
+    "question": "What is Gold, when Silver is 5, and when Nation is Belgium?",
+    "sql": "SELECT \"Gold\" FROM table WHERE \"Silver\" = 5 AND \"Nation\" = 'belgium'",
+    "columns": [
+      "Nation",
+      "Gold",
+      "Silver",
+      "Bronze",
+      "Total"
+    ],
+    "rows": [
+      [
+        "Germany",
+        "30",
+        "18",
+        "24",
+        "72"
+      ],
+      [
+        "Great Britain",
+        "12",
+        "14",
+        "8",
+        "34"
+      ],
+      [
+        "United States",
+        "12",
+        "12",
+        "11",
+        "35"
+      ],
+      [
+        "Netherlands",
+        "11",
+        "12",
+        "7",
+        "30"
+      ],
+      [
+        "France",
+        "8",
+        "14",
+        "5",
+        "27"
+      ],
+      [
+        "New Zealand",
+        "5",
+        "1",
+        "2",
+        "8"
+      ],
+      [
+        "Switzerland",
+        "4",
+        "2",
+        "2",
+        "8"
+      ],
+      [
+        "Belgium",
+        "3",
+        "5",
+        "2",
+        "10"
+      ]
+    ]
+  },
+  {
+    "id": "2-18058018-9:What is 2011, when 2006 is \"A\", when 2008 is \"A\", and when Tournament is \"Rome\"?",
+    "table_id": "2-18058018-9",
+    "question": "What is 2011, when 2006 is \"A\", when 2008 is \"A\", and when Tournament is \"Rome\"?",
+    "sql": "SELECT \"2011\" FROM table WHERE \"2006\" = 'a' AND \"2008\" = 'a' AND \"Tournament\" = 'rome'",
+    "columns": [
+      "Tournament",
+      "2004",
+      "2005",
+      "2006",
+      "2007",
+      "2008",
+      "2009",
+      "2010",
+      "2011"
+    ],
+    "rows": [
+      [
+        "Grand Slam Tournaments",
+        "Grand Slam Tournaments",
+        "Grand Slam Tournaments",
+        "Grand Slam Tournaments",
+        "Grand Slam Tournaments",
+        "Grand Slam Tournaments",
+        "Grand Slam Tournaments",
+        "Grand Slam Tournaments",
+        "Grand Slam Tournaments"
+      ],
+      [
+        "Australian Open",
+        "A",
+        "A",
+        "A",
+        "A",
+        "A",
+        "1R",
+        "1R",
+        "1R"
+      ],
+      [
+        "French Open",
+        "A",
+        "A",
+        "A",
+        "A",
+        "2R",
+        "2R",
+        "2R",
+        "1R"
+      ],
+      [
+        "Wimbledon",
+        "A",
+        "A",
+        "A",
+        "Q1",
+        "1R",
+        "1R",
+        "1R",
+        "1R"
+      ],
+      [
+        "US Open",
+        "A",
+        "A",
+        "A",
+        "A",
+        "3R",
+        "3R",
+        "1R",
+        "1R"
+      ],
+      [
+        "Win-Loss",
+        "0\u20130",
+        "0\u20130",
+        "0\u20130",
+        "0\u20130",
+        "3\u20133",
+        "3\u20134",
+        "1\u20134",
+        "0\u20134"
+      ],
+      [
+        "Olympic Games",
+        "Olympic Games",
+        "Olympic Games",
+        "Olympic Games",
+        "Olympic Games",
+        "Olympic Games",
+        "Olympic Games",
+        "Olympic Games",
+        "Olympic Games"
+      ],
+      [
+        "Summer Olympics",
+        "A",
+        "Not Held",
+        "Not Held",
+        "Not Held",
+        "2R",
+        "Not Held",
+        "Not Held",
+        "Not Held"
+      ]
+    ]
+  },
+  {
+    "id": "1-27720737-1:What is the highest series # directed by ken whittingham?",
+    "table_id": "1-27720737-1",
+    "question": "What is the highest series # directed by ken whittingham?",
+    "sql": "SELECT MAX(\"Series #\") FROM table WHERE \"Directed by\" = 'Ken Whittingham'",
+    "columns": [
+      "Series #",
+      "Title",
+      "Directed by",
+      "Written by",
+      "Original air date",
+      "Production code",
+      "U.S. viewers (million)"
+    ],
+    "rows": [
+      [
+        "1",
+        "\" Pilot \"",
+        "Anthony Russo & Joe Russo",
+        "Dan Harmon",
+        "September17,2009",
+        "100",
+        "7.89"
+      ],
+      [
+        "2",
+        "\" Spanish 101 \"",
+        "Joe Russo",
+        "Dan Harmon",
+        "September24,2009",
+        "101",
+        "5.39"
+      ],
+      [
+        "3",
+        "\" Introduction to Film \"",
+        "Anthony Russo",
+        "Tim Hobert & Jon Pollack",
+        "October1,2009",
+        "102",
+        "5.86"
+      ],
+      [
+        "4",
+        "\" Social Psychology \"",
+        "Anthony Russo",
+        "Liz Cackowski",
+        "October8,2009",
+        "104",
+        "4.87"
+      ],
+      [
+        "5",
+        "\" Advanced Criminal Law \"",
+        "Joe Russo",
+        "Andrew Guest",
+        "October15,2009",
+        "105",
+        "5.01"
+      ],
+      [
+        "6",
+        "\" Football, Feminism and You \"",
+        "Joe Russo",
+        "Hilary Winston",
+        "October22,2009",
+        "103",
+        "5.18"
+      ],
+      [
+        "7",
+        "\" Introduction to Statistics \"",
+        "Justin Lin",
+        "Tim Hobert & Jon Pollack",
+        "October29,2009",
+        "106",
+        "5.32"
+      ],
+      [
+        "8",
+        "\" Home Economics \"",
+        "Anthony Russo",
+        "Lauren Pomerantz",
+        "November5,2009",
+        "107",
+        "5.45"
+      ]
+    ]
+  },
+  {
+    "id": "1-23235767-4:Name the surface for philadelphia",
+    "table_id": "1-23235767-4",
+    "question": "Name the surface for philadelphia",
+    "sql": "SELECT \"Surface\" FROM table WHERE \"Championship\" = 'Philadelphia'",
+    "columns": [
+      "Outcome",
+      "Year",
+      "Championship",
+      "Surface",
+      "Opponent in the final",
+      "Score in the final"
+    ],
+    "rows": [
+      [
+        "Runner-up",
+        "1973",
+        "Monte-Carlo",
+        "Clay",
+        "Ilie N\u0103stase",
+        "4\u20136, 1\u20136, 2\u20136"
+      ],
+      [
+        "Runner-up",
+        "1973",
+        "Stockholm",
+        "Hard",
+        "Tom Gorman",
+        "3\u20136, 6\u20134, 6\u20137"
+      ],
+      [
+        "Winner",
+        "1974",
+        "Rome",
+        "Clay",
+        "Ilie N\u0103stase",
+        "6\u20133, 6\u20134, 6\u20132"
+      ],
+      [
+        "Winner",
+        "1974",
+        "Boston",
+        "Clay",
+        "Tom Okker",
+        "7\u20136, 6\u20131, 6\u20131"
+      ],
+      [
+        "Winner",
+        "1975",
+        "Boston",
+        "Clay",
+        "Guillermo Vilas",
+        "6\u20133, 6\u20134, 6\u20132"
+      ],
+      [
+        "Winner",
+        "1976",
+        "Boston",
+        "Clay",
+        "Harold Solomon",
+        "6\u20137, 6\u20134, 6\u20131, 6\u20132"
+      ],
+      [
+        "Runner-up",
+        "1976",
+        "Philadelphia",
+        "Carpet",
+        "Jimmy Connors",
+        "6\u20137, 4\u20136, 0\u20136"
+      ],
+      [
+        "Winner",
+        "1977",
+        "Monte Carlo",
+        "Clay",
+        "Corrado Barazzutti",
+        "6\u20133, 7\u20135, 6\u20130"
+      ]
+    ]
+  },
+  {
+    "id": "1-14946657-3:Name the median income for age band being under 20",
+    "table_id": "1-14946657-3",
+    "question": "Name the median income for age band being under 20",
+    "sql": "SELECT \"Median income\" FROM table WHERE \"Age band\" = 'Under 20'",
+    "columns": [
+      "Age band",
+      "Median income",
+      "Mean income",
+      "Median income (men)",
+      "Mean income (men)",
+      "Median income (women)",
+      "Mean income (women)"
+    ],
+    "rows": [
+      [
+        "Under 20",
+        "\u00a3 8,130",
+        "\u00a3 9,570",
+        "\u00a3 8,490",
+        "\u00a3 9,810",
+        "\u00a3 7,990",
+        "\u00a3 9,250"
+      ],
+      [
+        "20 \u2013 24",
+        "\u00a3 11,800",
+        "\u00a3 13,200",
+        "\u00a3 12,400",
+        "\u00a3 13,800",
+        "\u00a3 11,200",
+        "\u00a3 12,300"
+      ],
+      [
+        "25 \u2013 29",
+        "\u00a3 17,000",
+        "\u00a3 19,300",
+        "\u00a3 17,800",
+        "\u00a3 20,600",
+        "\u00a3 15,900",
+        "\u00a3 17,800"
+      ],
+      [
+        "30 \u2013 34",
+        "\u00a3 19,500",
+        "\u00a3 23,900",
+        "\u00a3 21,600",
+        "\u00a3 26,700",
+        "\u00a3 16,400",
+        "\u00a3 20,100"
+      ],
+      [
+        "35 \u2013 39",
+        "\u00a3 20,100",
+        "\u00a3 26,800",
+        "\u00a3 23,600",
+        "\u00a3 31,700",
+        "\u00a3 15,500",
+        "\u00a3 20,100"
+      ],
+      [
+        "40 \u2013 44",
+        "\u00a3 20,200",
+        "\u00a3 28,100",
+        "\u00a3 24,600",
+        "\u00a3 34,600",
+        "\u00a3 14,900",
+        "\u00a3 19,800"
+      ],
+      [
+        "45 \u2013 49",
+        "\u00a3 20,300",
+        "\u00a3 28,600",
+        "\u00a3 24,800",
+        "\u00a3 35,400",
+        "\u00a3 15,200",
+        "\u00a3 20,100"
+      ],
+      [
+        "50 \u2013 54",
+        "\u00a3 19,300",
+        "\u00a3 27,000",
+        "\u00a3 23,500",
+        "\u00a3 33,400",
+        "\u00a3 15,100",
+        "\u00a3 19,200"
+      ]
+    ]
+  },
+  {
+    "id": "2-11128658-1:Tell me the highest point with lost point being 33 and league point less than 52",
+    "table_id": "2-11128658-1",
+    "question": "Tell me the highest point with lost point being 33 and league point less than 52",
+    "sql": "SELECT MAX(\"Point\") FROM table WHERE \"Lost point\" = 33 AND \"league point\" < 52",
+    "columns": [
+      "Season",
+      "Belonging league",
+      "Matches",
+      "league point",
+      "Draw",
+      "Lose",
+      "Goal difference",
+      "Point",
+      "Lost point",
+      "Final rank"
+    ],
+    "rows": [
+      [
+        "2000",
+        "Kanto industrial-league",
+        "18",
+        "42",
+        "0",
+        "4",
+        "+38",
+        "54",
+        "16",
+        "1"
+      ],
+      [
+        "2001",
+        "JFL",
+        "30",
+        "62",
+        "5",
+        "6",
+        "+37",
+        "60",
+        "23",
+        "4"
+      ],
+      [
+        "2002",
+        "JFL",
+        "17",
+        "39",
+        "3",
+        "2",
+        "+27",
+        "49",
+        "22",
+        "2"
+      ],
+      [
+        "2003",
+        "JFL",
+        "30",
+        "52",
+        "7",
+        "8",
+        "+17",
+        "54",
+        "37",
+        "5"
+      ],
+      [
+        "2004",
+        "JFL",
+        "30",
+        "44",
+        "5",
+        "12",
+        "+4",
+        "43",
+        "39",
+        "7"
+      ],
+      [
+        "2005",
+        "JFL",
+        "30",
+        "52",
+        "4",
+        "10",
+        "+22",
+        "55",
+        "33",
+        "6"
+      ],
+      [
+        "2006",
+        "JFL",
+        "34",
+        "75",
+        "6",
+        "5",
+        "+61",
+        "84",
+        "23",
+        "2"
+      ]
+    ]
+  },
+  {
+    "id": "1-214920-1:What is the seat of the RCM in the county that has a density of 9.7?",
+    "table_id": "1-214920-1",
+    "question": "What is the seat of the RCM in the county that has a density of 9.7?",
+    "sql": "SELECT \"Seat of RCM\" FROM table WHERE \"Density (pop. per km2)\" = 9.7",
+    "columns": [
+      "Regional County Municipality (RCM)",
+      "Population Canada 2011 Census",
+      "Land Area",
+      "Density (pop. per km2)",
+      "Seat of RCM"
+    ],
+    "rows": [
+      [
+        "Coaticook",
+        "18847",
+        "km2 (sqmi)",
+        "14.1",
+        "Coaticook"
+      ],
+      [
+        "Le Granit",
+        "22259",
+        "km2 (sqmi)",
+        "8.1",
+        "Lac-M\u00e9gantic"
+      ],
+      [
+        "Le Haut-Saint-Fran\u00e7ois",
+        "22065",
+        "km2 (sqmi)",
+        "9.7",
+        "Cookshire-Eaton"
+      ],
+      [
+        "Le Val-Saint-Fran\u00e7ois",
+        "29654",
+        "km2 (sqmi)",
+        "21.1",
+        "Richmond"
+      ],
+      [
+        "Les Sources",
+        "14756",
+        "km2 (sqmi)",
+        "18.8",
+        "Asbestos"
+      ]
+    ]
+  },
+  {
+    "id": "2-17991748-7:What is the Place of Davis Love III with a To Par of +1?",
+    "table_id": "2-17991748-7",
+    "question": "What is the Place of Davis Love III with a To Par of +1?",
+    "sql": "SELECT \"Place\" FROM table WHERE \"To par\" = +1 AND \"Player\" = 'davis love iii'",
+    "columns": [
+      "Place",
+      "Player",
+      "Country",
+      "Score",
+      "To par",
+      "Money ( \u00a3 )"
+    ],
+    "rows": [
+      [
+        "1",
+        "Ben Curtis",
+        "United States",
+        "72-72-70-69=283",
+        "\u22121",
+        "700,000"
+      ],
+      [
+        "T2",
+        "Thomas Bj\u00f8rn",
+        "Denmark",
+        "73-70-69-72=284",
+        "E",
+        "345,000"
+      ],
+      [
+        "T2",
+        "Vijay Singh",
+        "Fiji",
+        "75-70-69-70=284",
+        "E",
+        "345,000"
+      ],
+      [
+        "T4",
+        "Davis Love III",
+        "United States",
+        "69-72-72-72=285",
+        "+1",
+        "185,000"
+      ],
+      [
+        "T4",
+        "Tiger Woods",
+        "United States",
+        "73-72-69-71=285",
+        "+1",
+        "185,000"
+      ],
+      [
+        "T6",
+        "Brian Davis",
+        "England",
+        "77-73-68-68=286",
+        "+2",
+        "134,500"
+      ],
+      [
+        "T6",
+        "Fredrik Jacobson",
+        "Sweden",
+        "70-76-70-70=286",
+        "+2",
+        "134,500"
+      ],
+      [
+        "T8",
+        "Nick Faldo",
+        "England",
+        "76-74-67-70=287",
+        "+3",
+        "155,383"
+      ]
+    ]
+  },
+  {
+    "id": "2-10813310-8:What were the goals on 3/10/97?",
+    "table_id": "2-10813310-8",
+    "question": "What were the goals on 3/10/97?",
+    "sql": "SELECT \"Goals\" FROM table WHERE \"Date\" = '3/10/97'",
+    "columns": [
+      "Date",
+      "Competition",
+      "Venue",
+      "Result",
+      "Score",
+      "Tries",
+      "Goals"
+    ],
+    "rows": [
+      [
+        "9/6/97",
+        "WCC",
+        "Odsal Stadium",
+        "L",
+        "16\u201320",
+        "Peacock , Scales , Spruce",
+        "McNamara 2/3"
+      ],
+      [
+        "14/6/97",
+        "WCC",
+        "Odsal Stadium",
+        "L",
+        "16\u201320",
+        "Bradley , Forshaw",
+        "McNamara 3/3, Loughlin 1/1"
+      ],
+      [
+        "20/6/97",
+        "WCC",
+        "Odsal Stadium",
+        "L",
+        "10\u201330",
+        "Loughlin , Nickle",
+        "Loughlin 1/2"
+      ],
+      [
+        "20/7/97",
+        "WCC",
+        "Mount Smart Stadium",
+        "L",
+        "14\u201364",
+        "Bradley , Lowes , McDermott",
+        "Loughlin 1/3"
+      ],
+      [
+        "28/7/97",
+        "WCC",
+        "Penrith Park",
+        "L",
+        "14\u201354",
+        "Calland , Forshaw , Peacock",
+        "Hodgson 1/3"
+      ],
+      [
+        "2/8/97",
+        "WCC",
+        "Endeavour Field",
+        "L",
+        "12\u201340",
+        "Bradley (2)",
+        "McNamara 2/2"
+      ],
+      [
+        "3/10/97",
+        "WCC",
+        "Mount Smart Stadium",
+        "L",
+        "14\u201362",
+        "Bradley , Ekoku",
+        "McNamara 3/3"
+      ]
+    ]
+  },
+  {
+    "id": "2-16050349-6:What is the least number of assists among players ranked 2?",
+    "table_id": "2-16050349-6",
+    "question": "What is the least number of assists among players ranked 2?",
+    "sql": "SELECT MIN(\"Assists\") FROM table WHERE \"Rank\" = 2",
+    "columns": [
+      "Rank",
+      "Name",
+      "Team",
+      "Games",
+      "Assists"
+    ],
+    "rows": [
+      [
+        "1.",
+        "Theodoros Papaloukas",
+        "CSKA Moscow",
+        "6",
+        "42"
+      ],
+      [
+        "2.",
+        "DeJuan Collins",
+        "Zalgiris Kaunas",
+        "6",
+        "38"
+      ],
+      [
+        "3.",
+        "Terrell McIntyre",
+        "Montepaschi Siena",
+        "6",
+        "35"
+      ],
+      [
+        "4.",
+        "Pablo Prigioni",
+        "TAU Ceramica",
+        "6",
+        "27"
+      ],
+      [
+        "5.",
+        "Zoran Planini\u0107",
+        "TAU Ceramica",
+        "6",
+        "26"
+      ]
+    ]
+  },
+  {
+    "id": "2-16649811-5:what is the date when the round is sf?",
+    "table_id": "2-16649811-5",
+    "question": "what is the date when the round is sf?",
+    "sql": "SELECT \"Date\" FROM table WHERE \"Round\" = 'sf'",
+    "columns": [
+      "Date",
+      "Round",
+      "Opponent",
+      "Venue",
+      "Result",
+      "Attendance"
+    ],
+    "rows": [
+      [
+        "28 January 1989",
+        "R3",
+        "Raith Rovers",
+        "A",
+        "1\u20131",
+        "10,500"
+      ],
+      [
+        "1 February 1989",
+        "R3 R",
+        "Raith Rovers",
+        "H",
+        "3\u20130",
+        "40,307"
+      ],
+      [
+        "18 February 1989",
+        "R4",
+        "Stranraer",
+        "H",
+        "8\u20130",
+        "41,198"
+      ],
+      [
+        "21 March 1989",
+        "QF",
+        "Dundee United",
+        "H",
+        "2\u20132",
+        "42,177"
+      ],
+      [
+        "27 March 1989",
+        "QF R",
+        "Dundee United",
+        "A",
+        "1\u20130",
+        "21,872"
+      ],
+      [
+        "15 April 1989",
+        "SF",
+        "St. Johnstone",
+        "N",
+        "0\u20130",
+        "47,374"
+      ],
+      [
+        "18 April 1989",
+        "SF R",
+        "St. Johnstone",
+        "N",
+        "4\u20130",
+        "44,205"
+      ],
+      [
+        "20 May 1989",
+        "F",
+        "Celtic",
+        "N",
+        "0\u20131",
+        "72,069"
+      ]
+    ]
+  },
+  {
+    "id": "2-13330057-1:What is the language of the film Rosie?",
+    "table_id": "2-13330057-1",
+    "question": "What is the language of the film Rosie?",
+    "sql": "SELECT \"Language(s)\" FROM table WHERE \"Original title\" = 'rosie'",
+    "columns": [
+      "Year (Ceremony)",
+      "Film title used in nomination",
+      "Original title",
+      "Language(s)",
+      "Result"
+    ],
+    "rows": [
+      [
+        "1967 (40th)",
+        "Le D\u00e9part",
+        "Le D\u00e9part",
+        "French",
+        "Not Nominated"
+      ],
+      [
+        "1969 (42nd)",
+        "Palaver",
+        "Palaver",
+        "Dutch",
+        "Not Nominated"
+      ],
+      [
+        "1970 (43rd)",
+        "Peace in the Fields",
+        "Paix sur les champs",
+        "French",
+        "Nominee"
+      ],
+      [
+        "1972 (45th)",
+        "The Lonely Killers",
+        "Les Tueurs Fous",
+        "French",
+        "Not Nominated"
+      ],
+      [
+        "1974 (47th)",
+        "The Conscript",
+        "De loteling",
+        "Dutch",
+        "Not Nominated"
+      ],
+      [
+        "1976 (49th)",
+        "High Street",
+        "Rue Haute",
+        "French",
+        "Not Nominated"
+      ],
+      [
+        "1977 (50th)",
+        "Rubens",
+        "Rubens, schilder en diplomaat",
+        "Dutch",
+        "Not Nominated"
+      ],
+      [
+        "1979 (52nd)",
+        "Woman in a Twilight Garden",
+        "Een vrouw tussen hond en wolf",
+        "Dutch",
+        "Not Nominated"
+      ]
+    ]
+  },
+  {
+    "id": "2-15947425-1:What is the lowest Floors, when Built is greater than 1970, and when Name is NV Building 3?",
+    "table_id": "2-15947425-1",
+    "question": "What is the lowest Floors, when Built is greater than 1970, and when Name is NV Building 3?",
+    "sql": "SELECT MIN(\"Floors\") FROM table WHERE \"Built\" > 1970 AND \"Name\" = 'nv building 3'",
+    "columns": [
+      "Rank",
+      "Name",
+      "Built",
+      "Height",
+      "Floors"
+    ],
+    "rows": [
+      [
+        "1",
+        "Blue, MediaCityUK",
+        "2010",
+        "90 metres (300ft)",
+        "18"
+      ],
+      [
+        "2",
+        "TheHeart, MediaCityUK",
+        "2010",
+        "82 metres (268ft)",
+        "22"
+      ],
+      [
+        "3",
+        "North Tower",
+        "1966",
+        "80 metres (262ft)",
+        "25"
+      ],
+      [
+        "4",
+        "Briar Hill Court",
+        "1970",
+        "75 metres (246ft)",
+        "25"
+      ],
+      [
+        "5",
+        "NumberOne, MediaCityUK",
+        "2010",
+        "74 metres (241ft)",
+        "22"
+      ],
+      [
+        "6",
+        "White, MediaCityUK",
+        "2010",
+        "68 metres (223ft)",
+        "15"
+      ],
+      [
+        "7",
+        "Millennium Tower",
+        "2008",
+        "67 metres (220ft)",
+        "21"
+      ],
+      [
+        "8",
+        "Sovereign Point",
+        "2005",
+        "66 metres (217ft)",
+        "20"
+      ]
+    ]
+  },
+  {
+    "id": "2-12754127-2:What is the average Round number of Player Adrien Clarke?",
+    "table_id": "2-12754127-2",
+    "question": "What is the average Round number of Player Adrien Clarke?",
+    "sql": "SELECT AVG(\"Round\") FROM table WHERE \"Player\" = 'adrien clarke'",
+    "columns": [
+      "Player",
+      "Round",
+      "Pick",
+      "Position",
+      "NFL Club"
+    ],
+    "rows": [
+      [
+        "Will Smith",
+        "1",
+        "18",
+        "Defensive End",
+        "New Orleans Saints"
+      ],
+      [
+        "Chris Gamble",
+        "1",
+        "28",
+        "Defensive Back",
+        "Carolina Panthers"
+      ],
+      [
+        "Michael Jenkins",
+        "1",
+        "29",
+        "Wide Receiver",
+        "Atlanta Falcons"
+      ],
+      [
+        "Ben Hartsock",
+        "3",
+        "68",
+        "Tight End",
+        "Indianapolis Colts"
+      ],
+      [
+        "Tim Anderson",
+        "3",
+        "74",
+        "Defensive Tackle",
+        "Buffalo Bills"
+      ],
+      [
+        "B.J. Sander",
+        "3",
+        "87",
+        "Punter",
+        "Green Bay Packers"
+      ],
+      [
+        "Darrion Scott",
+        "3",
+        "88",
+        "Defensive End",
+        "Minnesota Vikings"
+      ],
+      [
+        "Alex Stepanovich",
+        "4",
+        "100",
+        "Center",
+        "Arizona Cardinals"
+      ]
+    ]
+  },
+  {
+    "id": "2-16100029-2:When in 2008 that has a 2007 of f?",
+    "table_id": "2-16100029-2",
+    "question": "When in 2008 that has a 2007 of f?",
+    "sql": "SELECT \"2008\" FROM table WHERE \"2007\" = 'f'",
+    "columns": [
+      "Tournament",
+      "2005",
+      "2006",
+      "2007",
+      "2008",
+      "2009",
+      "2010",
+      "2011",
+      "2012",
+      "2013",
+      "Win %"
+    ],
+    "rows": [
+      [
+        "Grand Slam tournaments",
+        "Grand Slam tournaments",
+        "Grand Slam tournaments",
+        "Grand Slam tournaments",
+        "Grand Slam tournaments",
+        "Grand Slam tournaments",
+        "Grand Slam tournaments",
+        "Grand Slam tournaments",
+        "Grand Slam tournaments",
+        "Grand Slam tournaments",
+        "Grand Slam tournaments"
+      ],
+      [
+        "Australian Open",
+        "1R",
+        "1R",
+        "4R",
+        "W",
+        "QF",
+        "QF",
+        "W",
+        "W",
+        "W",
+        "88.63"
+      ],
+      [
+        "French Open",
+        "2R",
+        "QF",
+        "SF",
+        "SF",
+        "3R",
+        "QF",
+        "SF",
+        "F",
+        "SF",
+        "80.00"
+      ],
+      [
+        "Wimbledon",
+        "3R",
+        "4R",
+        "SF",
+        "2R",
+        "QF",
+        "SF",
+        "W",
+        "SF",
+        "F",
+        "82.61"
+      ],
+      [
+        "US Open",
+        "3R",
+        "3R",
+        "F",
+        "SF",
+        "SF",
+        "F",
+        "W",
+        "F",
+        "F",
+        "84.91"
+      ],
+      [
+        "Win\u2013Loss",
+        "5\u20134",
+        "9\u20134",
+        "19\u20134",
+        "18\u20133",
+        "15\u20134",
+        "19\u20134",
+        "26\u20131",
+        "24\u20133",
+        "24\u20133",
+        "84.04"
+      ]
+    ]
+  },
+  {
+    "id": "2-14926835-1:On what Route is the mountain with a Rank less than 33 and an Elevation of 11,312 feet 3448 m?",
+    "table_id": "2-14926835-1",
+    "question": "On what Route is the mountain with a Rank less than 33 and an Elevation of 11,312 feet 3448 m?",
+    "sql": "SELECT MAX(\"Route\") FROM table WHERE \"Rank\" < 33 AND \"Elevation\" = '11,312 feet 3448 m'",
+    "columns": [
+      "Rank",
+      "Mountain Pass",
+      "Elevation",
+      "Surface",
+      "Route"
+    ],
+    "rows": [
+      [
+        "1",
+        "Independence Pass",
+        "12,103 feet 3689 m",
+        "asphalt",
+        "082"
+      ],
+      [
+        "2",
+        "Loveland Pass",
+        "11,990 feet 3655 m",
+        "asphalt",
+        "006"
+      ],
+      [
+        "3",
+        "Hoosier Pass",
+        "11,541 feet 3518 m",
+        "asphalt",
+        "009"
+      ],
+      [
+        "4",
+        "Slumgullion Pass",
+        "11,361 feet 3463 m",
+        "asphalt",
+        "149"
+      ],
+      [
+        "5",
+        "Fremont Pass",
+        "11,318 feet 3450 m",
+        "asphalt",
+        "091"
+      ],
+      [
+        "6",
+        "Berthoud Pass",
+        "11,315 feet 3449 m",
+        "asphalt",
+        "040"
+      ],
+      [
+        "7",
+        "Monarch Pass",
+        "11,312 feet 3448 m",
+        "asphalt",
+        "050"
+      ],
+      [
+        "8",
+        "Juniper Pass",
+        "11,040 feet 3365 m",
+        "asphalt",
+        "103"
+      ]
+    ]
+  },
+  {
+    "id": "1-1342359-39:What is the result for south carolina 4?",
+    "table_id": "1-1342359-39",
+    "question": "What is the result for south carolina 4?",
+    "sql": "SELECT \"Result\" FROM table WHERE \"District\" = 'South Carolina 4'",
+    "columns": [
+      "District",
+      "Incumbent",
+      "Party",
+      "First elected",
+      "Result",
+      "Candidates"
+    ],
+    "rows": [
+      [
+        "South Carolina 1",
+        "Thomas S. McMillan",
+        "Democratic",
+        "1924",
+        "Re-elected",
+        "Thomas S. McMillan (D) Unopposed"
+      ],
+      [
+        "South Carolina 2",
+        "Butler B. Hare",
+        "Democratic",
+        "1924",
+        "Re-elected",
+        "Butler B. Hare (D) Unopposed"
+      ],
+      [
+        "South Carolina 3",
+        "Frederick H. Dominick",
+        "Democratic",
+        "1916",
+        "Re-elected",
+        "Frederick H. Dominick (D) Unopposed"
+      ],
+      [
+        "South Carolina 4",
+        "John J. McSwain",
+        "Democratic",
+        "1920",
+        "Re-elected",
+        "John J. McSwain (D) Unopposed"
+      ],
+      [
+        "South Carolina 5",
+        "William Francis Stevenson",
+        "Democratic",
+        "1917",
+        "Re-elected",
+        "William Francis Stevenson (D) Unopposed"
+      ],
+      [
+        "South Carolina 6",
+        "Allard H. Gasque",
+        "Democratic",
+        "1922",
+        "Re-elected",
+        "Allard H. Gasque (D) Unopposed"
+      ]
+    ]
+  },
+  {
+    "id": "2-11190694-12:what is at 8:00 when at 8:30 it is my thursday night movie?",
+    "table_id": "2-11190694-12",
+    "question": "what is at 8:00 when at 8:30 it is my thursday night movie?",
+    "sql": "SELECT \"8:00\" FROM table WHERE \"8:30\" = 'my thursday night movie'",
+    "columns": [
+      "8:00",
+      "8:30",
+      "9:00",
+      "9:30",
+      "10:00"
+    ],
+    "rows": [
+      [
+        "Ugly Betty",
+        "Ugly Betty",
+        "Grey's Anatomy (#10, 5.6 rating)",
+        "Grey's Anatomy (#10, 5.6 rating)",
+        "Big Shots"
+      ],
+      [
+        "Lost (Reruns)",
+        "Lost (Reruns)",
+        "Lost (#19, 4.6 rating)",
+        "Lost (#19, 4.6 rating)",
+        "Eli Stone"
+      ],
+      [
+        "Miss Guided",
+        "Miss Guided",
+        "Lost (#19, 4.6 rating)",
+        "Lost (#19, 4.6 rating)",
+        "Eli Stone"
+      ],
+      [
+        "Ugly Betty",
+        "Ugly Betty",
+        "Grey's Anatomy (#10, 5.6 rating)",
+        "Grey's Anatomy (#10, 5.6 rating)",
+        "Lost (#19, 4.6 rating)"
+      ],
+      [
+        "Survivor: Micronesia (#17, 4.8 rating)",
+        "Survivor: Micronesia (#17, 4.8 rating)",
+        "CSI: Crime Scene Investigation (#9, 5.8 rating)",
+        "CSI: Crime Scene Investigation (#9, 5.8 rating)",
+        "Without a Trace (#19, 4.6 rating)"
+      ],
+      [
+        "Smallville",
+        "Smallville",
+        "Supernatural",
+        "Supernatural",
+        "Local Programming"
+      ],
+      [
+        "Smallville",
+        "Smallville",
+        "Reaper",
+        "Reaper",
+        "Local Programming"
+      ],
+      [
+        "Are You Smarter Than a 5th Grader?",
+        "Are You Smarter Than a 5th Grader?",
+        "Don't Forget the Lyrics!",
+        "Don't Forget the Lyrics!",
+        "Local Programming"
+      ]
+    ]
+  },
+  {
+    "id": "1-23958917-1:Name the number for service dates for hoosier energy for petersburg",
+    "table_id": "1-23958917-1",
+    "question": "Name the number for service dates for hoosier energy for petersburg",
+    "sql": "SELECT COUNT(\"In Service Dates\") FROM table WHERE \"Owner(s) (2009)\" = 'Hoosier Energy' AND \"Location\" = 'Petersburg'",
+    "columns": [
+      "Name",
+      "Location",
+      "Act. Units",
+      "Stacks",
+      "In Service Dates",
+      "Unit Capacity (2009)",
+      "Nameplate Capacity (2009 MW )",
+      "Owner Type",
+      "Owner(s) (2009)"
+    ],
+    "rows": [
+      [
+        "A.B. Brown",
+        "Posey Co. / Vand. Co.",
+        "4",
+        "4",
+        "1 1979 2 1986 3 1991 4 2002",
+        "1 & 2 235 MW 3 & 4 88.2 MW",
+        "707",
+        "Large Corporation",
+        "Vectren"
+      ],
+      [
+        "Bailly",
+        "Chesterton",
+        "2",
+        "1",
+        "1 1962 2 1968",
+        "1 190 MW 2 413 MW",
+        "604",
+        "Large Corporation",
+        "NIPSCO"
+      ],
+      [
+        "Cayuga",
+        "Cayuga",
+        "2",
+        "3",
+        "1 1970 2 1972",
+        "1 531 MW 2 531 MW",
+        "1062",
+        "Large Corporation",
+        "Duke Energy Indiana"
+      ],
+      [
+        "Clifty Creek",
+        "Madison",
+        "6",
+        "3",
+        "1-5 1955 6 1956",
+        "All 6: 217 MW",
+        "1,303",
+        "Conglomerate",
+        "Ohio Valley E.C."
+      ],
+      [
+        "Crawfordsville Mun.",
+        "Crawfordsville",
+        "2",
+        "2",
+        "1 1955 2 1956",
+        "1 11.5 MW 2 12.6 MW",
+        "24.1",
+        "City Utility",
+        "Crawfordsville E.L.&P."
+      ],
+      [
+        "F.B. Culley",
+        "Newburgh",
+        "3",
+        "3",
+        "1 1955 2 1966 3 1973",
+        "1 46 MW 2 104 MW 3 265 MW",
+        "415",
+        "Large Corporation",
+        "Vectren"
+      ],
+      [
+        "Eagle Valley",
+        "Martinsville",
+        "4",
+        "3",
+        "1 1951 2 & 3 1953 4 1956",
+        "1 50 MW 2 & 3 69 MW 4 114 MW",
+        "302",
+        "Large Corporation",
+        "AES / IPALCO"
+      ],
+      [
+        "Gallagher",
+        "New Albany",
+        "4",
+        "2",
+        "1 1958 2 1959 3 1960 4 1961",
+        "All 4: 150 MW",
+        "600",
+        "Large Corporation",
+        "Duke Energy Indiana"
+      ]
+    ]
+  },
+  {
+    "id": "2-10639582-1:Which LNER 1946 number is from 1892 and has an LNER number of 7347\u20137356?",
+    "table_id": "2-10639582-1",
+    "question": "Which LNER 1946 number is from 1892 and has an LNER number of 7347\u20137356?",
+    "sql": "SELECT \"LNER 1946 No.\" FROM table WHERE \"Year\" = 1892 AND \"LNER No.\" = '7347\u20137356'",
+    "columns": [
+      "Year",
+      "Order No.",
+      "Quantity",
+      "GER Nos.",
+      "LNER No.",
+      "LNER 1946 No."
+    ],
+    "rows": [
+      [
+        "1890",
+        "R24",
+        "10",
+        "327\u2013336",
+        "7327\u20137336",
+        "8490\u20138495, \u2014, 8496\u20138498"
+      ],
+      [
+        "1890",
+        "S24",
+        "10",
+        "337\u2013346",
+        "7337\u20137346",
+        "8499\u20138505, \u2014, 8507\u20138508"
+      ],
+      [
+        "1890",
+        "A26",
+        "10",
+        "397\u2013406",
+        "7397\u20137406",
+        "8509\u20138513, \u2014, 8514, \u2014 8515, \u2014"
+      ],
+      [
+        "1890\u201391",
+        "B26",
+        "10",
+        "407\u2013416",
+        "7011\u20137020",
+        "8516\u20138521, \u2014, 8522\u20138523, \u2014"
+      ],
+      [
+        "1892",
+        "P29",
+        "10",
+        "347\u2013356",
+        "7347\u20137356",
+        "8524\u20138533"
+      ],
+      [
+        "1892",
+        "R29",
+        "10",
+        "357\u2013366",
+        "7357\u20137366",
+        "8534\u20138538, \u2014 8540, \u2014 8541\u20138542"
+      ],
+      [
+        "1894",
+        "N33",
+        "10",
+        "367\u2013376",
+        "7367\u20137376",
+        "8543\u20138552"
+      ],
+      [
+        "1895",
+        "F36",
+        "10",
+        "377\u2013386",
+        "7377\u20137386",
+        "8553\u20138562"
+      ]
+    ]
+  },
+  {
+    "id": "2-15625088-7:Which Score has a Tie no of 1?",
+    "table_id": "2-15625088-7",
+    "question": "Which Score has a Tie no of 1?",
+    "sql": "SELECT \"Score\" FROM table WHERE \"Tie no\" = 1",
+    "columns": [
+      "Tie no",
+      "Home team",
+      "Score",
+      "Away team",
+      "Date"
+    ],
+    "rows": [
+      [
+        "1",
+        "Aston Villa",
+        "0\u20131",
+        "Everton",
+        "28 February 1953"
+      ],
+      [
+        "2",
+        "Arsenal",
+        "1\u20132",
+        "Blackpool",
+        "28 February 1953"
+      ],
+      [
+        "3",
+        "Gateshead",
+        "0\u20131",
+        "Bolton Wanderers",
+        "28 February 1953"
+      ],
+      [
+        "4",
+        "Birmingham City",
+        "1\u20131",
+        "Tottenham Hotspur",
+        "28 February 1953"
+      ],
+      [
+        "Replay",
+        "Tottenham Hotspur",
+        "2\u20132",
+        "Birmingham City",
+        "4 March 1953"
+      ],
+      [
+        "Replay",
+        "Birmingham City",
+        "0\u20131",
+        "Tottenham Hotspur",
+        "9 March 1953"
+      ]
+    ]
+  },
+  {
+    "id": "2-11235334-2:what is the episode with the 183,000 viewers?",
+    "table_id": "2-11235334-2",
+    "question": "what is the episode with the 183,000 viewers?",
+    "sql": "SELECT \"Episode\" FROM table WHERE \"Viewers\" = '183,000'",
+    "columns": [
+      "Episode",
+      "Air Date",
+      "Timeslot",
+      "Viewers",
+      "Weekly Rank for Living"
+    ],
+    "rows": [
+      [
+        "\"Pilot\"",
+        "September 22, 2008",
+        "Monday, 10:00pm",
+        "238,000",
+        "4"
+      ],
+      [
+        "\"Chapter Two: Nothing Sacred\"",
+        "September 29, 2008",
+        "Monday, 10:00pm",
+        "139,000",
+        "7"
+      ],
+      [
+        "\"Chapter Three: Pink Poison\"",
+        "October 6, 2008",
+        "Monday, 10:00pm",
+        "TBC",
+        "TBC"
+      ],
+      [
+        "\"Chapter Four: Bombay Highway\"",
+        "October 13, 2008",
+        "Monday, 10:00pm",
+        "183,000",
+        "5"
+      ],
+      [
+        "\"Chapter Five: Dressed to Kill\"",
+        "October 20, 2008",
+        "Monday, 10:00pm",
+        "214,000",
+        "8"
+      ],
+      [
+        "\"Chapter Six: Take the High Road\"",
+        "October 27, 2008",
+        "Monday, 10:00pm",
+        "TBC",
+        "TBC"
+      ],
+      [
+        "\"Chapter Seven: Carpe Threesome\"",
+        "November 3, 2008",
+        "Monday, 10:00pm",
+        "178,000",
+        "6"
+      ]
+    ]
+  },
+  {
+    "id": "2-18133211-2:What country has a total greater than 270, with sandy lyle as the player?",
+    "table_id": "2-18133211-2",
+    "question": "What country has a total greater than 270, with sandy lyle as the player?",
+    "sql": "SELECT \"Country\" FROM table WHERE \"Total\" > 270 AND \"Player\" = 'sandy lyle'",
+    "columns": [
+      "Player",
+      "Country",
+      "Year(s) won",
+      "Total",
+      "To par",
+      "Finish"
+    ],
+    "rows": [
+      [
+        "Nick Faldo",
+        "England",
+        "1987",
+        "270",
+        "\u201318",
+        "1"
+      ],
+      [
+        "Greg Norman",
+        "Australia",
+        "1986",
+        "277",
+        "\u201311",
+        "T6"
+      ],
+      [
+        "Sandy Lyle",
+        "Scotland",
+        "1985",
+        "281",
+        "\u20137",
+        "T16"
+      ],
+      [
+        "Lee Trevino",
+        "United States",
+        "1971 , 1972",
+        "283",
+        "\u20135",
+        "T25"
+      ],
+      [
+        "Jack Nicklaus",
+        "United States",
+        "1966 , 1970 , 1978",
+        "289",
+        "+1",
+        "T63"
+      ]
+    ]
+  },
+  {
+    "id": "2-1075064-2:What was the winning score when there were 9 strokes advantage?",
+    "table_id": "2-1075064-2",
+    "question": "What was the winning score when there were 9 strokes advantage?",
+    "sql": "SELECT \"Winning score\" FROM table WHERE \"Margin of victory\" = '9 strokes'",
+    "columns": [
+      "Date",
+      "Tournament",
+      "Winning score",
+      "Margin of victory",
+      "Runner(s)-up"
+    ],
+    "rows": [
+      [
+        "Jul 8, 1962",
+        "Kelly Girls Open",
+        "\u20137 (73-73-69=215)",
+        "1 stroke",
+        "Sandra Haynie"
+      ],
+      [
+        "Oct 14, 1962",
+        "Phoenix Thunderbird Open",
+        "\u20133 (72-71-70=213)",
+        "4 strokes",
+        "Mickey Wright"
+      ],
+      [
+        "Jun 30, 1963",
+        "Carvel Ladies Open",
+        "\u20132 (72-74-71=217)",
+        "1 stroke",
+        "Marilynn Smith"
+      ],
+      [
+        "Jul 28, 1963",
+        "Wolverine Open",
+        "\u20139 (72-64-62=198)",
+        "5 strokes",
+        "Betsy Rawls"
+      ],
+      [
+        "Aug 4, 1963",
+        "Milwaukee Jaycee Open",
+        "\u20132 (70-73-73-70=286)",
+        "7 strokes",
+        "Jackie Pung , Louise Suggs"
+      ],
+      [
+        "Aug 25, 1963",
+        "Ogden Ladies' Open",
+        "\u20135 (69-75-71=215)",
+        "5 strokes",
+        "Mickey Wright"
+      ],
+      [
+        "Sep 8, 1963",
+        "Spokane Women's Open",
+        "\u20133 (67-70-73=210)",
+        "2 strokes",
+        "Marilynn Smith"
+      ],
+      [
+        "Oct 20, 1963",
+        "Hillside Open",
+        "Even (70-72-77=219)",
+        "4 strokes",
+        "Mickey Wright"
+      ]
+    ]
+  },
+  {
+    "id": "2-17636704-1:Which Result F-A has Opponents of rosenborg?",
+    "table_id": "2-17636704-1",
+    "question": "Which Result F-A has Opponents of rosenborg?",
+    "sql": "SELECT \"Result F \u2013 A\" FROM table WHERE \"Opponents\" = 'rosenborg'",
+    "columns": [
+      "Date",
+      "Opponents",
+      "H / A",
+      "Result F \u2013 A",
+      "Attendance"
+    ],
+    "rows": [
+      [
+        "28 July 1992",
+        "Start",
+        "A",
+        "3 \u2013 0",
+        "4,118"
+      ],
+      [
+        "29 July 1992",
+        "Celtic",
+        "A",
+        "1 \u2013 1",
+        "34,368"
+      ],
+      [
+        "31 July 1992",
+        "Lillestr\u00f8m",
+        "A",
+        "1 \u2013 1",
+        "5,569"
+      ],
+      [
+        "2 August 1992",
+        "Rosenborg",
+        "A",
+        "3 \u2013 2",
+        "9,379"
+      ],
+      [
+        "4 August 1992",
+        "Elfsborg",
+        "A",
+        "0 \u2013 0",
+        "4,491"
+      ],
+      [
+        "9 August 1992",
+        "Republic of Ireland XI",
+        "A",
+        "2 \u2013 0",
+        "30,069"
+      ],
+      [
+        "11 August 1992",
+        "Swansea City",
+        "A",
+        "1 \u2013 1",
+        "9,744"
+      ],
+      [
+        "11 November 1992",
+        "Br\u00f8ndby",
+        "H",
+        "3 \u2013 2",
+        "5,102"
+      ]
+    ]
+  },
+  {
+    "id": "2-18339377-4:Name the Visitor that has a Home of chicago black hawks on april 20?",
+    "table_id": "2-18339377-4",
+    "question": "Name the Visitor that has a Home of chicago black hawks on april 20?",
+    "sql": "SELECT \"Visitor\" FROM table WHERE \"Home\" = 'chicago black hawks' AND \"Date\" = 'april 20'",
+    "columns": [
+      "Date",
+      "Visitor",
+      "Score",
+      "Home",
+      "Record"
+    ],
+    "rows": [
+      [
+        "April 13",
+        "Chicago Black Hawks",
+        "1\u20134",
+        "Buffalo Sabres",
+        "0-1"
+      ],
+      [
+        "April 15",
+        "Chicago Black Hawks",
+        "1\u20133",
+        "Buffalo Sabres",
+        "0-2"
+      ],
+      [
+        "April 17",
+        "Buffalo Sabres",
+        "4\u20135",
+        "Chicago Black Hawks",
+        "1-2"
+      ],
+      [
+        "April 20",
+        "Buffalo Sabres",
+        "6\u20132",
+        "Chicago Black Hawks",
+        "1-3"
+      ],
+      [
+        "April 22",
+        "Chicago Black Hawks",
+        "1\u20133",
+        "Buffalo Sabres",
+        "1-4"
+      ]
+    ]
+  },
+  {
+    "id": "2-162342-2:When did the party elected in jun. 1959 enter office?",
+    "table_id": "2-162342-2",
+    "question": "When did the party elected in jun. 1959 enter office?",
+    "sql": "SELECT \"Entered office\" FROM table WHERE \"Election\" = 'jun. 1959'",
+    "columns": [
+      "Entered office",
+      "Left office",
+      "Party",
+      "Election",
+      "Coalition"
+    ],
+    "rows": [
+      [
+        "4 January 1917",
+        "25 February 1920",
+        "Home Rule Party",
+        "1916",
+        "HP\u2014OIP\u2014 PP"
+      ],
+      [
+        "25 February 1920",
+        "7 March 1922",
+        "Home Rule Party",
+        "1919",
+        "HP\u2014others"
+      ],
+      [
+        "7 March 1922",
+        "22 March 1924",
+        "Old Independence Party",
+        "1919",
+        "OIP\u2014others"
+      ],
+      [
+        "7 March 1922",
+        "22 March 1924",
+        "Old Independence Party",
+        "1923",
+        "OIP\u2014others"
+      ],
+      [
+        "22 March 1924",
+        "23 June 1926",
+        "Conservative Party",
+        "1923",
+        "CP"
+      ],
+      [
+        "23 June 1926",
+        "8 July 1926",
+        "Conservative Party",
+        "1923",
+        "CP"
+      ],
+      [
+        "8 July 1926",
+        "28 August 1927",
+        "Conservative Party",
+        "1923",
+        "CP"
+      ],
+      [
+        "28 August 1927",
+        "3 June 1932",
+        "Progressive Party",
+        "1927",
+        "PP"
+      ]
+    ]
+  },
+  {
+    "id": "1-2610582-2:What is the station type for the branding ABS-CBN TV-32 Tagaytay?",
+    "table_id": "1-2610582-2",
+    "question": "What is the station type for the branding ABS-CBN TV-32 Tagaytay?",
+    "sql": "SELECT \"Station Type\" FROM table WHERE \"Branding\" = 'ABS-CBN TV-32 Tagaytay'",
+    "columns": [
+      "Branding",
+      "Callsign",
+      "Ch. #",
+      "Station Type",
+      "Power kW (ERP)",
+      "Location (Transmitter Site)"
+    ],
+    "rows": [
+      [
+        "ABS-CBN TV-30 La Union",
+        "DWTL-TV",
+        "TV-30",
+        "Relay Station",
+        "5kW",
+        "San Fernando, La Union"
+      ],
+      [
+        "ABS-CBN TV-32 Dagupan (North Central Luzon)",
+        "DWEC-TV",
+        "TV-32",
+        "Originating",
+        "5kW (18.03kW ERP)",
+        "Dagupan"
+      ],
+      [
+        "ABS-CBN TV-32 Nueva Ecija (North Central Luzon)",
+        "DWCI-TV",
+        "TV-32",
+        "Relay Station",
+        "1kW (29.94kW ERP)",
+        "Cabanatuan **"
+      ],
+      [
+        "ABS-CBN TV-32 Tarlac (North Central Luzon)",
+        "DWTC-TV",
+        "TV-32",
+        "Relay Station",
+        "1kW (27.94kW ERP)",
+        "Tarlac **"
+      ],
+      [
+        "ABS-CBN TV-22 Baler",
+        "DZBA-TV",
+        "TV-22",
+        "Relay Station",
+        "1kW (8.45kW ERP)",
+        "Baler, Aurora ****"
+      ],
+      [
+        "ABS-CBN TV-46 Pampanga",
+        "DWIN-TV",
+        "TV-46",
+        "Originating",
+        "14.02kW",
+        "San Fernando, Pampanga **"
+      ],
+      [
+        "ABS-CBN TV-34 Bulacan",
+        "DWBY-TV",
+        "TV-34",
+        "Relay Station",
+        "0.1kW (130.84 Watts ERP)",
+        "San Miguel, Bulacan **"
+      ],
+      [
+        "ABS-CBN TV-40 Rizal",
+        "DWAM-TV",
+        "TV-40",
+        "Relay Station",
+        "1kW",
+        "Jala-Jala, Rizal"
+      ]
+    ]
+  },
+  {
+    "id": "2-10809142-8:When Essendon was the Home Team, what was the Away Team score?",
+    "table_id": "2-10809142-8",
+    "question": "When Essendon was the Home Team, what was the Away Team score?",
+    "sql": "SELECT \"Away team score\" FROM table WHERE \"Home team\" = 'essendon'",
+    "columns": [
+      "Home team",
+      "Home team score",
+      "Away team",
+      "Away team score",
+      "Venue",
+      "Crowd",
+      "Date"
+    ],
+    "rows": [
+      [
+        "Geelong",
+        "9.13 (67)",
+        "St Kilda",
+        "13.14 (92)",
+        "Kardinia Park",
+        "7,000",
+        "24 June 1944"
+      ],
+      [
+        "Essendon",
+        "21.18 (144)",
+        "North Melbourne",
+        "8.12 (60)",
+        "Windy Hill",
+        "16,000",
+        "24 June 1944"
+      ],
+      [
+        "Carlton",
+        "17.12 (114)",
+        "Collingwood",
+        "12.11 (83)",
+        "Princes Park",
+        "21,000",
+        "24 June 1944"
+      ],
+      [
+        "South Melbourne",
+        "11.11 (77)",
+        "Richmond",
+        "17.10 (112)",
+        "Junction Oval",
+        "25,000",
+        "24 June 1944"
+      ],
+      [
+        "Hawthorn",
+        "9.10 (64)",
+        "Footscray",
+        "14.18 (102)",
+        "Glenferrie Oval",
+        "12,000",
+        "24 June 1944"
+      ],
+      [
+        "Melbourne",
+        "7.10 (52)",
+        "Fitzroy",
+        "10.17 (77)",
+        "Punt Road Oval",
+        "13,000",
+        "24 June 1944"
+      ]
+    ]
+  },
+  {
+    "id": "2-17941795-4:Which Class has a Year(s) of Manufacture of 1899?",
+    "table_id": "2-17941795-4",
+    "question": "Which Class has a Year(s) of Manufacture of 1899?",
+    "sql": "SELECT \"Class\" FROM table WHERE \"Year(s) of Manufacture\" = 1899",
+    "columns": [
+      "Class",
+      "Number(s)",
+      "Quantity",
+      "Year(s) of Manufacture",
+      "Type"
+    ],
+    "rows": [
+      [
+        "C II.1",
+        "names",
+        "68",
+        "1861\u20131868",
+        "C n2"
+      ],
+      [
+        "C III",
+        "names",
+        "239",
+        "1868\u20131879",
+        "C n2"
+      ],
+      [
+        "C III",
+        "names",
+        "14",
+        "1872\u20131874",
+        "C n2"
+      ],
+      [
+        "C IV Zw",
+        "names, 1401\u20131441, 1452\u20131462",
+        "87",
+        "1884\u20131892",
+        "C n2"
+      ],
+      [
+        "C IV Vbd",
+        "names, 1442\u20131451, 1463\u20131550",
+        "100",
+        "1889\u20131897",
+        "C n2v"
+      ],
+      [
+        "C VI",
+        "1551\u20131633",
+        "83",
+        "1899\u20131905",
+        "1\u2032C n2v"
+      ],
+      [
+        "E I",
+        "2051\u20132062",
+        "12",
+        "1895\u20131896",
+        "1\u2032D n2"
+      ],
+      [
+        "E I",
+        "2063\u20132064",
+        "2",
+        "1896\u20131897",
+        "1\u2032D n4v"
+      ]
+    ]
+  },
+  {
+    "id": "2-18116595-3:What was England's total?",
+    "table_id": "2-18116595-3",
+    "question": "What was England's total?",
+    "sql": "SELECT \"Total\" FROM table WHERE \"Country\" = 'england'",
+    "columns": [
+      "Player",
+      "Country",
+      "Year(s) won",
+      "Total",
+      "To par"
+    ],
+    "rows": [
+      [
+        "Jack Nicklaus",
+        "United States",
+        "1966 , 1970 , 1978",
+        "144",
+        "+4"
+      ],
+      [
+        "Gary Player",
+        "South Africa",
+        "1959 , 1968 , 1974",
+        "144",
+        "+4"
+      ],
+      [
+        "Tom Watson",
+        "United States",
+        "1975 , 1977 , 1980 , 1982 , 1983",
+        "144",
+        "+4"
+      ],
+      [
+        "Sandy Lyle",
+        "Scotland",
+        "1985",
+        "146",
+        "+6"
+      ],
+      [
+        "Tony Jacklin",
+        "England",
+        "1969",
+        "149",
+        "+9"
+      ]
+    ]
+  },
+  {
+    "id": "2-18686317-1:What is the number of interceptions with less than 3,487 completions , more than 40,551 yardage, and the comp % is 55.8?",
+    "table_id": "2-18686317-1",
+    "question": "What is the number of interceptions with less than 3,487 completions , more than 40,551 yardage, and the comp % is 55.8?",
+    "sql": "SELECT MIN(\"Interceptions\") FROM table WHERE \"Completions\" < '3,487' AND \"Yardage\" > '40,551' AND \"Comp %\" = 55.8",
+    "columns": [
+      "Rank",
+      "Name",
+      "Tenure",
+      "Leagues",
+      "Attempts",
+      "Completions",
+      "Comp %",
+      "Touchdowns",
+      "Interceptions",
+      "Yardage",
+      "QB Rating"
+    ],
+    "rows": [
+      [
+        "1",
+        "Anthony Calvillo Category:Articles with hCards",
+        "1994-present",
+        "CFL",
+        "9,437",
+        "5,892",
+        "62.4",
+        "455",
+        "224",
+        "79,816",
+        "95.5"
+      ],
+      [
+        "2",
+        "Damon Allen Category:Articles with hCards",
+        "1985-2007",
+        "CFL",
+        "9,138",
+        "5,158",
+        "56.4",
+        "394",
+        "278",
+        "72,381",
+        "83.8"
+      ],
+      [
+        "3",
+        "Brett Favre Category:Articles with hCards",
+        "1991-2010",
+        "NFL",
+        "10,169",
+        "6,300",
+        "62.0",
+        "508",
+        "336",
+        "71,838",
+        "86.0"
+      ],
+      [
+        "4",
+        "Warren Moon Category:Articles with hCards",
+        "1978-2000",
+        "CFL/NFL",
+        "9,205",
+        "5,357",
+        "58.2",
+        "435",
+        "310",
+        "70,553",
+        "84.2"
+      ],
+      [
+        "5",
+        "Peyton Manning Category:Articles with hCards",
+        "1998-present",
+        "NFL",
+        "8,033",
+        "5,260",
+        "65.5",
+        "458",
+        "211",
+        "61,666",
+        "96.7"
+      ],
+      [
+        "6",
+        "Dan Marino Category:Articles with hCards",
+        "1983-1999",
+        "NFL",
+        "8,358",
+        "4,967",
+        "59.4",
+        "420",
+        "252",
+        "61,361",
+        "86.4"
+      ],
+      [
+        "7",
+        "Doug Flutie Category:Articles with hCards",
+        "1985-2005",
+        "CFL/NFL/USFL",
+        "7,276",
+        "4,286",
+        "58.9",
+        "369",
+        "237",
+        "58,179",
+        "87.8"
+      ],
+      [
+        "8",
+        "Danny McManus Category:Articles with hCards",
+        "1988,1990-2006",
+        "CFL/NFL",
+        "6,689",
+        "3,640",
+        "54.4",
+        "259",
+        "281",
+        "53,255",
+        "76.0"
+      ]
+    ]
+  }
+]

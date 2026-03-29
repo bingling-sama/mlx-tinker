@@ -34,7 +34,7 @@ class EngineConfig(BaseModel):
     max_batch_size: int = 8
 
     # Training
-    optimizer_type: Literal["adamw_8bit", "adamw", "adafactor", "lion"] = "adamw_8bit"
+    optimizer_type: Literal["adamw_8bit", "adamw", "adafactor", "lion"] = "adamw"
     gradient_checkpointing: bool = True
     lr_schedule: LRScheduleConfig = LRScheduleConfig()
 

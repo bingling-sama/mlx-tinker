@@ -1,5 +1,6 @@
 """Tests for the engine scheduler — barrier-aware batching logic."""
 
+import importlib
 from types import SimpleNamespace
 
 import pytest
@@ -135,8 +136,14 @@ class TestFindSampleRequests:
 
 
 class TestGroupSampleFutures:
-    def test_groups_by_sampling_tuple_key(self):
+    def test_groups_by_sampling_tuple_key_without_constructing_sample_input(self, monkeypatch):
+        engine_module = importlib.import_module("mlx_tinker.engine.engine")
         engine = TinkerEngine(EngineConfig(), backend=SimpleNamespace())
+
+        def fail_if_constructed(**_kwargs):
+            raise AssertionError("SampleInput should not be constructed during grouping")
+
+        monkeypatch.setattr(engine_module, "SampleInput", fail_if_constructed)
         futures = [
             SimpleNamespace(
                 model_id="model-1",
@@ -167,6 +174,39 @@ class TestGroupSampleFutures:
         groups = engine._group_sample_futures(futures)
 
         assert [len(group) for group in groups] == [2, 1]
+
+    def test_malformed_sampling_params_do_not_crash_grouping(self):
+        engine = TinkerEngine(EngineConfig(), backend=SimpleNamespace())
+        futures = [
+            SimpleNamespace(
+                model_id="model-1",
+                request_data={
+                    "prompt": {"chunks": [{"type": "encoded_text", "tokens": [1, 2, 3]}]},
+                    "sampling_params": "not-a-dict",
+                    "prompt_logprobs": False,
+                },
+            ),
+            SimpleNamespace(
+                model_id="model-1",
+                request_data={
+                    "prompt": {"chunks": [{"type": "encoded_text", "tokens": [1, 2, 3]}]},
+                    "sampling_params": {"temperature": 1.0, "max_tokens": 4, "seed": 7},
+                    "prompt_logprobs": False,
+                },
+            ),
+            SimpleNamespace(
+                model_id="model-1",
+                request_data={
+                    "prompt": {"chunks": [{"type": "encoded_text", "tokens": [1, 2, 3]}]},
+                    "sampling_params": "still-not-a-dict",
+                    "prompt_logprobs": False,
+                },
+            ),
+        ]
+
+        groups = engine._group_sample_futures(futures)
+
+        assert [len(group) for group in groups] == [1, 1, 1]
 
 
 class TestCompleteFuture:

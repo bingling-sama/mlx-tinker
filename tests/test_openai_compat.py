@@ -6,6 +6,8 @@ and streaming without loading a real model.
 
 from __future__ import annotations
 
+import importlib
+import json
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -32,6 +34,7 @@ class FakeTokenizer:
 def mock_backend():
     backend = MagicMock()
     backend.config.base_model = "test-model"
+    backend.config.max_kv_cache_size = 123
     backend._base_model = MagicMock()
     backend._base_tokenizer = FakeTokenizer()
     backend._ensure_base_model = MagicMock()
@@ -118,6 +121,65 @@ class TestChatCompletions:
             },
         )
         assert resp.json()["model"] == "my-custom-model"
+
+    def test_streaming_smoke(self, client, monkeypatch):
+        import mlx.core as mx
+        import mlx_tinker.api.openai_compat as oai
+
+        def fake_iter_generated_tokens(model, prompt_tokens, temperature, top_p, max_tokens):
+            assert model is not None
+            assert prompt_tokens
+            assert temperature == 1.0
+            assert top_p == 1.0
+            assert max_tokens == 5
+            yield mx.array(1), mx.zeros(8)
+            yield mx.array(0), mx.zeros(8)
+
+        monkeypatch.setattr(oai, "_iter_generated_tokens", fake_iter_generated_tokens)
+
+        with client.stream(
+            "POST",
+            "/v1/chat/completions",
+            json={
+                "messages": [{"role": "user", "content": "hello"}],
+                "max_tokens": 5,
+                "stream": True,
+            },
+        ) as resp:
+            assert resp.status_code == 200
+            events = [line[6:] for line in resp.iter_lines() if line.startswith("data: ")]
+
+        assert events[-1] == "[DONE]"
+        payloads = [json.loads(event) for event in events[:-1]]
+        assert payloads[0]["object"] == "chat.completion.chunk"
+        assert payloads[0]["choices"][0]["delta"]["content"] == "B"
+        assert payloads[-1]["choices"][0]["finish_reason"] == "stop"
+
+    def test_streaming_uses_configured_max_kv_size(self, client, monkeypatch):
+        import mlx.core as mx
+
+        captured = {}
+
+        def fake_generate_step(*, prompt, model, max_tokens, sampler, max_kv_size):
+            captured["max_kv_size"] = max_kv_size
+            yield mx.array(0), mx.zeros(8)
+
+        generate_module = importlib.import_module("mlx_lm.generate")
+        monkeypatch.setattr(generate_module, "generate_step", fake_generate_step)
+
+        with client.stream(
+            "POST",
+            "/v1/chat/completions",
+            json={
+                "messages": [{"role": "user", "content": "hello"}],
+                "max_tokens": 2,
+                "stream": True,
+            },
+        ) as resp:
+            assert resp.status_code == 200
+            list(resp.iter_lines())
+
+        assert captured["max_kv_size"] == 123
 
 
 class TestCompletions:

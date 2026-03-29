@@ -68,7 +68,7 @@ class TestQLoRAEquivalence:
 
         # Pearson correlation
         correlation = np.corrcoef(hf_arr, mlx_arr)[0, 1]
-        print(f"\n=== QLoRA Training Equivalence ===")
+        print("\n=== QLoRA Training Equivalence ===")
         print(f"  HF losses:  {hf_arr.round(4).tolist()}")
         print(f"  MLX losses: {mlx_arr.round(4).tolist()}")
         print(f"  Correlation: {correlation:.6f}")
@@ -86,7 +86,8 @@ class TestQLoRAEquivalence:
         assert mlx_losses[-1] < mlx_losses[0], "MLX loss should decrease"
 
         # === Compare adapter weights ===
-        print(f"\n  Adapter weight comparison:")
+        compared_count = 0
+        print("\n  Adapter weight comparison:")
         for key in hf_adapter_weights:
             if key in mlx_adapter_weights:
                 hf_w = hf_adapter_weights[key]
@@ -96,6 +97,7 @@ class TestQLoRAEquivalence:
                     print(f"    {key}: shape mismatch {hf_w.shape} vs {mlx_w.shape}")
                     continue
 
+                compared_count += 1
                 cos_sim = np.dot(hf_w.flatten(), mlx_w.flatten()) / (
                     np.linalg.norm(hf_w) * np.linalg.norm(mlx_w) + 1e-10
                 )
@@ -104,6 +106,12 @@ class TestQLoRAEquivalence:
                 print(f"    {key}: cosine={cos_sim:.4f} frob_ratio={frob_ratio:.4f}")
                 assert cos_sim > 0.95, f"Adapter {key} cosine {cos_sim} < 0.95"
                 assert 0.9 < frob_ratio < 1.1, f"Adapter {key} frob ratio {frob_ratio} not in [0.9, 1.1]"
+
+        assert compared_count >= 4, (
+            f"Only {compared_count} adapter keys compared (expected >= 4). "
+            f"HF keys: {list(hf_adapter_weights.keys())}, "
+            f"MLX keys: {list(mlx_adapter_weights.keys())}"
+        )
 
     def _train_hf_peft(self, model_name, tokenizer, training_data):
         """Run QLoRA training using HuggingFace PEFT."""

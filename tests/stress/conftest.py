@@ -6,8 +6,13 @@ import os
 
 import pytest
 
-MODEL_NAME = "Qwen/Qwen3.5-0.8B"
+MODEL_NAME = "Qwen/Qwen3.5-4B"
 MIN_RAM_GB = 4  # Minimum RAM for stress tests (~1GB quantized + HF model)
+
+_allowed_from_env = os.environ.get("MLX_TINKER_ALLOWED_SKIP_TESTS", "").strip()
+ALLOWED_SKIP_TESTS = {
+    name.strip() for name in _allowed_from_env.split(",") if name.strip()
+}
 
 
 def _check_memory():
@@ -45,7 +50,7 @@ def wikipedia_dataset():
     """Load a small Wikipedia subset for testing."""
     from datasets import load_dataset
 
-    ds = load_dataset("wikipedia", "20220301.en", split="train", streaming=True)
+    ds = load_dataset("wikimedia/wikipedia", "20231101.en", split="train", streaming=True)
     samples = []
     for i, example in enumerate(ds):
         if i >= 100:
@@ -79,3 +84,30 @@ def hf_model(model_name):
     )
     model.eval()
     return model
+
+
+_skipped_tests: list[str] = []
+
+
+def pytest_runtest_makereport(item, call):
+    """Track skipped tests for budget enforcement."""
+    if call.when == "call" and call.excinfo is not None:
+        if call.excinfo.typename == "Skipped":
+            _skipped_tests.append(item.name)
+    elif call.when == "setup" and call.excinfo is not None:
+        if call.excinfo.typename == "Skipped":
+            _skipped_tests.append(item.name)
+
+
+def pytest_sessionfinish(session, exitstatus):
+    """Enforce skip budget: fail if unexpected tests were skipped."""
+    if not os.environ.get("ENFORCE_SKIP_BUDGET"):
+        return
+
+    unexpected = [n for n in _skipped_tests if n not in ALLOWED_SKIP_TESTS]
+    if unexpected:
+        session.exitstatus = 1
+        print(
+            f"\nSKIP BUDGET VIOLATED: {len(unexpected)} unexpected skip(s): "
+            f"{unexpected}\nAllowed: {ALLOWED_SKIP_TESTS}"
+        )

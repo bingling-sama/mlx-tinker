@@ -21,57 +21,11 @@ from mlx_tinker.types import (
     SamplingParams,
     TensorData,
 )
+from tests.helpers import TinyModelWithCache, TinyLM, FakeTokenizer, make_datum
 
 
-class TinyLayer(nn.Module):
-    def __init__(self, dim):
-        super().__init__()
-        self.linear = nn.Linear(dim, dim, bias=False)
-
-    def __call__(self, x, cache=None):
-        return self.linear(x), cache
-
-
-class TinyModel(nn.Module):
-    """Minimal model compatible with mlx-lm generate_step."""
-
-    def __init__(self, vocab_size: int = 32, dim: int = 16):
-        super().__init__()
-        self.embed = nn.Embedding(vocab_size, dim)
-        self.layers = [TinyLayer(dim)]
-        self.head = nn.Linear(dim, vocab_size, bias=False)
-
-    def __call__(self, x: mx.array, cache=None) -> mx.array:
-        h = self.embed(x)
-        if cache is not None:
-            for i, layer in enumerate(self.layers):
-                h, cache[i] = layer(h, cache[i])
-        else:
-            for layer in self.layers:
-                h, _ = layer(h)
-        return self.head(h)
-
-
-class FakeTokenizer:
-    eos_token_id = 0
-
-    def encode(self, text):
-        return [ord(c) % 32 for c in text]
-
-    def decode(self, tokens):
-        return "".join(chr((t % 26) + 65) for t in tokens)
-
-
-def _make_datum(tokens, targets, weights):
-    return Datum(
-        model_input=ModelInput(chunks=[EncodedTextChunk(tokens=tokens)]),
-        loss_fn_inputs=LossFnInputs(
-            target_tokens=TensorData(data=targets),
-            weights=TensorData(data=weights),
-            advantages=TensorData(data=[0.0] * len(targets)),
-            logprobs=TensorData(data=[0.0] * len(targets)),
-        ),
-    )
+# Alias for backwards compat with test methods below
+TinyModel = TinyModelWithCache
 
 
 class TestEndToEnd:
@@ -87,11 +41,11 @@ class TestEndToEnd:
         # Train
         losses = []
         for step in range(20):
-            datum = _make_datum([1, 2, 3, 4, 5], [2, 3, 4, 5, 6], [0.0, 1.0, 1.0, 1.0, 1.0])
+            datum = make_datum([1, 2, 3, 4, 5], [2, 3, 4, 5, 6], [0.0, 1.0, 1.0, 1.0, 1.0])
             fb_result = training.forward_backward(
                 "test", model, ForwardBackwardInput(data=[datum], loss_fn="cross_entropy")
             )
-            losses.append(fb_result.loss_fn_outputs[0]["loss"])
+            losses.append(fb_result.metrics["loss:sum"])
 
             training.optim_step(
                 "test",
@@ -133,7 +87,7 @@ class TestEndToEnd:
 
         # Accumulate 3 forward_backward calls
         for _ in range(3):
-            datum = _make_datum([1, 2, 3], [2, 3, 4], [1.0, 1.0, 1.0])
+            datum = make_datum([1, 2, 3], [2, 3, 4], [1.0, 1.0, 1.0])
             training.forward_backward(
                 "test", model, ForwardBackwardInput(data=[datum], loss_fn="cross_entropy")
             )
@@ -216,4 +170,58 @@ class TestEndToEnd:
         )
 
         assert result.metrics is not None
-        assert result.metrics["grad_accum_steps"] == 2
+        assert result.metrics["grad_accum_steps:sum"] == 2
+
+
+class TestChunkedCEIntegration:
+    """Verify chunked CE path through forward_backward with a split-lm-head model."""
+
+    def test_chunked_ce_through_forward_backward(self):
+        """TinyLM triggers _has_split_lm_head(), loss should be finite, grads non-zero."""
+        from mlx_tinker.backend.training import _has_split_lm_head
+
+        mx.random.seed(42)
+        model = TinyLM(vocab_size=128, dim=64, num_layers=1)
+        mx.eval(model.parameters())
+
+        assert _has_split_lm_head(model), "TinyLM should have split lm_head"
+
+        training = TrainingBackend(optimizer_type="adamw", gradient_checkpointing=False)
+        datum = make_datum([1, 2, 3, 4], [2, 3, 4, 5], [0.0, 1.0, 1.0, 1.0])
+
+        result = training.forward_backward(
+            "test", model, ForwardBackwardInput(data=[datum], loss_fn="cross_entropy")
+        )
+
+        import math
+        loss = result.metrics["loss:sum"]
+        assert math.isfinite(loss), f"Loss not finite: {loss}"
+        assert loss > 0
+
+        grads = training.accumulated_grads["test"]
+        from mlx.utils import tree_flatten
+        flat_grads = tree_flatten(grads)
+        assert any(mx.any(g != 0).item() for _, g in flat_grads), "All gradients are zero"
+
+    def test_chunked_ce_loss_decreases(self):
+        """Training via chunked CE path should reduce loss over 20 steps."""
+        mx.random.seed(42)
+        model = TinyLM(vocab_size=128, dim=64, num_layers=1)
+        mx.eval(model.parameters())
+
+        training = TrainingBackend(optimizer_type="adamw", gradient_checkpointing=False)
+        datum = make_datum([1, 2, 3, 4], [2, 3, 4, 5], [0.0, 1.0, 1.0, 1.0])
+        fb_req = ForwardBackwardInput(data=[datum], loss_fn="cross_entropy")
+        opt_req = OptimStepInput(adam_params=AdamParams(learning_rate=0.01, weight_decay=0.0))
+
+        losses = []
+        for _ in range(20):
+            result = training.forward_backward("test", model, fb_req)
+            losses.append(result.metrics["loss:sum"])
+            training.optim_step("test", model, opt_req)
+
+        avg_first = sum(losses[:5]) / 5
+        avg_last = sum(losses[-5:]) / 5
+        assert avg_last < avg_first, (
+            f"Loss should decrease via chunked CE: first-5={avg_first:.4f} last-5={avg_last:.4f}"
+        )

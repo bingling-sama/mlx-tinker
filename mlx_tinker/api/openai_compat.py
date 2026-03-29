@@ -63,6 +63,31 @@ def _get_model_and_tokenizer():
     return _backend._base_model, _backend._base_tokenizer
 
 
+def _iter_generated_tokens(
+    model,
+    prompt_tokens: list[int],
+    temperature: float,
+    top_p: float,
+    max_tokens: int,
+):
+    """Shared low-level generator for sync and streaming OpenAI-compatible paths."""
+    import mlx.core as mx
+    from mlx_lm.generate import generate_step
+    from mlx_lm.sample_utils import make_sampler
+
+    sampler = make_sampler(temp=temperature, top_p=top_p)
+    prompt_array = mx.array(prompt_tokens)
+    max_kv_size = getattr(_backend.config, "max_kv_cache_size", None) if _backend else None
+
+    yield from generate_step(
+        prompt=prompt_array,
+        model=model,
+        max_tokens=max_tokens,
+        sampler=sampler,
+        max_kv_size=max_kv_size,
+    )
+
+
 def _generate_tokens(
     model,
     tokenizer,
@@ -71,27 +96,14 @@ def _generate_tokens(
     top_p: float,
     max_tokens: int,
 ) -> list[int]:
-    """Generate tokens using mlx-lm's generate_step."""
-    import mlx.core as mx
-    from mlx_lm.generate import generate_step
-    from mlx_lm.sample_utils import make_sampler
-
-    sampler = make_sampler(temp=temperature, top_p=top_p)
+    """Generate tokens for the non-streaming OpenAI-compatible endpoints."""
     generated_tokens = []
-    prompt_array = mx.array(prompt_tokens)
 
-    for token, _ in generate_step(
-        prompt=prompt_array,
-        model=model,
-        max_tokens=max_tokens,
-        sampler=sampler,
-    ):
-        token_id = token.item()
+    for token, _ in _iter_generated_tokens(model, prompt_tokens, temperature, top_p, max_tokens):
+        token_id = token.item() if hasattr(token, "item") else int(token)
         generated_tokens.append(token_id)
 
         if token_id == tokenizer.eos_token_id:
-            break
-        if len(generated_tokens) >= max_tokens:
             break
 
     return generated_tokens
@@ -113,7 +125,7 @@ def _usage(prompt_tokens: list[int], generated_tokens: list[int]) -> dict:
 
 @router.post("/v1/chat/completions")
 async def chat_completions(request: ChatCompletionRequest):
-    model, tokenizer = _get_model_and_tokenizer()
+    _model, tokenizer = _get_model_and_tokenizer()
 
     # Format messages using tokenizer's chat template
     if hasattr(tokenizer, "apply_chat_template"):
@@ -129,12 +141,12 @@ async def chat_completions(request: ChatCompletionRequest):
 
     if request.stream:
         return StreamingResponse(
-            _stream_chat_response(model, tokenizer, prompt_tokens, request),
+            _stream_chat_response(_model, tokenizer, prompt_tokens, request),
             media_type="text/event-stream",
         )
 
     generated_tokens = _generate_tokens(
-        model,
+        _model,
         tokenizer,
         prompt_tokens,
         request.temperature,
@@ -162,13 +174,13 @@ async def chat_completions(request: ChatCompletionRequest):
 
 @router.post("/v1/completions")
 async def completions(request: CompletionRequest):
-    model, tokenizer = _get_model_and_tokenizer()
+    _model, tokenizer = _get_model_and_tokenizer()
 
     prompt_text = request.prompt if isinstance(request.prompt, str) else request.prompt[0]
     prompt_tokens = tokenizer.encode(prompt_text)
 
     generated_tokens = _generate_tokens(
-        model,
+        _model,
         tokenizer,
         prompt_tokens,
         request.temperature,
@@ -212,23 +224,17 @@ async def list_models():
 
 async def _stream_chat_response(model, tokenizer, prompt_tokens, request):
     """SSE streaming generator for chat completions."""
-    import mlx.core as mx
-    from mlx_lm.generate import generate_step
-    from mlx_lm.sample_utils import make_sampler
-
-    sampler = make_sampler(temp=request.temperature, top_p=request.top_p)
     resp_id = f"chatcmpl-{uuid.uuid4().hex[:12]}"
-    prompt_array = mx.array(prompt_tokens)
-    count = 0
+    stopped = False
 
-    for token, _ in generate_step(
-        prompt=prompt_array,
-        model=model,
-        max_tokens=request.max_tokens,
-        sampler=sampler,
+    for token, _ in _iter_generated_tokens(
+        model,
+        prompt_tokens,
+        request.temperature,
+        request.top_p,
+        request.max_tokens,
     ):
         token_id = token.item()
-        count += 1
 
         if token_id == tokenizer.eos_token_id:
             # Final chunk
@@ -240,6 +246,7 @@ async def _stream_chat_response(model, tokenizer, prompt_tokens, request):
                 "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}],
             }
             yield f"data: {json.dumps(chunk)}\n\n"
+            stopped = True
             break
 
         token_text = tokenizer.decode([token_id])
@@ -258,15 +265,14 @@ async def _stream_chat_response(model, tokenizer, prompt_tokens, request):
         }
         yield f"data: {json.dumps(chunk)}\n\n"
 
-        if count >= request.max_tokens:
-            chunk = {
-                "id": resp_id,
-                "object": "chat.completion.chunk",
-                "created": int(time.time()),
-                "model": request.model,
-                "choices": [{"index": 0, "delta": {}, "finish_reason": "length"}],
-            }
-            yield f"data: {json.dumps(chunk)}\n\n"
-            break
+    if not stopped:
+        chunk = {
+            "id": resp_id,
+            "object": "chat.completion.chunk",
+            "created": int(time.time()),
+            "model": request.model,
+            "choices": [{"index": 0, "delta": {}, "finish_reason": "length"}],
+        }
+        yield f"data: {json.dumps(chunk)}\n\n"
 
     yield "data: [DONE]\n\n"

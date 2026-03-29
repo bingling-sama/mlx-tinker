@@ -7,7 +7,7 @@ import logging
 import traceback
 from datetime import datetime, timezone
 
-from mlx_tinker.backend.inference import _sampling_params_key
+from mlx_tinker.backend.inference import _sampling_params_key_from_mapping
 from sqlalchemy import update
 
 from mlx_tinker.backend.mlx_backend import MLXBackend
@@ -152,9 +152,12 @@ class TinkerEngine:
 
         for future in futures:
             request_data = future.request_data or {}
+            sampling_params_key = _sampling_params_key_from_mapping(request_data.get("sampling_params"))
+            if sampling_params_key is None:
+                sampling_params_key = ("__invalid__", id(future))
             key = (
                 future.model_id,
-                _sampling_params_key(SampleInput(**request_data).sampling_params),
+                sampling_params_key,
                 bool(request_data.get("prompt_logprobs")),
             )
             if current and key != current_key:

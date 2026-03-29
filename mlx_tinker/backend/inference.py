@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 import logging
 
 import mlx.core as mx
@@ -64,6 +65,29 @@ def _sampling_params_key(sp: SamplingParams) -> tuple:
         tuple(sp.stop_strings or []),
         sp.top_k,
         sp.top_p,
+    )
+
+
+def _sampling_params_key_from_mapping(data: Mapping[str, object] | None) -> tuple | None:
+    """Build the same compatibility key from raw request data without validation."""
+    if not isinstance(data, Mapping):
+        return None
+
+    stop_tokens = data.get("stop_tokens")
+    stop_strings = data.get("stop_strings")
+    if stop_tokens is not None and not isinstance(stop_tokens, (list, tuple)):
+        return None
+    if stop_strings is not None and not isinstance(stop_strings, (list, tuple)):
+        return None
+
+    return (
+        data.get("temperature", 1.0),
+        data.get("max_tokens", 256),
+        data.get("seed", 0),
+        tuple(stop_tokens or []),
+        tuple(stop_strings or []),
+        data.get("top_k", -1),
+        data.get("top_p", 1.0),
     )
 
 
@@ -133,7 +157,8 @@ class InferenceBackend:
         prompt_tokens = request.prompt.get_tokens()
         sp = request.sampling_params
         self._seed_rng(sp)
-        use_batched_rollouts = request.num_samples > 1 and request.model_path is None
+        # model_path is routing-only in MLXBackend; batching depends on the resolved model call.
+        use_batched_rollouts = request.num_samples > 1
 
         if _has_kv_cache_support(model):
             if use_batched_rollouts:

@@ -225,21 +225,21 @@ class TestSample:
         assert fake.max_kv_size is None
         assert fake.closed is True
 
-    def test_multiple_samples_with_model_path_avoids_batched_generation(
+    def test_multiple_samples_with_model_path_uses_batched_generation(
         self, model, tokenizer, inference, monkeypatch
     ):
         calls = {"batch": 0, "step": 0}
 
-        def fake_batch(*args, **kwargs):
+        def fake_batch(model, prompt_tokens, sp, num_samples):
             calls["batch"] += 1
-            raise AssertionError("Batch generator should not be used for sampler checkpoints")
-
-        def fake_step(model, prompt_tokens, sp, num_samples):
-            calls["step"] += 1
             return [
                 GeneratedSequence(stop_reason="length", tokens=[1], logprobs=[-0.1])
                 for _ in range(num_samples)
             ]
+
+        def fake_step(model, prompt_tokens, sp, num_samples):
+            calls["step"] += 1
+            raise AssertionError("Sequential generation should not be used after model resolution")
 
         monkeypatch.setattr(inference, "_sample_with_batch_generator", fake_batch)
         monkeypatch.setattr(inference, "_sample_with_generate_step", fake_step)
@@ -256,7 +256,7 @@ class TestSample:
         result = inference.sample(model, tokenizer, request)
 
         assert len(result.sequences) == 8
-        assert calls == {"batch": 0, "step": 1}
+        assert calls == {"batch": 1, "step": 0}
 
     def test_generate_step_forwards_max_kv_cache_size(self, model, tokenizer, monkeypatch):
         captured = {}

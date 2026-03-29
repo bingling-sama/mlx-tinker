@@ -1,0 +1,490 @@
+{
+  "model": "Qwen/Qwen3.5-4B",
+  "lora_rank": 8,
+  "tokenization": "model_tokenizer",
+  "generated_at": "2026-03-29T00:36:53.540617+00:00",
+  "sft_steps": [
+    {
+      "step": 0,
+      "loss": 2.080064682733445,
+      "loss_mean": 2.080064682733445,
+      "loss_sum": 87.36271667480469,
+      "n_tokens": 42,
+      "question": "What is the capital of the country whose largest city is Bangkok?"
+    },
+    {
+      "step": 1,
+      "loss": 1.1004429985495174,
+      "loss_mean": 1.1004429985495174,
+      "loss_sum": 56.12259292602539,
+      "n_tokens": 51,
+      "question": "How many countries have a population greater than 100000000?"
+    },
+    {
+      "step": 2,
+      "loss": 1.8758617401123048,
+      "loss_mean": 1.8758617401123048,
+      "loss_sum": 56.27585220336914,
+      "n_tokens": 30,
+      "question": "What is the highest score in the competition?"
+    },
+    {
+      "step": 3,
+      "loss": 1.39718997093939,
+      "loss_mean": 1.39718997093939,
+      "loss_sum": 43.312889099121094,
+      "n_tokens": 31,
+      "question": "Which team did Alice play for?"
+    },
+    {
+      "step": 4,
+      "loss": 0.839799063546317,
+      "loss_mean": 0.839799063546317,
+      "loss_sum": 29.392967224121094,
+      "n_tokens": 35,
+      "question": "What is the average score of the Red team?"
+    },
+    {
+      "step": 5,
+      "loss": 0.7333599925041199,
+      "loss_mean": 0.7333599925041199,
+      "loss_sum": 23.467519760131836,
+      "n_tokens": 32,
+      "question": "How many students scored above 80?"
+    },
+    {
+      "step": 6,
+      "loss": 0.9230121744090113,
+      "loss_mean": 0.9230121744090113,
+      "loss_sum": 26.767353057861328,
+      "n_tokens": 29,
+      "question": "What subject does Olivia study?"
+    },
+    {
+      "step": 7,
+      "loss": 1.0355931795560396,
+      "loss_mean": 1.0355931795560396,
+      "loss_sum": 26.92542266845703,
+      "n_tokens": 26,
+      "question": "What is the total enrollment?"
+    },
+    {
+      "step": 8,
+      "loss": 0.889452870686849,
+      "loss_mean": 0.889452870686849,
+      "loss_sum": 26.68358612060547,
+      "n_tokens": 30,
+      "question": "Which department has the most faculty?"
+    },
+    {
+      "step": 9,
+      "loss": 0.657212748672023,
+      "loss_mean": 0.657212748672023,
+      "loss_sum": 21.688020706176758,
+      "n_tokens": 33,
+      "question": "What is the minimum grade in Science?"
+    },
+    {
+      "step": 10,
+      "loss": 0.9972690891575169,
+      "loss_mean": 0.9972690891575169,
+      "loss_sum": 36.898956298828125,
+      "n_tokens": 37,
+      "question": "What year was the film released that grossed the most?"
+    },
+    {
+      "step": 11,
+      "loss": 1.1381507873535157,
+      "loss_mean": 1.1381507873535157,
+      "loss_sum": 39.83527755737305,
+      "n_tokens": 35,
+      "question": "How many films were directed by Dir X?"
+    },
+    {
+      "step": 12,
+      "loss": 0.8061730736180356,
+      "loss_mean": 0.8061730736180356,
+      "loss_sum": 30.63457679748535,
+      "n_tokens": 38,
+      "question": "What is the name of the player with jersey number 10?"
+    },
+    {
+      "step": 13,
+      "loss": 1.0046955347061157,
+      "loss_mean": 1.0046955347061157,
+      "loss_sum": 32.1502571105957,
+      "n_tokens": 32,
+      "question": "How many goals did Ronaldo score?"
+    },
+    {
+      "step": 14,
+      "loss": 0.6705287130255448,
+      "loss_mean": 0.6705287130255448,
+      "loss_sum": 25.480091094970703,
+      "n_tokens": 38,
+      "question": "What is the total number of goals scored by all forwards?"
+    },
+    {
+      "step": 15,
+      "loss": 0.685660183429718,
+      "loss_mean": 0.685660183429718,
+      "loss_sum": 21.941125869750977,
+      "n_tokens": 32,
+      "question": "Which city has the largest area?"
+    },
+    {
+      "step": 16,
+      "loss": 0.8406640370686849,
+      "loss_mean": 0.8406640370686849,
+      "loss_sum": 25.219921112060547,
+      "n_tokens": 30,
+      "question": "What country is London in?"
+    },
+    {
+      "step": 17,
+      "loss": 0.629141342945588,
+      "loss_mean": 0.629141342945588,
+      "loss_sum": 24.53651237487793,
+      "n_tokens": 39,
+      "question": "How many cities have a population over 5 million?"
+    },
+    {
+      "step": 18,
+      "loss": 0.6032578659057617,
+      "loss_mean": 0.6032578659057617,
+      "loss_sum": 15.081446647644043,
+      "n_tokens": 25,
+      "question": "What is the average revenue?"
+    },
+    {
+      "step": 19,
+      "loss": 0.5172953923543294,
+      "loss_mean": 0.5172953923543294,
+      "loss_sum": 15.518861770629883,
+      "n_tokens": 30,
+      "question": "Which company has the most employees?"
+    },
+    {
+      "step": 20,
+      "loss": 0.7930956753817472,
+      "loss_mean": 0.7930956753817472,
+      "loss_sum": 26.172157287597656,
+      "n_tokens": 33,
+      "question": "What is the price of Widget A?"
+    },
+    {
+      "step": 21,
+      "loss": 0.4513005120413644,
+      "loss_mean": 0.4513005120413644,
+      "loss_sum": 15.795517921447754,
+      "n_tokens": 35,
+      "question": "How many products are in the Electronics category?"
+    },
+    {
+      "step": 22,
+      "loss": 0.4970332781473796,
+      "loss_mean": 0.4970332781473796,
+      "loss_sum": 14.910998344421387,
+      "n_tokens": 30,
+      "question": "What is the total stock of all products?"
+    },
+    {
+      "step": 23,
+      "loss": 0.4889064516339983,
+      "loss_mean": 0.4889064516339983,
+      "loss_sum": 13.689380645751953,
+      "n_tokens": 28,
+      "question": "What is the most expensive product?"
+    },
+    {
+      "step": 24,
+      "loss": 0.6828824724469866,
+      "loss_mean": 0.6828824724469866,
+      "loss_sum": 23.90088653564453,
+      "n_tokens": 35,
+      "question": "What is the album that sold the most copies?"
+    },
+    {
+      "step": 25,
+      "loss": 0.8974456787109375,
+      "loss_mean": 0.8974456787109375,
+      "loss_sum": 34.102935791015625,
+      "n_tokens": 38,
+      "question": "Who wrote the song released in 2019?"
+    },
+    {
+      "step": 26,
+      "loss": 0.6091223885031307,
+      "loss_mean": 0.6091223885031307,
+      "loss_sum": 20.710161209106445,
+      "n_tokens": 34,
+      "question": "How many songs are in the Pop genre?"
+    },
+    {
+      "step": 27,
+      "loss": 0.6497974911251584,
+      "loss_mean": 0.6497974911251584,
+      "loss_sum": 24.04250717163086,
+      "n_tokens": 37,
+      "question": "What is the name of the course with the highest enrollment?"
+    },
+    {
+      "step": 28,
+      "loss": 0.8147621715770048,
+      "loss_mean": 0.8147621715770048,
+      "loss_sum": 27.701913833618164,
+      "n_tokens": 34,
+      "question": "Who teaches MATH201?"
+    },
+    {
+      "step": 29,
+      "loss": 0.8789130074637277,
+      "loss_mean": 0.8789130074637277,
+      "loss_sum": 30.76195526123047,
+      "n_tokens": 35,
+      "question": "What is the total enrollment in Fall courses?"
+    },
+    {
+      "step": 30,
+      "loss": 0.7358113606770833,
+      "loss_mean": 0.7358113606770833,
+      "loss_sum": 22.0743408203125,
+      "n_tokens": 30,
+      "question": "What is the speed of the fastest car?"
+    },
+    {
+      "step": 31,
+      "loss": 0.8079219941169985,
+      "loss_mean": 0.8079219941169985,
+      "loss_sum": 25.045581817626953,
+      "n_tokens": 31,
+      "question": "Which car is made by Tesla?"
+    },
+    {
+      "step": 32,
+      "loss": 0.7011809477934966,
+      "loss_mean": 0.7011809477934966,
+      "loss_sum": 25.943695068359375,
+      "n_tokens": 37,
+      "question": "How many cars were made after 2021?"
+    },
+    {
+      "step": 33,
+      "loss": 0.6035276228381742,
+      "loss_mean": 0.6035276228381742,
+      "loss_sum": 18.7093563079834,
+      "n_tokens": 31,
+      "question": "What is the height of Mount Everest?"
+    },
+    {
+      "step": 34,
+      "loss": 0.5753786563873291,
+      "loss_mean": 0.5753786563873291,
+      "loss_sum": 18.41211700439453,
+      "n_tokens": 32,
+      "question": "How many mountains are in Nepal?"
+    },
+    {
+      "step": 35,
+      "loss": 0.5405496133340372,
+      "loss_mean": 0.5405496133340372,
+      "loss_sum": 20.000335693359375,
+      "n_tokens": 37,
+      "question": "What is the total revenue in Q1?"
+    },
+    {
+      "step": 36,
+      "loss": 0.6270264943440755,
+      "loss_mean": 0.6270264943440755,
+      "loss_sum": 18.810794830322266,
+      "n_tokens": 30,
+      "question": "Which company had the highest profit?"
+    },
+    {
+      "step": 37,
+      "loss": 0.6465293121337891,
+      "loss_mean": 0.6465293121337891,
+      "loss_sum": 16.163232803344727,
+      "n_tokens": 25,
+      "question": "What is the average profit?"
+    },
+    {
+      "step": 38,
+      "loss": 0.7871807499935752,
+      "loss_mean": 0.7871807499935752,
+      "loss_sum": 29.91286849975586,
+      "n_tokens": 38,
+      "question": "What is the name of the planet closest to the sun?"
+    },
+    {
+      "step": 39,
+      "loss": 0.5913024266560872,
+      "loss_mean": 0.5913024266560872,
+      "loss_sum": 17.739072799682617,
+      "n_tokens": 30,
+      "question": "How many planets have moons?"
+    },
+    {
+      "step": 40,
+      "loss": 0.7334255095451109,
+      "loss_mean": 0.7334255095451109,
+      "loss_sum": 22.736190795898438,
+      "n_tokens": 31,
+      "question": "What language is spoken in Brazil?"
+    },
+    {
+      "step": 41,
+      "loss": 0.4543609619140625,
+      "loss_mean": 0.4543609619140625,
+      "loss_sum": 13.630828857421875,
+      "n_tokens": 30,
+      "question": "Which country has the highest GDP?"
+    },
+    {
+      "step": 42,
+      "loss": 1.0953099931989396,
+      "loss_mean": 1.0953099931989396,
+      "loss_sum": 38.33584976196289,
+      "n_tokens": 35,
+      "question": "How many employees work at the New York office?"
+    },
+    {
+      "step": 43,
+      "loss": 1.008948802947998,
+      "loss_mean": 1.008948802947998,
+      "loss_sum": 32.28636169433594,
+      "n_tokens": 32,
+      "question": "What floor is the London office on?"
+    },
+    {
+      "step": 44,
+      "loss": 0.6275971511314655,
+      "loss_mean": 0.6275971511314655,
+      "loss_sum": 18.2003173828125,
+      "n_tokens": 29,
+      "question": "What is the total number of employees across all offices?"
+    },
+    {
+      "step": 45,
+      "loss": 0.6343663930892944,
+      "loss_mean": 0.6343663930892944,
+      "loss_sum": 20.299724578857422,
+      "n_tokens": 32,
+      "question": "What was the temperature on Monday?"
+    },
+    {
+      "step": 46,
+      "loss": 0.6573518322360131,
+      "loss_mean": 0.6573518322360131,
+      "loss_sum": 20.377906799316406,
+      "n_tokens": 31,
+      "question": "Which day had the highest wind speed?"
+    },
+    {
+      "step": 47,
+      "loss": 0.5753997305165166,
+      "loss_mean": 0.5753997305165166,
+      "loss_sum": 13.234193801879883,
+      "n_tokens": 23,
+      "question": "What is the average temperature?"
+    },
+    {
+      "step": 48,
+      "loss": 0.5986297607421875,
+      "loss_mean": 0.5986297607421875,
+      "loss_sum": 20.952041625976562,
+      "n_tokens": 35,
+      "question": "How many days had humidity above 40?"
+    },
+    {
+      "step": 49,
+      "loss": 0.6532478848019162,
+      "loss_mean": 0.6532478848019162,
+      "loss_sum": 24.1701717376709,
+      "n_tokens": 37,
+      "question": "What is the name of the book with the most pages?"
+    }
+  ],
+  "rl_steps": [
+    {
+      "step": 0,
+      "loss": -0.2843198776245117,
+      "loss_mean": -0.2843198776245117,
+      "loss_sum": -11.941434860229492,
+      "n_tokens": 42,
+      "question": "What is the capital of the country whose largest city is Bangkok?"
+    },
+    {
+      "step": 1,
+      "loss": -0.33292347777123543,
+      "loss_mean": -0.33292347777123543,
+      "loss_sum": -16.979097366333008,
+      "n_tokens": 51,
+      "question": "How many countries have a population greater than 100000000?"
+    },
+    {
+      "step": 2,
+      "loss": -0.19881723721822103,
+      "loss_mean": -0.19881723721822103,
+      "loss_sum": -5.964517116546631,
+      "n_tokens": 30,
+      "question": "What is the highest score in the competition?"
+    },
+    {
+      "step": 3,
+      "loss": -0.2879944770566879,
+      "loss_mean": -0.2879944770566879,
+      "loss_sum": -8.927828788757324,
+      "n_tokens": 31,
+      "question": "Which team did Alice play for?"
+    },
+    {
+      "step": 4,
+      "loss": -0.34169510432652067,
+      "loss_mean": -0.34169510432652067,
+      "loss_sum": -11.959328651428223,
+      "n_tokens": 35,
+      "question": "What is the average score of the Red team?"
+    },
+    {
+      "step": 5,
+      "loss": -0.31161344051361084,
+      "loss_mean": -0.31161344051361084,
+      "loss_sum": -9.971630096435547,
+      "n_tokens": 32,
+      "question": "How many students scored above 80?"
+    },
+    {
+      "step": 6,
+      "loss": -0.3438085358718346,
+      "loss_mean": -0.3438085358718346,
+      "loss_sum": -9.970447540283203,
+      "n_tokens": 29,
+      "question": "What subject does Olivia study?"
+    },
+    {
+      "step": 7,
+      "loss": -0.2682212316072904,
+      "loss_mean": -0.2682212316072904,
+      "loss_sum": -6.973752021789551,
+      "n_tokens": 26,
+      "question": "What is the total enrollment?"
+    },
+    {
+      "step": 8,
+      "loss": -0.33208446502685546,
+      "loss_mean": -0.33208446502685546,
+      "loss_sum": -9.962533950805664,
+      "n_tokens": 30,
+      "question": "Which department has the most faculty?"
+    },
+    {
+      "step": 9,
+      "loss": -0.359570329839533,
+      "loss_mean": -0.359570329839533,
+      "loss_sum": -11.86582088470459,
+      "n_tokens": 33,
+      "question": "What is the minimum grade in Science?"
+    }
+  ]
+}
