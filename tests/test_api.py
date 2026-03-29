@@ -192,6 +192,41 @@ class TestTrainingEndpoints:
         assert "request_id" in resp.json()
 
 
+class TestSamplingEndpoints:
+    def test_asample_omitted_prompt_logprobs_does_not_queue_null(self, client):
+        resp = client.post("/api/v1/create_session", json={"sdk_version": "0.1.0"})
+        session_id = resp.json()["session_id"]
+
+        resp = client.post(
+            "/api/v1/create_sampling_session",
+            json={"session_id": session_id, "base_model": "test-model"},
+        )
+        sampling_session_id = resp.json()["sampling_session_id"]
+
+        resp = client.post(
+            "/api/v1/asample",
+            json={
+                "prompt": {"chunks": [{"type": "encoded_text", "tokens": [1, 2, 3]}]},
+                "sampling_params": {"temperature": 0.7, "max_tokens": 8, "seed": 1},
+                "sampling_session_id": sampling_session_id,
+                "num_samples": 1,
+                "type": "sample",
+            },
+        )
+        assert resp.status_code == 200
+        request_id = int(resp.json()["request_id"])
+
+        async def _load_future_request_data():
+            async with get_session() as session:
+                future = await session.get(FutureDB, request_id)
+                return future.request_data
+
+        request_data = asyncio.run(_load_future_request_data())
+        assert "prompt_logprobs" not in request_data
+        assert request_data["sampling_session_id"] == sampling_session_id
+        assert request_data["model_path"] is None or isinstance(request_data["model_path"], str)
+
+
 class TestFutureLifecycle:
     def test_retrieve_pending_future(self, client):
         # Create a future via forward_backward

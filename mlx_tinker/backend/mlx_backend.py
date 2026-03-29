@@ -132,6 +132,7 @@ class MLXBackend:
             self.training.accumulated_grads.pop(model_id, None)
             self.training.grad_accum_counts.pop(model_id, None)
             self.training.optimizers.pop(model_id, None)
+            self.sampling_models.clear()
             logger.info("Unloaded model %s", model_id)
 
         return UnloadModelOutput(model_id=model_id, status="unloaded")
@@ -206,7 +207,11 @@ class MLXBackend:
 
     def optim_step(self, model_id: str, request: OptimStepInput) -> OptimStepOutput:
         model = self._get_model(model_id)
-        return self.training.optim_step(model_id, model, request)
+        result = self.training.optim_step(model_id, model, request)
+        # Any exported sampler path should reload after weights change so
+        # continual-learning loops never serve stale adapters.
+        self.sampling_models.clear()
+        return result
 
     # ------------------------------------------------------------------
     # Inference
@@ -337,4 +342,5 @@ class MLXBackend:
         opt_state = load_training_checkpoint(model, checkpoint_dir)
         if opt_state is not None:
             self.training.load_optimizer_state(model_id, opt_state)
+        self.sampling_models.clear()
         return LoadWeightsOutput()

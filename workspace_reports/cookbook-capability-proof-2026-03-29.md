@@ -37,7 +37,7 @@ A tiny arbitrary codeword-to-label task was used:
 - task: map one of four synthetic codewords to `YES` or `NO`
 - reason for task choice: small enough for fast local proof, arbitrary enough that success requires learning rather than pure pretraining recall
 
-Two proofs were added in:
+Three proofs were added in:
 
 - `tests/cookbook/test_capability_proofs.py`
 
@@ -55,6 +55,20 @@ Two proofs were added in:
 - Train with `importance_sampling`
 - Evaluate pre/post sampled reward and greedy exact-match accuracy
 
+### Combined progression proof
+
+- Evaluate base model capability first
+- Continue the same model through a bounded SFT stage
+- Evaluate again
+- Continue the same model through grouped-rollout RL
+- Evaluate a third time
+
+This mirrors the desired real workflow more closely:
+
+1. base model
+2. after SFT
+3. after RL continuation
+
 ## Verification Run
 
 ### Capability proof file
@@ -65,9 +79,9 @@ Command:
 uv run pytest tests/cookbook/test_capability_proofs.py -s -q -ra
 ```
 
-Result:
+Latest result:
 
-- `2 passed, 2 warnings in 33.62s`
+- `3 passed, 2 warnings in 57.33s`
 
 Observed proof metrics:
 
@@ -96,6 +110,32 @@ Interpretation:
 - Greedy exact-match accuracy did not regress.
 - This is consistent with RL improving the policy distribution even when greedy decoding is already near saturation on a tiny task.
 
+### Base -> SFT -> RL Progression
+
+Command:
+
+```bash
+uv run pytest tests/cookbook/test_capability_proofs.py::TestCapabilityProofs::test_base_then_sft_then_rl_progression -s -q -ra
+```
+
+Observed progression:
+
+- base accuracy: `0.000`
+- SFT accuracy: `0.625`
+- RL accuracy: `1.000`
+- base reward: `0.000`
+- SFT reward: `0.562`
+- RL reward: `0.922`
+- SFT loss: `4.9694 -> 1.2400`
+- RL mean reward during train: `0.703`
+- RL non-zero advantage steps: `26/32`
+
+Interpretation:
+
+- SFT improved task capability over the base model.
+- RL continuation improved it further on the same task family.
+- This is the cleanest local answer to “evaluate base model, evaluate after SFT, evaluate after RL.”
+
 ### Existing cookbook regression
 
 Command:
@@ -112,6 +152,7 @@ Result:
 
 - The local SFT loop can improve exact-match capability on a controlled task.
 - The local grouped-rollout RL loop can improve reward on a controlled task.
+- In a combined base -> SFT -> RL progression, capability can improve monotonically across the three checkpoints.
 - The cookbook-style training logic is functioning locally on `0.8B`.
 
 ## What This Does Not Prove
@@ -126,4 +167,5 @@ The right conclusion is:
 
 - **SFT works** in the sense of measurable exact-match capability gain on a local proof task.
 - **RL works** in the sense of measurable reward improvement with grouped rollouts and non-zero centered advantages on a local proof task.
+- The combined progression test now shows the exact evaluation chain requested: base, after SFT, and after RL.
 - The remaining open question is task transfer and benchmark lift on more realistic datasets like WikiSQL, not whether the basic SFT / GRPO-style loops function at all.
