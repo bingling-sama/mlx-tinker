@@ -115,6 +115,7 @@ Non-MoE Qwen3.5 family:
 | Qwen/Qwen3.5-0.8B | Tested |
 | Qwen/Qwen3.5-4B | Tested |
 | Qwen/Qwen3.5-9B | Tested |
+| Tesslate/OmniCoder-9B | Tested |
 
 ### OpenAI-Compatible Inference
 
