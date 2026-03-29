@@ -16,6 +16,7 @@ from mlx_tinker.backend.checkpointing import (
     save_sampler_weights,
     save_training_checkpoint,
 )
+from mlx_tinker.backend.gradient_checkpointing import enable_gradient_checkpointing
 from mlx_tinker.backend.inference import InferenceBackend
 from mlx_tinker.backend.lora_manager import LoRAManager
 from mlx_tinker.backend.training import TrainingBackend
@@ -109,6 +110,8 @@ class MLXBackend:
             quantize_bits=self.config.quantize_bits,
             quantize_group_size=self.config.quantize_group_size,
         )
+        if self.config.gradient_checkpointing:
+            enable_gradient_checkpointing(model)
 
         self.models[model_id] = model
         self.tokenizers[model_id] = tokenizer
