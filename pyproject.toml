@@ -41,6 +41,7 @@ stress = [
 benchmark = [
     "tinker-atropos @ git+https://github.com/NousResearch/tinker-atropos.git",
     "wandb>=0.18.0",
+    "matplotlib>=3.8.0",
 ]
 
 [project.scripts]
