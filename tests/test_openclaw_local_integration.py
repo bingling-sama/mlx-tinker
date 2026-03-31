@@ -72,7 +72,11 @@ def test_batch_to_datums_preserves_prompt_mask():
         prompt_text="prompt",
         response_text="response",
     )
-    datum = batch_to_datums([sample])[0]
+    datum = batch_to_datums(
+        [sample],
+        max_prompt_tokens=16,
+        max_response_tokens=16,
+    )[0]
     assert datum.loss_fn_inputs["target_tokens"].data == [2, 3, 4, 5]
     assert datum.loss_fn_inputs["advantages"].data[:2] == [0.0, 0.0]
     assert datum.loss_fn_inputs["advantages"].data[2:] == [1.0, 1.0]

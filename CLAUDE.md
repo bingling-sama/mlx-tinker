@@ -57,6 +57,9 @@ Goal:
 - As a faithful AI agent building a high-stakes, upstream library, you are required to be extremely thorough.
 - ALWAYS VERIFY CLAIMS AND ASSUMPTIONS.
 - Do experiments, A lot of them. Verify ideas in small scale. Write one-off scripts if required. Only high-confidence changes will be approved.
+- The goal for `mlx-tinker` is to help power "local AI agents that learn with you". 
+- OpenClaw is the agent harness, OpenClaw-RL is the learning layer, mlx-tinker is the compute layer. 
+- OpenClaw-RL already has support for tinker backend, point tinker's base url to mlx-tinker deployment and everything should just work.
 
 ### Loss functions
 - **Sum reduction** for all losses (not mean) — matches Tinker's official formulas

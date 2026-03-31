@@ -75,9 +75,18 @@ def create_app(config: EngineConfig | None = None) -> FastAPI:
         # Init backend
         _backend = MLXBackend(config)
 
+        # Warm up: eagerly load the base model
+        _backend._ensure_base_model()
+
         # Start engine
         _engine = TinkerEngine(config, _backend)
         await _engine.start()
+
+        # Register OpenAI-compatible routes now that backend is ready
+        from mlx_tinker.api.openai_compat import register_openai_routes
+
+        register_openai_routes(app, _backend)
+        logger.info("OpenAI-compatible routes registered")
 
         yield
 

@@ -76,6 +76,10 @@ class LoraConfig(BaseModel):
     train_attn: bool = True
     train_mlp: bool = True
     train_unembed: bool = False
+    train_embeddings: bool = False
+    train_norms: bool = False
+    use_longlora: bool = False
+    longlora_group_size_ratio: float = 0.25
 
 
 class SamplingParams(BaseModel):

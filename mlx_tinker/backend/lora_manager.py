@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
+import re
 from typing import Any
 
 import mlx.core as mx
@@ -16,6 +17,9 @@ from mlx_tinker.types import LoraConfig
 
 logger = logging.getLogger(__name__)
 
+_EMBED_SEGMENT_RE = re.compile(r"(^|\.)(embed[^.]*)($|\.)", re.IGNORECASE)
+_NORM_SEGMENT_RE = re.compile(r"(^|\.)([^.]*norm[^.]*)($|\.)", re.IGNORECASE)
+
 
 class LoRAManager:
     """Manages QLoRA adapter creation, save, load, and removal."""
@@ -26,6 +30,8 @@ class LoRAManager:
         lora_config: LoraConfig,
         quantize_bits: int = 4,
         quantize_group_size: int = 64,
+        train_embeddings: bool = False,
+        train_norms: bool = False,
     ) -> nn.Module:
         """Quantize base model to N-bit and apply LoRA adapters.
 
@@ -34,12 +40,24 @@ class LoRAManager:
             lora_config: LoRA hyperparameters (rank, alpha, targets).
             quantize_bits: Quantization bit width (default 4 for QLoRA).
             quantize_group_size: Group size for quantization.
+            train_embeddings: Keep input embeddings in full precision and trainable.
+            train_norms: Keep normalization weights trainable.
 
         Returns:
             The model with quantized base weights and trainable LoRA params.
         """
+        def quantize_predicate(path: str, module: nn.Module) -> bool:
+            if train_embeddings and isinstance(module, nn.Embedding):
+                return False
+            return hasattr(module, "to_quantized")
+
         # Quantize base weights
-        nn.quantize(model, bits=quantize_bits, group_size=quantize_group_size)
+        nn.quantize(
+            model,
+            bits=quantize_bits,
+            group_size=quantize_group_size,
+            class_predicate=quantize_predicate,
+        )
         logger.info(
             "Quantized base model to %d-bit (group_size=%d)", quantize_bits, quantize_group_size
         )
@@ -80,25 +98,19 @@ class LoRAManager:
 
         # Freeze all base weights, then unfreeze LoRA params
         model.freeze()
-        # Selectively unfreeze LoRA parameters
-        for name, p in tree_flatten(model.parameters()):
-            if "lora_a" in name or "lora_b" in name:
-                # Navigate to the parent module and unfreeze the param
-                parts = name.rsplit(".", 1)
-                if len(parts) == 2:
-                    try:
-                        module = model
-                        for attr in parts[0].split("."):
-                            if attr.isdigit():
-                                module = module[int(attr)]
-                            else:
-                                module = getattr(module, attr)
-                        module.unfreeze(keys=[parts[1]])
-                    except (AttributeError, IndexError, KeyError) as e:
-                        logger.error("Failed to unfreeze LoRA param '%s': %s", name, e)
-                        raise RuntimeError(
-                            f"Failed to unfreeze LoRA parameter '{name}': {e}"
-                        ) from e
+        # Selectively unfreeze LoRA parameters and any requested LongLoRA extras.
+        for name, _p in tree_flatten(model.parameters()):
+            if not self._should_train_parameter(
+                name,
+                train_embeddings=train_embeddings,
+                train_norms=train_norms,
+            ):
+                continue
+            try:
+                self._unfreeze_named_parameter(model, name)
+            except (AttributeError, IndexError, KeyError) as e:
+                logger.error("Failed to unfreeze trainable param '%s': %s", name, e)
+                raise RuntimeError(f"Failed to unfreeze trainable parameter '{name}': {e}") from e
         model.train()
 
         # Verify LoRA params are actually trainable
@@ -119,6 +131,35 @@ class LoRAManager:
         )
 
         return model
+
+    @staticmethod
+    def _unfreeze_named_parameter(model: nn.Module, name: str) -> None:
+        parts = name.rsplit(".", 1)
+        if len(parts) != 2:
+            return
+        module = model
+        for attr in parts[0].split("."):
+            if attr.isdigit():
+                module = module[int(attr)]
+            else:
+                module = getattr(module, attr)
+        module.unfreeze(keys=[parts[1]])
+
+    @staticmethod
+    def _should_train_parameter(
+        name: str,
+        *,
+        train_embeddings: bool,
+        train_norms: bool,
+    ) -> bool:
+        lower_name = name.lower()
+        if "lora_a" in lower_name or "lora_b" in lower_name:
+            return True
+        if train_embeddings and _EMBED_SEGMENT_RE.search(name):
+            return True
+        if train_norms and _NORM_SEGMENT_RE.search(name):
+            return True
+        return False
 
     def save_adapter(self, model: nn.Module, path: str | Path, lora_config: LoraConfig) -> Path:
         """Save only the trainable LoRA weights to safetensors."""

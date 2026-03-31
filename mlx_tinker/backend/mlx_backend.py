@@ -19,6 +19,7 @@ from mlx_tinker.backend.checkpointing import (
 from mlx_tinker.backend.gradient_checkpointing import enable_gradient_checkpointing
 from mlx_tinker.backend.inference import InferenceBackend
 from mlx_tinker.backend.lora_manager import LoRAManager
+from mlx_tinker.backend.longlora import enable_longlora_attention
 from mlx_tinker.backend.training import TrainingBackend
 from mlx_tinker.config import EngineConfig
 from mlx_tinker.types import (
@@ -109,7 +110,14 @@ class MLXBackend:
             request.lora_config,
             quantize_bits=self.config.quantize_bits,
             quantize_group_size=self.config.quantize_group_size,
+            train_embeddings=request.lora_config.train_embeddings,
+            train_norms=request.lora_config.train_norms,
         )
+        if request.lora_config.use_longlora:
+            enable_longlora_attention(
+                model,
+                group_size_ratio=request.lora_config.longlora_group_size_ratio,
+            )
         if self.config.gradient_checkpointing:
             enable_gradient_checkpointing(model)
 

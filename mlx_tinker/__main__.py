@@ -43,20 +43,9 @@ def main() -> None:
         engine_cycle_ms=args.cycle_ms,
     )
 
-    from mlx_tinker.api.openai_compat import register_openai_routes
     from mlx_tinker.api.server import create_app
 
     app = create_app(config)
-
-    # OpenAI routes need the backend reference after lifespan creates it.
-    # We register them with a lazy reference that gets set during lifespan.
-    @app.on_event("startup")
-    async def _register_openai():
-        from mlx_tinker.api.server import _backend
-
-        if _backend is not None:
-            register_openai_routes(app, _backend)
-
     uvicorn.run(app, host=config.host, port=config.port)
 
 
