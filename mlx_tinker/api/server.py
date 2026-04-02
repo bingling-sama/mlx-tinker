@@ -81,8 +81,10 @@ def create_app(config: EngineConfig | None = None) -> FastAPI:
 
         # Register OpenAI-compatible routes now that backend is ready
         from mlx_tinker.api.openai_compat import register_openai_routes
+        from mlx_tinker.api.lora_ui import register_lora_routes
 
         register_openai_routes(app, _backend)
+        register_lora_routes(app, _backend)
         logger.info("OpenAI-compatible routes registered")
 
         yield
