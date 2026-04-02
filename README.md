@@ -1,6 +1,6 @@
 # mlx-tinker
 
-**Proof-of-concept local Tinker backend for Apple Silicon that can actually keep learning.** Run Qwen3.5 locally on a MacBook, plug it into an agent runtime, and do continual RL updates from real agent trajectories without sending your model traffic to the cloud.
+**Proof-of-concept local Tinker backend for Apple Silicon that can actually keep learning.** Run Qwen3.5 locally on a MacBook, plug it into an agent runtime, and do continual RL updates from real agent trajectories.
 
 `mlx-tinker` implements the [Tinker API](https://docs.tinker.ai) on top of Apple's [MLX](https://github.com/ml-explore/mlx) framework. The interesting part is not just local inference: this repo now has working local continual-learning loops for both **OpenClaw** and **Hermes Agent**, with reward flowing back into local PPO-style updates on Apple Silicon.
 
@@ -8,7 +8,7 @@
 
 This is the part that matters most: **local agent RL is real**. In the validated OpenClaw setup below, WildClawBench task containers run OpenClaw, OpenClaw-RL scores the resulting trajectories, and `mlx-tinker` applies PPO updates locally on a MacBook.
 
-- The plotted run is an end-to-end local OpenClaw loop, not a toy exact-match script.
+- The plotted run is an end-to-end local OpenClaw loop -> tasks sourced from WildClawBench.
 - In that run, the system completed 32 PPO steps and scored 39 trajectories locally.
 - Reward moves off the floor and positive-reward steps start appearing in the back half of training.
 - The same local stack also supports live continual learning from real agent sessions.
