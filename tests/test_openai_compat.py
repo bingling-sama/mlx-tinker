@@ -743,9 +743,12 @@ class TestListModels:
     def test_list_models_includes_base_training_and_checkpoint(self, client, mock_backend):
         mock_backend.models["training-id"] = MagicMock()
         mock_backend.tokenizers["training-id"] = FakeTokenizer()
-        checkpoint_dir = Path(mock_backend.config.checkpoints_base) / "checkpoint-a"
-        checkpoint_dir.mkdir()
+        checkpoint_dir = Path(mock_backend.config.checkpoints_base) / "training-id" / "sampler" / "checkpoint-a"
+        checkpoint_dir.mkdir(parents=True)
         (checkpoint_dir / "adapters.safetensors").write_text("stub")
+        (checkpoint_dir / "config.json").write_text(
+            json.dumps({"base_model": "test-model", "lora_config": {"rank": 8, "alpha": 16.0}})
+        )
 
         resp = client.get("/v1/models")
         assert resp.status_code == 200
@@ -753,7 +756,7 @@ class TestListModels:
         ids = {entry["id"] for entry in data["data"]}
         assert "test-model" in ids
         assert "training-id" in ids
-        assert "test-model:checkpoint-a" in ids
+        assert "test-model:training-id/sampler/checkpoint-a" in ids
 
 
 class TestBackendNotInitialized:

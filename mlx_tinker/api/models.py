@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from mlx_tinker.types import (
     AdamParams,
@@ -326,3 +326,88 @@ class Cursor(BaseModel):
 class TrainingRunsResponse(BaseModel):
     training_runs: list[TrainingRun]
     cursor: Cursor
+
+
+# ---------------------------------------------------------------------------
+# LoRA catalog / UI
+# ---------------------------------------------------------------------------
+
+
+class LoraStats(BaseModel):
+    forward_backward_count: int = 0
+    optim_step_count: int = 0
+    sample_count: int = 0
+    sampler_export_count: int = 0
+    last_loss: float | None = None
+    avg_loss: float | None = None
+    total_tokens: float = 0.0
+    last_grad_norm: float | None = None
+    avg_grad_norm: float | None = None
+    last_activity_at: str | None = None
+
+
+class LoraCatalogItem(BaseModel):
+    id: str
+    relative_path: str | None = None
+    display_name: str
+    openai_model_id: str
+    base_model: str
+    created_at: str | None = None
+    size_bytes: int = 0
+    lora_config: dict[str, Any] = Field(default_factory=dict)
+    is_live: bool = False
+    is_exported: bool = False
+    downloadable: bool = False
+    status: str
+    stats: LoraStats = Field(default_factory=LoraStats)
+
+
+class LoraCatalogSummary(BaseModel):
+    total_exported_loras: int = 0
+    live_loras: int = 0
+    unique_base_models: int = 0
+    total_adapter_disk_usage_bytes: int = 0
+    total_optim_steps: int = 0
+    last_activity_at: str | None = None
+
+
+class LoraCatalogResponse(BaseModel):
+    summary: LoraCatalogSummary
+    items: list[LoraCatalogItem]
+
+
+class LoraArtifactFile(BaseModel):
+    name: str
+    size_bytes: int
+
+
+class LoraSessionInfo(BaseModel):
+    session_id: str
+    status: str
+    created_at: str
+    last_heartbeat_at: str | None = None
+    heartbeat_count: int = 0
+
+
+class LoraSamplingSessionInfo(BaseModel):
+    sampling_session_id: str
+    created_at: str
+    model_id: str | None = None
+    base_model: str | None = None
+    model_path: str | None = None
+
+
+class LoraRecentFuture(BaseModel):
+    request_id: int
+    request_type: str
+    status: str
+    created_at: str
+    completed_at: str | None = None
+
+
+class LoraDetailResponse(BaseModel):
+    item: LoraCatalogItem
+    session: LoraSessionInfo | None = None
+    sampling_sessions: list[LoraSamplingSessionInfo] = Field(default_factory=list)
+    recent_futures: list[LoraRecentFuture] = Field(default_factory=list)
+    files: list[LoraArtifactFile] = Field(default_factory=list)

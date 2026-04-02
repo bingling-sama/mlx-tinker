@@ -8,7 +8,7 @@ import pytest_asyncio
 
 from mlx_tinker.config import EngineConfig
 from mlx_tinker.db.database import close_db, get_session, init_db
-from mlx_tinker.db.models import FutureDB
+from mlx_tinker.db.models import FutureDB, ModelDB, SessionDB
 from mlx_tinker.engine.engine import TinkerEngine
 from mlx_tinker.engine.scheduler import (
     complete_future,
@@ -265,3 +265,95 @@ class TestCompleteFuture:
             f = await session.get(FutureDB, rid)
             assert f.status == RequestStatus.FAILED
             assert f.result_data["error"] == "test error"
+
+
+async def _insert_session_and_model(model_id: str, *, status: str = "creating") -> None:
+    async with get_session() as session:
+        session_row = SessionDB(session_id="session-1")
+        model_row = ModelDB(
+            model_id=model_id,
+            base_model="test-model",
+            lora_config={"rank": 8, "alpha": 16.0},
+            status=status,
+            request_id=1,
+            session_id=session_row.session_id,
+        )
+        session.add(session_row)
+        session.add(model_row)
+        await session.commit()
+
+
+class TestModelStatusUpdates:
+    @pytest.mark.asyncio
+    async def test_create_model_marks_row_ready(self, db):
+        model_id = "model-ready"
+        await _insert_session_and_model(model_id, status="creating")
+        rid = await _insert_future(
+            RequestType.CREATE_MODEL,
+            model_id=model_id,
+            request_data={"lora_config": {"rank": 8, "alpha": 16.0}},
+        )
+
+        backend = SimpleNamespace(
+            create_model=lambda model_id, request: SimpleNamespace(model_dump=lambda: {"model_id": model_id})
+        )
+        engine = TinkerEngine(EngineConfig(), backend=backend)
+
+        async with get_session() as session:
+            future = await session.get(FutureDB, rid)
+
+        await engine._handle_create_model(future)
+
+        async with get_session() as session:
+            model = await session.get(ModelDB, model_id)
+            future = await session.get(FutureDB, rid)
+            assert model.status == "ready"
+            assert future.status == RequestStatus.COMPLETED
+
+    @pytest.mark.asyncio
+    async def test_create_model_failure_marks_row_failed(self, db):
+        model_id = "model-failed"
+        await _insert_session_and_model(model_id, status="creating")
+        rid = await _insert_future(
+            RequestType.CREATE_MODEL,
+            model_id=model_id,
+            request_data={"lora_config": {"rank": 8, "alpha": 16.0}},
+        )
+
+        backend = SimpleNamespace(create_model=lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("boom")))
+        engine = TinkerEngine(EngineConfig(), backend=backend)
+
+        async with get_session() as session:
+            future = await session.get(FutureDB, rid)
+
+        await engine._dispatch_single(future)
+
+        async with get_session() as session:
+            model = await session.get(ModelDB, model_id)
+            future = await session.get(FutureDB, rid)
+            assert model.status == "failed"
+            assert future.status == RequestStatus.FAILED
+
+    @pytest.mark.asyncio
+    async def test_unload_model_marks_row_unloaded(self, db):
+        model_id = "model-unloaded"
+        await _insert_session_and_model(model_id, status="ready")
+        rid = await _insert_future(RequestType.UNLOAD_MODEL, model_id=model_id, request_data={})
+
+        backend = SimpleNamespace(
+            unload_model=lambda model_id, request: SimpleNamespace(
+                model_dump=lambda: {"model_id": model_id, "status": "unloaded"}
+            )
+        )
+        engine = TinkerEngine(EngineConfig(), backend=backend)
+
+        async with get_session() as session:
+            future = await session.get(FutureDB, rid)
+
+        await engine._handle_unload_model(future)
+
+        async with get_session() as session:
+            model = await session.get(ModelDB, model_id)
+            future = await session.get(FutureDB, rid)
+            assert model.status == "unloaded"
+            assert future.status == RequestStatus.COMPLETED

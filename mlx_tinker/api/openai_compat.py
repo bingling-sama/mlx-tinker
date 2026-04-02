@@ -8,12 +8,14 @@ import re
 import inspect
 import time
 import uuid
+from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
+from mlx_tinker.api.lora_catalog import LoraCatalogService
 from mlx_tinker.backend.mlx_backend import MLXBackend
 
 logger = logging.getLogger(__name__)
@@ -760,19 +762,22 @@ async def list_models():
                 "metadata": {"type": "lora_training"},
             })
 
-        # List available sampler checkpoints on disk
-        checkpoints_dir = _backend.config.checkpoints_base
-        if checkpoints_dir.exists():
-            for cp_dir in sorted(checkpoints_dir.iterdir()):
-                if (cp_dir / "adapters.safetensors").exists():
-                    model_name = f"{base}:{cp_dir.name}"
-                    models.append({
-                        "id": model_name,
-                        "object": "model",
-                        "created": int(cp_dir.stat().st_mtime),
-                        "owned_by": "mlx-tinker",
-                        "metadata": {"type": "lora_checkpoint", "checkpoint": cp_dir.name},
-                    })
+        # List persisted LoRA sampler checkpoints on disk
+        for item in await LoraCatalogService(_backend).list_openai_export_models():
+            if not item.relative_path:
+                continue
+            created_at = item.created_at or ""
+            try:
+                created_ts = int(datetime.fromisoformat(created_at).timestamp())
+            except ValueError:
+                created_ts = ts
+            models.append({
+                "id": item.openai_model_id,
+                "object": "model",
+                "created": created_ts,
+                "owned_by": "mlx-tinker",
+                "metadata": {"type": "lora_checkpoint", "checkpoint": item.relative_path},
+            })
 
     return {"object": "list", "data": models}
 

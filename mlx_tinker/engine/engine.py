@@ -13,7 +13,7 @@ from mlx_tinker.backend.inference import _sampling_params_key_from_mapping
 from mlx_tinker.backend.mlx_backend import MLXBackend
 from mlx_tinker.config import EngineConfig
 from mlx_tinker.db.database import get_session
-from mlx_tinker.db.models import FutureDB
+from mlx_tinker.db.models import FutureDB, ModelDB
 from mlx_tinker.engine.scheduler import (
     complete_future,
     fail_future,
@@ -272,12 +272,16 @@ class TinkerEngine:
             logger.error("%s failed for request %d: %s", future.request_type, future.request_id, e)
             async with get_session() as session:
                 await fail_future(session, future.request_id, str(e))
+            if future.request_type == RequestType.CREATE_MODEL and future.model_id is not None:
+                await self._set_model_status(future.model_id, "failed")
 
     async def _handle_create_model(self, future: FutureDB) -> None:
         request = CreateModelInput(**future.request_data)
         result = await asyncio.to_thread(self.backend.create_model, future.model_id, request)
         async with get_session() as session:
             await complete_future(session, future.request_id, result.model_dump())
+        if future.model_id is not None:
+            await self._set_model_status(future.model_id, "ready")
 
     async def _handle_optim_step(self, future: FutureDB) -> None:
         request = OptimStepInput(**future.request_data)
@@ -310,3 +314,14 @@ class TinkerEngine:
         result = await asyncio.to_thread(self.backend.unload_model, future.model_id, request)
         async with get_session() as session:
             await complete_future(session, future.request_id, result.model_dump())
+        if future.model_id is not None:
+            await self._set_model_status(future.model_id, "unloaded")
+
+    async def _set_model_status(self, model_id: str, status: str) -> None:
+        async with get_session() as session:
+            model = await session.get(ModelDB, model_id)
+            if model is None:
+                return
+            model.status = status
+            session.add(model)
+            await session.commit()

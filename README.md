@@ -469,3 +469,13 @@ What is still rough:
 - Hermes is still a **PoC integration**, not yet a polished one-command managed product like OpenClaw.
 - Hermes record persistence is not fully cleaned up yet; today the bridge logs are the source of truth for successful training runs.
 - Hermes `opd` / `combine` codepaths exist, but they have **not** been end-to-end validated in this repo yet.
+
+## Built-in LoRA UI
+
+The server now ships with a built-in LoRA web UI for browsing exported adapters, checking training statistics, inspecting live in-memory LoRAs, and downloading saved LoRAs as `.zip` bundles.
+
+Start the server as usual, then open [`/ui/loras`](http://127.0.0.1:8000/ui/loras) in your browser. If you run the API on a different host or port, use that same base URL with the `/ui/loras` path.
+
+The UI is backed by the same API server and scans the checkpoints tree directly, so it can surface nested sampler exports, DB-backed training stats, and built-in download actions without any extra frontend build step.
+
+![Built-in LoRA web UI](assets/web_ui.jpg)
