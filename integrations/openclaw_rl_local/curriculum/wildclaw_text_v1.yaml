@@ -1,0 +1,143 @@
+{
+  "tasks": [
+    {
+      "task_id": "arxiv_paper_digest",
+      "category": "Productivity Flow",
+      "source": "WildClawBench example: ArXiv paper digest",
+      "system_setup": "You are helping with a paper triage workflow. Reply with a concise digest and an explicit next-action recommendation.",
+      "user_turns": [
+        {
+          "content": "Summarize these three paper blurbs into a short research digest with sections for themes, risks, and next steps. Paper A: retrieval-augmented agents reduce hallucinations but fail on stale indexes. Paper B: lightweight verifiers catch arithmetic mistakes but add latency. Paper C: memory compression improves long-horizon planning but sometimes drops entity references."
+        }
+      ],
+      "success_checks": [
+        {"kind": "contains_all", "values": ["themes", "risks", "next steps"]},
+        {"kind": "contains_any", "values": ["hallucination", "latency", "memory"]}
+      ],
+      "reward_rule": "binary_all_checks",
+      "trainable": true
+    },
+    {
+      "task_id": "pdf_batch_classification",
+      "category": "Productivity Flow",
+      "source": "WildClawBench example: PDF batch classification",
+      "system_setup": "You are classifying documents into an operations inbox. Return a table-like bullet list with document, label, and rationale.",
+      "user_turns": [
+        {
+          "content": "Classify these snippets into Contract, Invoice, Research, or Internal Memo. Doc 1: payment due within 30 days, invoice number 8841, remittance instructions. Doc 2: confidentiality, indemnification, governing law, signatures. Doc 3: benchmark methodology, evaluation set, ablation study. Doc 4: hiring freeze lifted for sales team next quarter."
+        }
+      ],
+      "success_checks": [
+        {"kind": "contains_all", "values": ["contract", "invoice", "research", "internal memo"]},
+        {"kind": "contains_any", "values": ["rationale", "because", "reason"]}
+      ],
+      "reward_rule": "binary_all_checks",
+      "trainable": true
+    },
+    {
+      "task_id": "conflicting_information_resolution",
+      "category": "Search & Retrieval",
+      "source": "WildClawBench example: conflicting information resolution",
+      "system_setup": "You are resolving conflicting sources. Explicitly identify the conflict, pick a best-supported answer, and note uncertainty.",
+      "user_turns": [
+        {
+          "content": "Source A says the vendor supports SAML and SCIM today. Source B says SCIM is on the roadmap and SAML requires enterprise tier. Give me a reconciled answer with best-supported conclusion and a verification plan."
+        }
+      ],
+      "success_checks": [
+        {"kind": "contains_all", "values": ["conflict", "conclusion", "verification"]},
+        {"kind": "contains_any", "values": ["uncertain", "uncertainty", "verify"]}
+      ],
+      "reward_rule": "binary_all_checks",
+      "trainable": true
+    },
+    {
+      "task_id": "financial_data_extraction",
+      "category": "Search & Retrieval",
+      "source": "WildClawBench example: financial data extraction",
+      "system_setup": "You are extracting financial metrics into a compact note for a manager.",
+      "user_turns": [
+        {
+          "content": "Extract revenue, operating margin, and free cash flow from this note and present them in a compact summary. Revenue grew from 420M to 510M. Operating margin improved from 11 percent to 14 percent. Free cash flow was 62M this quarter versus 41M last quarter."
+        }
+      ],
+      "success_checks": [
+        {"kind": "contains_all", "values": ["revenue", "operating margin", "free cash flow"]},
+        {"kind": "contains_any", "values": ["510", "14", "62"]}
+      ],
+      "reward_rule": "binary_all_checks",
+      "trainable": true
+    },
+    {
+      "task_id": "escalation_routing",
+      "category": "Social Interaction",
+      "source": "WildClawBench example: escalation routing",
+      "system_setup": "You are triaging a support escalation. State owner, severity, and the immediate action.",
+      "user_turns": [
+        {
+          "content": "A customer reports repeated login failures for all EU users after the latest auth rollout. Billing still works. The on-call engineer asks whether this should go to Identity, Billing, or Regional Ops. Draft the routing decision."
+        }
+      ],
+      "success_checks": [
+        {"kind": "contains_all", "values": ["owner", "severity", "immediate action"]},
+        {"kind": "contains_any", "values": ["identity", "regional ops", "billing"]}
+      ],
+      "reward_rule": "binary_all_checks",
+      "trainable": true
+    },
+    {
+      "task_id": "cross_department_updates",
+      "category": "Social Interaction",
+      "source": "WildClawBench example: cross-department updates",
+      "system_setup": "You are sending a cross-functional status update. Include engineering, support, and leadership views.",
+      "user_turns": [
+        {
+          "content": "Turn these notes into a concise cross-department update. Engineering: patch shipped to staging, prod tonight. Support: 14 tickets open, workaround available. Leadership: wants customer-facing ETA and risk note."
+        }
+      ],
+      "success_checks": [
+        {"kind": "contains_all", "values": ["engineering", "support", "leadership"]},
+        {"kind": "contains_any", "values": ["eta", "risk", "workaround"]}
+      ],
+      "reward_rule": "binary_all_checks",
+      "trainable": true
+    },
+    {
+      "task_id": "calendar_scheduling",
+      "category": "Productivity Flow",
+      "source": "WildClawBench example: calendar scheduling",
+      "system_setup": "You are coordinating a meeting. Respond with the selected slot, why it works, and any follow-up needed.",
+      "user_turns": [
+        {
+          "content": "Participant A is free Tue 10-12 and Wed 2-4. Participant B is free Tue 11-1 and Thu 9-11. Participant C is free Tue 11-12 and Wed 3-5. Pick the best 30-minute slot."
+        }
+      ],
+      "success_checks": [
+        {"kind": "contains_all", "values": ["slot", "works", "follow-up"]},
+        {"kind": "contains_any", "values": ["tue", "11", "11:00"]}
+      ],
+      "reward_rule": "binary_all_checks",
+      "trainable": false
+    },
+    {
+      "task_id": "meeting_negotiation",
+      "category": "Social Interaction",
+      "source": "WildClawBench example: multi-round meeting negotiation",
+      "system_setup": "You are negotiating a meeting time across multiple replies. Keep the thread consistent and converge on a slot.",
+      "user_turns": [
+        {
+          "content": "Start a scheduling thread. Alex can do Monday after 3pm or Tuesday before noon. Priya can do Monday 4-6pm. Morgan can do Tuesday 9-11am or Wednesday 1-3pm. Propose the best slot."
+        },
+        {
+          "content": "Priya just replied that Monday 4-4:30pm is blocked now, but Monday 5-6pm still works. Update the recommendation."
+        }
+      ],
+      "success_checks": [
+        {"kind": "contains_all", "values": ["updated", "recommendation", "works"]},
+        {"kind": "contains_any", "values": ["monday", "5", "5:00"]}
+      ],
+      "reward_rule": "binary_all_checks",
+      "trainable": false
+    }
+  ]
+}

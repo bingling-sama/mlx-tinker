@@ -1,0 +1,10 @@
+{
+  "id": "local-chat-guardrails",
+  "name": "Local Chat Guardrails",
+  "description": "Adds local webchat/CLI guidance so inline replies stay as normal assistant text.",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "@mlx-tinker/local-chat-guardrails",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Prompt guardrails for local OpenClaw chat onboarding flows",
+  "type": "module",
+  "openclaw": {
+    "extensions": [
+      "./index.ts"
+    ]
+  }
+}

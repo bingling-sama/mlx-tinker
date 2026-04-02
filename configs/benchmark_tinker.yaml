@@ -1,0 +1,28 @@
+# Benchmark config for Tinker cloud RL training on WikiSQL
+# Used with tinker-atropos pipeline:
+#   Terminal 1: run-api
+#   Terminal 2: python launch_training.py --config configs/benchmark_tinker.yaml
+#   Terminal 3: python scripts/environments/wikisql_env.py serve --config configs/benchmark_tinker.yaml
+
+env:
+  group_size: 2
+  batch_size: 2
+  tokenizer_name: "Qwen/Qwen3.5-0.8B"
+  total_steps: 50
+  max_token_length: 256
+  use_wandb: false
+  rollout_server_url: "http://127.0.0.1:8010"
+  ensure_scores_are_not_same: false
+
+openai:
+  - model_name: "Qwen/Qwen3.5-0.8B"
+    base_url: "http://localhost:8001/v1"
+
+tinker:
+  lora_rank: 8
+  learning_rate: 0.00005
+  max_token_trainer_length: 256
+  checkpoint_dir: "./checkpoints/benchmark_tinker"
+  save_checkpoint_interval: 0
+  wandb_project: "mlx-tinker-benchmark"
+  wandb_run_name: "tinker-cloud-rl"

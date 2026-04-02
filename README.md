@@ -1,28 +1,33 @@
 # mlx-tinker
 
-**Local Tinker backend for Apple Silicon that can actually keep learning.** Run Qwen3.5 locally on a MacBook, plug it into OpenClaw, and do continual RL updates from real agent trajectories without sending your model traffic to the cloud.
+**Proof-of-concept local Tinker backend for Apple Silicon that can actually keep learning.** Run Qwen3.5 locally on a MacBook, plug it into an agent runtime, and do continual RL updates from real agent trajectories without sending your model traffic to the cloud.
 
-mlx-tinker implements the [Tinker API](https://docs.tinker.ai) on top of Apple's [MLX](https://github.com/ml-explore/mlx) framework. The interesting part is that this is not just local inference: it now runs the full OpenClaw + OpenClaw-RL loop locally, with WildClawBench trajectories feeding reward into PPO updates on Apple Silicon.
+`mlx-tinker` implements the [Tinker API](https://docs.tinker.ai) on top of Apple's [MLX](https://github.com/ml-explore/mlx) framework. The interesting part is not just local inference: this repo now has working local continual-learning loops for both **OpenClaw** and **Hermes Agent**, with reward flowing back into local PPO-style updates on Apple Silicon.
 
 ## Local Continual RL on a MacBook
 
-This is the part that matters most: **local agent RL is real**. In the validated setup below, WildClawBench task containers run OpenClaw, OpenClaw-RL scores the resulting trajectories, and `mlx-tinker` applies PPO updates locally on a MacBook.
+This is the part that matters most: **local agent RL is real**. In the validated OpenClaw setup below, WildClawBench task containers run OpenClaw, OpenClaw-RL scores the resulting trajectories, and `mlx-tinker` applies PPO updates locally on a MacBook.
 
-- The run below is an end-to-end local OpenClaw loop, not a toy exact-match script.
-- In the plotted run, the system completed 32 PPO steps and scored 39 trajectories locally.
+- The plotted run is an end-to-end local OpenClaw loop, not a toy exact-match script.
+- In that run, the system completed 32 PPO steps and scored 39 trajectories locally.
 - Reward moves off the floor and positive-reward steps start appearing in the back half of training.
-- The same stack also supports live continual learning from OpenClaw sessions: once a session has a follow-up user turn, the proxy can score the prior turn and feed it into PPO.
-- This stack was validated on an M4 MacBook Pro with 24GB unified memory.
+- The same local stack also supports live continual learning from real agent sessions.
+- This work was validated on an M4 MacBook Pro with 24GB unified memory.
 
 ![WildClawBench RL](assets/wcb_openclaw_rl_learning.png)
 
-The currently validated OpenClaw-RL dependency is the fork branch `ojus1/OpenClaw-RL@codex/qwen35-openclaw-tinker`. `mlx-tinker` bootstraps that automatically, so you do not need to wait for upstream PR timing to use the local-learning stack.
+The currently validated OpenClaw-RL dependency is the fork branch `ojus1/OpenClaw-RL@codex/qwen35-openclaw-tinker`. `mlx-tinker` bootstraps that automatically in the managed OpenClaw path, so you do not need to wait for upstream PR timing to use the local-learning stack.
 
-Multi-turn agent use is practical because `mlx-tinker` is not recomputing every long prompt from scratch on every turn. It uses **disk-backed transcript prefix caching** to offload reusable prompt/KV state locally, so repeated system prompts, tool schemas, and conversation prefixes can be restored instead of rebuilt. That is paired with **quantized KV cache** support for in-memory generation and **gradient checkpointing** for training-time memory savings, which is what makes longer OpenClaw sessions and local continual RL workable on a MacBook instead of collapsing under context growth.
+Multi-turn agent use is practical because `mlx-tinker` is not recomputing every long prompt from scratch on every turn. It uses **disk-backed transcript prefix caching** to offload reusable prompt/KV state locally, so repeated system prompts, tool schemas, and conversation prefixes can be restored instead of rebuilt. That is paired with **quantized KV cache** support for in-memory generation and **gradient checkpointing** for training-time memory savings, which is what makes longer agent sessions and local continual RL workable on a MacBook instead of collapsing under context growth.
 
-## One Command to Get a Local Learning Agent
+## Choose Your Integration
 
-### Requirements
+### OpenClaw
+
+This is the most complete path today. It has the best onboarding story and the most thorough validation.
+
+<details>
+<summary>OpenClaw Requirements And First Install</summary>
 
 - macOS with Apple Silicon
 - Python 3.12+
@@ -60,9 +65,10 @@ That one command starts three pieces:
 
 It also patches OpenClaw to use the stable local model alias `mlx-tinker-local/local-primary`, installs the RL header plugin, and stores managed runtime state under `~/.openclaw/mlx-tinker/`.
 
-### New OpenClaw Users
+</details>
 
-If you are starting fresh, the simplest path is:
+<details>
+<summary>New OpenClaw Users</summary>
 
 ```bash
 uv run python -m mlx_tinker openclaw setup --model Qwen/Qwen3.5-4B
@@ -75,27 +81,27 @@ After setup:
 - the default model already points at the local learning backend
 - local webchat/CLI sessions stay inline instead of trying to route through outbound messaging tools
 
-At that point you can use OpenClaw normally and the local RL stack is already live in the background.
+</details>
 
-### Existing OpenClaw Users
+<details>
+<summary>Existing OpenClaw Users</summary>
 
-If you already use OpenClaw, run the same command:
+Run the same command:
 
 ```bash
 uv run python -m mlx_tinker openclaw setup --model Qwen/Qwen3.5-4B
 ```
 
-The managed setup is designed to preserve your existing OpenClaw installation:
+The managed setup preserves your existing OpenClaw installation:
 
 - it backs up the current `~/.openclaw/openclaw.json`
 - it keeps your channels, other agent settings, and workspace defaults intact
 - it only switches the model/backend path over to the managed local-learning stack
 
-So the practical migration is: keep your OpenClaw setup, swap in a local Tinker backend with continual RL, keep going.
+</details>
 
-### Service Commands
-
-Useful follow-up commands:
+<details>
+<summary>OpenClaw Service Commands</summary>
 
 ```bash
 uv run python -m mlx_tinker openclaw status
@@ -104,47 +110,164 @@ uv run python -m mlx_tinker openclaw start
 uv run python -m mlx_tinker openclaw stop
 ```
 
-## How to Tell Learning Is Actually Happening
+</details>
 
-Serving and training are separate things, so the right thing to check is the proxy/trainer log:
+### Hermes Agent
+
+This path is real, but still **proof-of-concept**. It is not yet a one-command managed onboarding experience like OpenClaw.
+
+Validated today:
+
+- live RL with `Hermes Agent -> Hermes RL bridge -> mlx-tinker`
+- new-user flow on a fresh `HERMES_HOME`
+- existing-user / resumed-session flow on a persisted `HERMES_HOME`
+- end-to-end local training on `Qwen/Qwen3.5-2B`
+
+Not yet claimed:
+
+- end-to-end Hermes `combine`
+- end-to-end Hermes `opd`
+- polished Docker-managed Hermes onboarding
+
+<details>
+<summary>Hermes Requirements And First Install</summary>
+
+- macOS with Apple Silicon
+- Python 3.12+
+- `uv`
+- `git`
+
+Install `mlx-tinker`:
+
+```bash
+git clone https://github.com/ojus1/mlx-tinker.git
+cd mlx-tinker
+uv sync
+```
+
+Clone the Hermes fork with the minimal live-RL header patch:
+
+```bash
+git clone https://github.com/ojus1/hermes-agent.git .external/hermes-agent
+git -C .external/hermes-agent checkout codex/mlx-tinker-live-rl
+```
+
+For the currently validated Hermes PoC settings, start the local stack like this:
+
+```bash
+MODEL_NAME='Qwen/Qwen3.5-2B' \
+HERMES_RL_MAX_CONTEXT_TOKENS=2048 \
+HERMES_RL_LORA_RANK=8 \
+bash scripts/run_hermes_rl.sh
+```
+
+That helper starts:
+
+- native `mlx-tinker`
+- the Hermes RL bridge at `http://127.0.0.1:30050/v1`
+- a local training loop listening for Hermes traffic
+
+</details>
+
+<details>
+<summary>New Hermes Users</summary>
+
+Point Hermes at a fresh home directory:
+
+```bash
+HERMES_HOME=~/hermes-poc-new \
+HERMES_RL_ENABLED=1 \
+HERMES_RL_PROXY_BASE_URL=http://127.0.0.1:30050/v1 \
+uv run --directory .external/hermes-agent python run_agent.py \
+  --model hermes-local \
+  --base_url http://127.0.0.1:30050/v1 \
+  --api_key hermes-local
+```
+
+</details>
+
+<details>
+<summary>Existing Hermes Users</summary>
+
+Keep your current Hermes home and point Hermes at the bridge:
+
+```bash
+HERMES_HOME=~/.hermes \
+HERMES_RL_ENABLED=1 \
+HERMES_RL_PROXY_BASE_URL=http://127.0.0.1:30050/v1 \
+uv run --directory .external/hermes-agent python run_agent.py \
+  --model hermes-local \
+  --base_url http://127.0.0.1:30050/v1 \
+  --api_key hermes-local
+```
+
+</details>
+
+The live-learning signal is header-based, not transcript scraping. Main Hermes model calls are tagged with `X-Session-Id`, `X-Hermes-Outer-Turn-Id`, `X-Hermes-Step-Index`, `X-Turn-Type`, and `X-Hermes-Request-Id`, which lets the bridge reconstruct multi-step tool-use trajectories, dedupe retries, and score turns against the next state.
+
+## How To Tell Learning Is Actually Happening
+
+Serving and training are separate things, so the right thing to check is the proxy/trainer log.
+
+### OpenClaw
 
 ```bash
 uv run python -m mlx_tinker openclaw logs --service proxy
 ```
 
-In a live OpenClaw session, look for lines like:
+Look for lines like:
 
 - `submitted session=...`
 - `drained 1 groups`
 - `forward_backward`
 - `optim_step`
 
-Training records are written under:
+OpenClaw training records are written under:
 
 - `~/.openclaw/mlx-tinker/records/conversations.jsonl`
 - `~/.openclaw/mlx-tinker/records/prm_scores.jsonl`
 
-One important nuance: the current RL path scores a turn against the **next state**, so a single isolated one-turn chat will not train immediately. In practice, once the same session gets a follow-up user turn, the previous turn can be scored and submitted into PPO.
+### Hermes Agent
+
+```bash
+tail -f /tmp/hermes_rl_bridge.log
+tail -f /tmp/hermes_mlx_tinker.log
+```
+
+Look for the same progression:
+
+- `submitted session=...`
+- `prm_eval_score=...`
+- `step 1: forward_backward`
+- `step 1: optim_step`
+- `training complete`
+
+One important nuance for both integrations: the current RL path scores a turn against the **next state**, so a single isolated one-turn chat will not train immediately. Once the same session gets a follow-up user turn, the previous turn can be scored and submitted into PPO.
 
 The loop is also **mostly asynchronous**. Inference stays live during batch collection, PRM scoring, `forward_backward`, and `optim_step`. The one deliberate pause is the weight swap: after an optimizer step, the proxy briefly pauses new submissions while it installs the updated sampling client, then resumes normal traffic.
 
-## Important Configs for Real Multi-Turn Use
+## Important Configs For Real Multi-Turn Use
 
 If you want the local agent loop to feel good on longer sessions, these are the knobs that matter most:
 
-- `--max-context-tokens` on the OpenClaw-RL side controls how much context each training datum keeps before truncation. The managed OpenClaw flow currently uses `8192`, which is a reasonable default for realistic multi-turn agent prompts.
-- `--prefix-cache-disk-limit-gb` on `mlx-tinker` controls how much disk space is available for transcript prefix caching. Default is `2.0` GB. Increase it if you expect long repeated system prompts, large tool schemas, or many active multi-turn sessions.
-- `--kv-cache-bits` and `--kv-cache-group-size` control KV-cache quantization for inference. The default backend path uses 4-bit KV cache with group size `64` to keep memory pressure manageable on Apple Silicon.
-- `--quantized-kv-start` controls when KV-cache quantization begins. Default is `0`, which means quantization starts immediately.
-- `--checkpoints` controls where LoRA checkpoints and prefix-cache artifacts are stored. This is the directory to watch if you care about persistence, disk usage, or moving runs between machines.
-- `--max-batch-size` and `--cycle-ms` are the backend scheduling knobs. They control how aggressively `mlx-tinker` batches requests and how often the engine cycles.
+- `--max-context-tokens` on the RL side controls how much context each training datum keeps before truncation.
+- `--prefix-cache-disk-limit-gb` on `mlx-tinker` controls how much disk space is available for transcript prefix caching.
+- `--kv-cache-bits` and `--kv-cache-group-size` control KV-cache quantization for inference.
+- `--quantized-kv-start` controls when KV-cache quantization begins.
+- `--checkpoints` controls where LoRA checkpoints and prefix-cache artifacts are stored.
+- `--max-batch-size` and `--cycle-ms` are the backend scheduling knobs.
 
-Managed OpenClaw defaults today:
+Current validated defaults:
 
-- RL batch size: `1`
-- RL max context tokens: `8192`
-- Gateway bind: `lan`
-- Prefix-cache disk budget on the `mlx-tinker` backend: `2.0` GB unless you override the plain backend flags
+- OpenClaw managed path:
+  - RL batch size: `1`
+  - RL max context tokens: `8192`
+  - gateway bind: `lan`
+- Hermes PoC path:
+  - model: `Qwen/Qwen3.5-2B`
+  - LoRA rank: `8`
+  - RL batch size: `1`
+  - RL max context tokens: `2048`
 
 ## Use mlx-tinker as a Plain Tinker Backend
 
@@ -323,3 +446,26 @@ scripts/
   generate_readme_plot.py     Optional README asset generator
   generate_wcb_readme_plot.py Optional WildClawBench plot generator
 ```
+
+
+## Proof Of Concept Status
+
+This repo should be read as a **working proof of concept**, not a fully productized local-agent platform yet.
+
+What is honestly validated today:
+
+- **OpenClaw**:
+  - managed local setup
+  - live continual RL from real sessions
+  - WildClawBench local RL runs on a MacBook
+  - short `combine` runs validated against the `mlx-tinker` backend
+- **Hermes Agent**:
+  - live continual RL from real sessions
+  - fresh-user and resumed-session flows validated locally on `Qwen/Qwen3.5-2B`
+  - resumed-session RL header fix validated end to end
+
+What is still rough:
+
+- Hermes is still a **PoC integration**, not yet a polished one-command managed product like OpenClaw.
+- Hermes record persistence is not fully cleaned up yet; today the bridge logs are the source of truth for successful training runs.
+- Hermes `opd` / `combine` codepaths exist, but they have **not** been end-to-end validated in this repo yet.
