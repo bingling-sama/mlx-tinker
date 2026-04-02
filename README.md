@@ -6,7 +6,7 @@
 
 ## Local Continual RL on a MacBook
 
-This is the part that matters most: **local agent RL is real**. In the validated OpenClaw setup below, WildClawBench task containers run OpenClaw, OpenClaw-RL scores the resulting trajectories, and `mlx-tinker` applies PPO updates locally on a MacBook.
+In the validated OpenClaw setup below, WildClawBench task containers run OpenClaw, OpenClaw-RL scores the resulting trajectories, and `mlx-tinker` applies PPO updates locally on a MacBook.
 
 - The plotted run is an end-to-end local OpenClaw loop -> tasks sourced from WildClawBench.
 - In that run, the system completed 32 PPO steps and scored 39 trajectories locally.
@@ -114,7 +114,7 @@ uv run python -m mlx_tinker openclaw stop
 
 ### Hermes Agent
 
-This path is real, but still **proof-of-concept**. It is not yet a one-command managed onboarding experience like OpenClaw.
+It is not yet a one-command managed onboarding experience like OpenClaw.
 
 Validated today:
 
