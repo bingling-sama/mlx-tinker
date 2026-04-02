@@ -1,11 +1,22 @@
 from __future__ import annotations
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 from mlx_tinker.backend.gradient_checkpointing import enable_gradient_checkpointing
 from mlx_tinker.backend.mlx_backend import MLXBackend
 from mlx_tinker.config import EngineConfig
-from mlx_tinker.types import CreateModelInput, LoraConfig
+from mlx_tinker.types import (
+    CreateModelInput,
+    EncodedTextChunk,
+    GeneratedSequence,
+    LoraConfig,
+    ModelInput,
+    SampleInput,
+    SampleOutput,
+    SamplingParams,
+)
 from tests.helpers import FakeTokenizer, TinyLM
 
 
@@ -20,13 +31,25 @@ def _backend(tmp_path, gradient_checkpointing: bool) -> MLXBackend:
     )
 
 
+def _sample_request(**updates) -> SampleInput:
+    payload = {
+        "prompt": ModelInput(chunks=[EncodedTextChunk(tokens=[1, 2, 3])]),
+        "sampling_params": SamplingParams(temperature=0.0, max_tokens=4),
+    }
+    payload.update(updates)
+    return SampleInput(**payload)
+
+
+def _sample_output() -> SampleOutput:
+    return SampleOutput(
+        sequences=[GeneratedSequence(stop_reason="stop", tokens=[4], logprobs=[0.0])]
+    )
+
+
 def test_create_model_enables_gradient_checkpointing_when_configured(tmp_path):
     backend = _backend(tmp_path, gradient_checkpointing=True)
 
-    with patch(
-        "mlx_tinker.backend.mlx_backend.mlx_load",
-        side_effect=[(TinyLM(), FakeTokenizer()), (TinyLM(), FakeTokenizer())],
-    ):
+    with patch("mlx_tinker.backend.mlx_backend.mlx_load", return_value=(TinyLM(), FakeTokenizer())):
         backend.create_model(
             "model-1",
             CreateModelInput(lora_config=LoraConfig(rank=4, alpha=8.0)),
@@ -38,10 +61,7 @@ def test_create_model_enables_gradient_checkpointing_when_configured(tmp_path):
 def test_create_model_leaves_gradient_checkpointing_off_when_disabled(tmp_path):
     backend = _backend(tmp_path, gradient_checkpointing=False)
 
-    with patch(
-        "mlx_tinker.backend.mlx_backend.mlx_load",
-        side_effect=[(TinyLM(), FakeTokenizer()), (TinyLM(), FakeTokenizer())],
-    ):
+    with patch("mlx_tinker.backend.mlx_backend.mlx_load", return_value=(TinyLM(), FakeTokenizer())):
         backend.create_model(
             "model-1",
             CreateModelInput(lora_config=LoraConfig(rank=4, alpha=8.0)),
@@ -56,10 +76,7 @@ def test_create_model_enables_longlora_when_requested(tmp_path):
     backend = _backend(tmp_path, gradient_checkpointing=False)
 
     with (
-        patch(
-            "mlx_tinker.backend.mlx_backend.mlx_load",
-            side_effect=[(TinyLM(), FakeTokenizer()), (TinyLM(), FakeTokenizer())],
-        ),
+        patch("mlx_tinker.backend.mlx_backend.mlx_load", return_value=(TinyLM(), FakeTokenizer())),
         patch("mlx_tinker.backend.mlx_backend.enable_longlora_attention") as enable_longlora,
     ):
         backend.create_model(
@@ -75,3 +92,96 @@ def test_create_model_enables_longlora_when_requested(tmp_path):
         )
 
     enable_longlora.assert_called_once_with(backend.models["model-1"], group_size_ratio=0.25)
+
+
+def test_teacher_sampling_uses_same_model_with_zeroed_scales_and_restores_afterward(tmp_path):
+    backend = _backend(tmp_path, gradient_checkpointing=False)
+
+    with patch("mlx_tinker.backend.mlx_backend.mlx_load", return_value=(TinyLM(), FakeTokenizer())):
+        backend.create_model(
+            "model-1",
+            CreateModelInput(lora_config=LoraConfig(rank=4, alpha=8.0)),
+        )
+
+    model = backend.models["model-1"]
+    original_scales = backend.lora_manager.get_lora_scales(model)
+    observed_scales: list[tuple[bool, list[float], str | None]] = []
+
+    def _capture_scales(model_arg, _tokenizer, _request, namespace=None):
+        observed_scales.append(
+            (
+                model_arg is model,
+                backend.lora_manager.get_lora_scales(model_arg),
+                namespace,
+            )
+        )
+        return _sample_output()
+
+    backend.inference.sample = MagicMock(side_effect=_capture_scales)
+
+    result = backend.sample(None, _sample_request())
+
+    assert result.sequences[0].tokens == [4]
+    assert observed_scales == [
+        (
+            True,
+            [0.0] * len(original_scales),
+            "base:test-model:max_kv=None:kv_bits=4:kv_group_size=64:quantized_kv_start=0",
+        )
+    ]
+    assert backend.lora_manager.get_lora_scales(model) == original_scales
+
+
+def test_teacher_sampling_does_not_reload_base_model_after_create_model(tmp_path):
+    backend = _backend(tmp_path, gradient_checkpointing=False)
+
+    with patch(
+        "mlx_tinker.backend.mlx_backend.mlx_load",
+        return_value=(TinyLM(), FakeTokenizer()),
+    ) as load_mock:
+        backend.create_model(
+            "model-1",
+            CreateModelInput(lora_config=LoraConfig(rank=4, alpha=8.0)),
+        )
+        backend.inference.sample = MagicMock(return_value=_sample_output())
+
+        backend.sample(None, _sample_request())
+
+    assert load_mock.call_count == 1
+
+
+@pytest.mark.parametrize(
+    ("config_updates", "patch_longlora"),
+    [
+        ({"train_embeddings": True}, False),
+        ({"train_norms": True}, False),
+        ({"use_longlora": True}, True),
+    ],
+)
+def test_teacher_sampling_rejects_non_lora_only_configs(tmp_path, config_updates, patch_longlora):
+    backend = _backend(tmp_path, gradient_checkpointing=False)
+    lora_config = LoraConfig(rank=4, alpha=8.0, **config_updates)
+
+    with (
+        patch("mlx_tinker.backend.mlx_backend.mlx_load", return_value=(TinyLM(), FakeTokenizer())),
+        patch("mlx_tinker.backend.mlx_backend.enable_longlora_attention", new=MagicMock())
+        if patch_longlora
+        else patch("mlx_tinker.backend.mlx_backend.enable_longlora_attention"),
+    ):
+        backend.create_model("model-1", CreateModelInput(lora_config=lora_config))
+
+    with pytest.raises(ValueError, match="LoRA-only tuning"):
+        backend.sample(None, _sample_request())
+
+
+def test_path_backed_sampling_is_rejected_while_live_model_is_resident(tmp_path):
+    backend = _backend(tmp_path, gradient_checkpointing=False)
+
+    with patch("mlx_tinker.backend.mlx_backend.mlx_load", return_value=(TinyLM(), FakeTokenizer())):
+        backend.create_model(
+            "model-1",
+            CreateModelInput(lora_config=LoraConfig(rank=4, alpha=8.0)),
+        )
+
+    with pytest.raises(ValueError, match="Path-backed sampling is unavailable"):
+        backend.sample(None, _sample_request(model_path="checkpoints/model-1/sampler/latest"))

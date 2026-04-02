@@ -53,6 +53,9 @@ def mock_backend(tmp_path):
     backend = MagicMock()
     backend.config.base_model = "test-model"
     backend.config.max_kv_cache_size = 123
+    backend.config.kv_cache_bits = 4
+    backend.config.kv_cache_group_size = 64
+    backend.config.quantized_kv_start = 0
     backend.config.checkpoints_base = tmp_path / "checkpoints"
     backend.config.checkpoints_base.mkdir()
     backend._base_model = MagicMock(name="base-model")
@@ -61,6 +64,15 @@ def mock_backend(tmp_path):
     backend.models = {}
     backend.tokenizers = {}
     backend._load_sampling_model = MagicMock(return_value=(MagicMock(name="checkpoint-model"), FakeTokenizer()))
+    backend._validate_checkpoint_path = MagicMock(side_effect=lambda path: Path(path))
+    backend._base_namespace = MagicMock(side_effect=lambda model_name: f"base:{model_name}")
+    backend._student_namespace = MagicMock(side_effect=lambda model_name: f"student:{model_name}")
+    backend._path_namespace = MagicMock(side_effect=lambda path, base_model: f"path:{path}")
+    backend.inference._prepare_prompt_cache = MagicMock(
+        side_effect=lambda _model, prompt_tokens, _namespace: (None, list(prompt_tokens))
+    )
+    backend.inference._checkpoint_transcript_prefixes = MagicMock()
+    backend.inference._persist_final_transcript = MagicMock()
     return backend
 
 
@@ -331,6 +343,85 @@ class TestChatCompletions:
         assert payloads[0]["choices"][0]["delta"]["tool_calls"][0]["function"]["name"] == "get_weather"
         assert payloads[-1]["choices"][0]["finish_reason"] == "tool_calls"
 
+    @patch("mlx_tinker.api.openai_compat._generate_tokens")
+    def test_qwen_thinking_block_populates_reasoning_content_without_tags(self, mock_gen, client, monkeypatch):
+        mock_gen.return_value = [1, 2, 3]
+        _patch_decode(monkeypatch, "<think>private scratchpad</think>Final answer")
+
+        resp = client.post(
+            "/v1/chat/completions",
+            json={"messages": [{"role": "user", "content": "hello"}], "max_tokens": 16},
+        )
+
+        assert resp.status_code == 200
+        message = resp.json()["choices"][0]["message"]
+        assert message["reasoning_content"] == "private scratchpad"
+        assert message["content"] == "Final answer"
+
+    @patch("mlx_tinker.api.openai_compat._generate_tokens")
+    def test_qwen_thinking_block_and_xml_tool_call_parse_together(self, mock_gen, client, monkeypatch):
+        mock_gen.return_value = [1, 2, 3]
+        _patch_decode(
+            monkeypatch,
+            (
+                "<think>private scratchpad</think>"
+                '<tool_call><function=get_weather><parameter=location>"Tokyo"</parameter></function></tool_call>'
+            ),
+        )
+
+        resp = client.post(
+            "/v1/chat/completions",
+            json={
+                "messages": [{"role": "user", "content": "weather?"}],
+                "tools": [
+                    {
+                        "type": "function",
+                        "function": {
+                            "name": "get_weather",
+                            "parameters": {"type": "object", "properties": {"location": {"type": "string"}}},
+                        },
+                    }
+                ],
+                "max_tokens": 16,
+            },
+        )
+
+        assert resp.status_code == 200
+        message = resp.json()["choices"][0]["message"]
+        assert message["reasoning_content"] == "private scratchpad"
+        assert message["content"] is None
+        assert message["tool_calls"][0]["function"]["name"] == "get_weather"
+
+    @patch("mlx_tinker.api.openai_compat._generate_tokens")
+    def test_truncated_qwen_thinking_block_does_not_leak_into_visible_text(self, mock_gen, client, monkeypatch):
+        mock_gen.return_value = [1, 2, 3]
+        _patch_decode(monkeypatch, "<think>private scratchpad only")
+
+        resp = client.post(
+            "/v1/chat/completions",
+            json={"messages": [{"role": "user", "content": "hello"}], "max_tokens": 16},
+        )
+
+        assert resp.status_code == 200
+        message = resp.json()["choices"][0]["message"]
+        assert message["reasoning_content"] == "private scratchpad only"
+        assert message["content"] == ""
+
+    @patch("mlx_tinker.api.openai_compat._generate_tokens")
+    def test_orphan_qwen_thinking_close_does_not_emit_empty_reasoning_content(self, mock_gen, client, monkeypatch):
+        mock_gen.return_value = [1, 2, 3]
+        _patch_decode(monkeypatch, "</think>\n\nFinal answer")
+
+        resp = client.post(
+            "/v1/chat/completions",
+            json={"messages": [{"role": "user", "content": "hello"}], "max_tokens": 16},
+        )
+
+        assert resp.status_code == 200
+        message = resp.json()["choices"][0]["message"]
+        assert "reasoning_content" not in message
+        assert message["content"] == "Final answer"
+
     def test_response_format_forces_disable_thinking_and_uses_schema_processor(self, client, mock_backend, monkeypatch):
         import mlx_tinker.api.openai_compat as oai
 
@@ -342,7 +433,16 @@ class TestChatCompletions:
 
         captured = {}
 
-        def fake_generate_tokens(model, tokenizer, prompt_tokens, temperature, top_p, max_tokens, logits_processor=None):
+        def fake_generate_tokens(
+            model,
+            tokenizer,
+            prompt_tokens,
+            temperature,
+            top_p,
+            max_tokens,
+            namespace=None,
+            logits_processor=None,
+        ):
             captured["max_tokens"] = max_tokens
             captured["logits_processor"] = logits_processor
             return [1, 2, 0]
@@ -494,8 +594,21 @@ class TestChatCompletions:
 
         captured = {}
 
-        def fake_generate_step(*, prompt, model, max_tokens, sampler, max_kv_size):
+        def fake_generate_step(
+            *,
+            prompt,
+            model,
+            max_tokens,
+            sampler,
+            max_kv_size,
+            kv_bits,
+            kv_group_size,
+            quantized_kv_start,
+        ):
             captured["max_kv_size"] = max_kv_size
+            captured["kv_bits"] = kv_bits
+            captured["kv_group_size"] = kv_group_size
+            captured["quantized_kv_start"] = quantized_kv_start
             yield mx.array(0), mx.zeros(8)
 
         generate_module = importlib.import_module("mlx_lm.generate")
@@ -514,6 +627,9 @@ class TestChatCompletions:
             list(resp.iter_lines())
 
         assert captured["max_kv_size"] == 123
+        assert captured["kv_bits"] == 4
+        assert captured["kv_group_size"] == 64
+        assert captured["quantized_kv_start"] == 0
 
 
 class TestCompletions:

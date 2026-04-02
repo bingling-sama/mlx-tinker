@@ -1,23 +1,162 @@
 # mlx-tinker
 
-**Drop-in Tinker replacement for Apple Silicon.** Train and run Qwen3.5 models locally with QLoRA, gradient checkpointing, and full RL support — same SDK, same code, no cloud required.
+**Local Tinker backend for Apple Silicon that can actually keep learning.** Run Qwen3.5 locally on a MacBook, plug it into OpenClaw, and do continual RL updates from real agent trajectories without sending your model traffic to the cloud.
 
-mlx-tinker implements the [Tinker API](https://docs.tinker.ai) on top of Apple's [MLX](https://github.com/ml-explore/mlx) framework. Point your `tinker.ServiceClient` at `localhost` and everything just works — SFT, PPO, CISPO, DRO, importance sampling, checkpointing, and inference.
+mlx-tinker implements the [Tinker API](https://docs.tinker.ai) on top of Apple's [MLX](https://github.com/ml-explore/mlx) framework. The interesting part is that this is not just local inference: it now runs the full OpenClaw + OpenClaw-RL loop locally, with WildClawBench trajectories feeding reward into PPO updates on Apple Silicon.
 
-## Quick Start
+## Local Continual RL on a MacBook
+
+This is the part that matters most: **local agent RL is real**. In the validated setup below, WildClawBench task containers run OpenClaw, OpenClaw-RL scores the resulting trajectories, and `mlx-tinker` applies PPO updates locally on a MacBook.
+
+- The run below is an end-to-end local OpenClaw loop, not a toy exact-match script.
+- In the plotted run, the system completed 32 PPO steps and scored 39 trajectories locally.
+- Reward moves off the floor and positive-reward steps start appearing in the back half of training.
+- The same stack also supports live continual learning from OpenClaw sessions: once a session has a follow-up user turn, the proxy can score the prior turn and feed it into PPO.
+- This stack was validated on an M4 MacBook Pro with 24GB unified memory.
+
+![WildClawBench RL](assets/wcb_openclaw_rl_learning.png)
+
+The currently validated OpenClaw-RL dependency is the fork branch `ojus1/OpenClaw-RL@codex/qwen35-openclaw-tinker`. `mlx-tinker` bootstraps that automatically, so you do not need to wait for upstream PR timing to use the local-learning stack.
+
+Multi-turn agent use is practical because `mlx-tinker` is not recomputing every long prompt from scratch on every turn. It uses **disk-backed transcript prefix caching** to offload reusable prompt/KV state locally, so repeated system prompts, tool schemas, and conversation prefixes can be restored instead of rebuilt. That is paired with **quantized KV cache** support for in-memory generation and **gradient checkpointing** for training-time memory savings, which is what makes longer OpenClaw sessions and local continual RL workable on a MacBook instead of collapsing under context growth.
+
+## One Command to Get a Local Learning Agent
+
+### Requirements
+
+- macOS with Apple Silicon
+- Python 3.12+
+- `uv`
+- `git`
+- `node`
+- Docker Desktop
+
+Recommended models:
+
+- `Qwen/Qwen3.5-4B` on 24GB+ Macs
+- `Qwen/Qwen3.5-0.8B` on smaller-memory Macs
+
+Install the repo:
 
 ```bash
-# Install (requires Python 3.12+, macOS with Apple Silicon)
-pip install uv && git clone https://github.com/ojus1/mlx-tinker.git && cd mlx-tinker && uv sync
+git clone https://github.com/ojus1/mlx-tinker.git
+cd mlx-tinker
+uv sync
 ```
 
+Then start the managed local-learning stack:
+
 ```bash
-# Start the server
+uv run python -m mlx_tinker openclaw setup --model Qwen/Qwen3.5-4B
+```
+
+The first run downloads the model, clones the required external repos into `.external/` (`OpenClaw` and the supported `OpenClaw-RL` fork), and builds the local OpenClaw gateway image, so expect it to take a few minutes.
+
+That one command starts three pieces:
+
+- native `mlx-tinker` inference + training backend
+- native OpenClaw-RL proxy/trainer
+- Dockerized OpenClaw gateway
+
+It also patches OpenClaw to use the stable local model alias `mlx-tinker-local/local-primary`, installs the RL header plugin, and stores managed runtime state under `~/.openclaw/mlx-tinker/`.
+
+### New OpenClaw Users
+
+If you are starting fresh, the simplest path is:
+
+```bash
+uv run python -m mlx_tinker openclaw setup --model Qwen/Qwen3.5-4B
+uv run python -m mlx_tinker openclaw status
+```
+
+After setup:
+
+- OpenClaw is available on the local gateway port shown by `status`
+- the default model already points at the local learning backend
+- local webchat/CLI sessions stay inline instead of trying to route through outbound messaging tools
+
+At that point you can use OpenClaw normally and the local RL stack is already live in the background.
+
+### Existing OpenClaw Users
+
+If you already use OpenClaw, run the same command:
+
+```bash
+uv run python -m mlx_tinker openclaw setup --model Qwen/Qwen3.5-4B
+```
+
+The managed setup is designed to preserve your existing OpenClaw installation:
+
+- it backs up the current `~/.openclaw/openclaw.json`
+- it keeps your channels, other agent settings, and workspace defaults intact
+- it only switches the model/backend path over to the managed local-learning stack
+
+So the practical migration is: keep your OpenClaw setup, swap in a local Tinker backend with continual RL, keep going.
+
+### Service Commands
+
+Useful follow-up commands:
+
+```bash
+uv run python -m mlx_tinker openclaw status
+uv run python -m mlx_tinker openclaw logs --service all
+uv run python -m mlx_tinker openclaw start
+uv run python -m mlx_tinker openclaw stop
+```
+
+## How to Tell Learning Is Actually Happening
+
+Serving and training are separate things, so the right thing to check is the proxy/trainer log:
+
+```bash
+uv run python -m mlx_tinker openclaw logs --service proxy
+```
+
+In a live OpenClaw session, look for lines like:
+
+- `submitted session=...`
+- `drained 1 groups`
+- `forward_backward`
+- `optim_step`
+
+Training records are written under:
+
+- `~/.openclaw/mlx-tinker/records/conversations.jsonl`
+- `~/.openclaw/mlx-tinker/records/prm_scores.jsonl`
+
+One important nuance: the current RL path scores a turn against the **next state**, so a single isolated one-turn chat will not train immediately. In practice, once the same session gets a follow-up user turn, the previous turn can be scored and submitted into PPO.
+
+The loop is also **mostly asynchronous**. Inference stays live during batch collection, PRM scoring, `forward_backward`, and `optim_step`. The one deliberate pause is the weight swap: after an optimizer step, the proxy briefly pauses new submissions while it installs the updated sampling client, then resumes normal traffic.
+
+## Important Configs for Real Multi-Turn Use
+
+If you want the local agent loop to feel good on longer sessions, these are the knobs that matter most:
+
+- `--max-context-tokens` on the OpenClaw-RL side controls how much context each training datum keeps before truncation. The managed OpenClaw flow currently uses `8192`, which is a reasonable default for realistic multi-turn agent prompts.
+- `--prefix-cache-disk-limit-gb` on `mlx-tinker` controls how much disk space is available for transcript prefix caching. Default is `2.0` GB. Increase it if you expect long repeated system prompts, large tool schemas, or many active multi-turn sessions.
+- `--kv-cache-bits` and `--kv-cache-group-size` control KV-cache quantization for inference. The default backend path uses 4-bit KV cache with group size `64` to keep memory pressure manageable on Apple Silicon.
+- `--quantized-kv-start` controls when KV-cache quantization begins. Default is `0`, which means quantization starts immediately.
+- `--checkpoints` controls where LoRA checkpoints and prefix-cache artifacts are stored. This is the directory to watch if you care about persistence, disk usage, or moving runs between machines.
+- `--max-batch-size` and `--cycle-ms` are the backend scheduling knobs. They control how aggressively `mlx-tinker` batches requests and how often the engine cycles.
+
+Managed OpenClaw defaults today:
+
+- RL batch size: `1`
+- RL max context tokens: `8192`
+- Gateway bind: `lan`
+- Prefix-cache disk budget on the `mlx-tinker` backend: `2.0` GB unless you override the plain backend flags
+
+## Use mlx-tinker as a Plain Tinker Backend
+
+If you do not want the OpenClaw stack and only want a local Tinker-compatible server, that path still works too:
+
+```bash
 uv run python -m mlx_tinker --model Qwen/Qwen3.5-0.8B
 ```
 
+Then point the normal Tinker SDK at `localhost`:
+
 ```bash
-# That's it. Use the Tinker SDK exactly as you would with cloud:
 python -c "
 import tinker
 client = tinker.ServiceClient(base_url='http://localhost:8080', api_key='local')
@@ -113,6 +252,7 @@ Non-MoE Qwen3.5 family:
 | Model | Status |
 |-------|:------:|
 | Qwen/Qwen3.5-0.8B | Tested |
+| Qwen/Qwen3.5-2B | Tested |
 | Qwen/Qwen3.5-4B | Tested |
 | Qwen/Qwen3.5-9B | Tested |
 | Tesslate/OmniCoder-9B | Tested |
@@ -178,6 +318,8 @@ tests/
   cookbook/    SFT + RL end-to-end workflow tests
   stress/     Cross-framework parity tests (MLX vs PyTorch)
 scripts/
-  run_benchmark.py           Cloud vs local benchmark
-  generate_readme_plot.py    Generate the comparison plot above
+  bootstrap_openclaw_rl.sh    Optional advanced helper for standalone wrapper scripts
+  run_benchmark.py            Optional benchmark runner
+  generate_readme_plot.py     Optional README asset generator
+  generate_wcb_readme_plot.py Optional WildClawBench plot generator
 ```

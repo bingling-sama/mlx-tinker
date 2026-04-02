@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
+import threading
+from contextlib import nullcontext
 from pathlib import Path
 from typing import Any
 
@@ -18,8 +21,9 @@ from mlx_tinker.backend.checkpointing import (
 )
 from mlx_tinker.backend.gradient_checkpointing import enable_gradient_checkpointing
 from mlx_tinker.backend.inference import InferenceBackend
-from mlx_tinker.backend.lora_manager import LoRAManager
 from mlx_tinker.backend.longlora import enable_longlora_attention
+from mlx_tinker.backend.lora_manager import LoRAManager
+from mlx_tinker.backend.transcript_cache import TranscriptPrefixCacheManager
 from mlx_tinker.backend.training import TrainingBackend
 from mlx_tinker.config import EngineConfig
 from mlx_tinker.types import (
@@ -54,11 +58,22 @@ class MLXBackend:
 
     def __init__(self, config: EngineConfig) -> None:
         self.config = config
+        prefix_cache_bytes = int(max(0.0, config.prefix_cache_disk_limit_gb) * (1024**3))
+        self.transcript_cache = TranscriptPrefixCacheManager(
+            config.checkpoints_base / "prefix_cache",
+            prefix_cache_bytes,
+        )
         self.training = TrainingBackend(
             optimizer_type=config.optimizer_type,
             gradient_checkpointing=config.gradient_checkpointing,
         )
-        self.inference = InferenceBackend(max_kv_cache_size=config.max_kv_cache_size)
+        self.inference = InferenceBackend(
+            max_kv_cache_size=config.max_kv_cache_size,
+            kv_cache_bits=config.kv_cache_bits,
+            kv_cache_group_size=config.kv_cache_group_size,
+            quantized_kv_start=config.quantized_kv_start,
+            transcript_cache=self.transcript_cache,
+        )
         self.lora_manager = LoRAManager()
 
         # Model registry: model_id -> (model, tokenizer, lora_config)
@@ -66,27 +81,97 @@ class MLXBackend:
         self.tokenizers: dict[str, Any] = {}
         self.lora_configs: dict[str, LoraConfig] = {}
         self.model_configs: dict[str, dict] = {}
-        self.sampling_models: dict[str, tuple[nn.Module, Any]] = {}
+        self.current_loaded_sampler_path: str | None = None
 
-        # Base model (shared, loaded once)
+        # Single resident model slot. This may hold the live LoRA training model,
+        # a plain base model, or an offline path-backed sampler model.
         self._base_model: nn.Module | None = None
         self._base_tokenizer: Any = None
+        self._loaded_base_model_name: str | None = None
         self._base_model_config: dict = {}
+        self._model_lock = threading.RLock()
+        self._student_namespace_version = 0
 
-    def _ensure_base_model(self) -> None:
-        """Load the base model if not already loaded."""
-        if self._base_model is not None:
+    def _clear_sampling_state(self) -> None:
+        self.current_loaded_sampler_path = None
+
+    def close(self) -> None:
+        self.transcript_cache.close()
+
+    def _ensure_base_model(self, model_name: str | None = None) -> None:
+        """Load a clean base model if not already resident."""
+        requested_model = model_name or self.config.base_model
+        if (
+            self._base_model is not None
+            and self._loaded_base_model_name == requested_model
+            and self.current_loaded_sampler_path is None
+        ):
             return
 
-        logger.info("Loading base model: %s", self.config.base_model)
+        logger.info("Loading base model: %s", requested_model)
         try:
-            model, tokenizer = mlx_load(self.config.base_model)
+            model, tokenizer = mlx_load(requested_model)
         except Exception as e:
-            logger.error("Failed to load base model %s: %s", self.config.base_model, e)
-            raise ValueError(f"Failed to load base model '{self.config.base_model}': {e}") from e
+            logger.error("Failed to load base model %s: %s", requested_model, e)
+            raise ValueError(f"Failed to load base model '{requested_model}': {e}") from e
         self._base_model = model
         self._base_tokenizer = tokenizer
+        self._loaded_base_model_name = requested_model
+        self._clear_sampling_state()
         logger.info("Base model loaded")
+
+    def _get_live_model_id(self) -> str | None:
+        return next(iter(self.models), None) if self.models else None
+
+    def _assert_teacher_sampling_supported(self, model_id: str) -> None:
+        lora_config = self.lora_configs.get(model_id)
+        if lora_config is None:
+            return
+        if lora_config.train_embeddings or lora_config.train_norms or lora_config.use_longlora:
+            raise ValueError(
+                "Teacher/base sampling requires LoRA-only tuning; "
+                "train_embeddings, train_norms, and use_longlora must all be disabled."
+            )
+
+    def _cache_settings_fingerprint(self) -> str:
+        return (
+            f"max_kv={self.config.max_kv_cache_size}:"
+            f"kv_bits={self.config.kv_cache_bits}:"
+            f"kv_group_size={self.config.kv_cache_group_size}:"
+            f"quantized_kv_start={self.config.quantized_kv_start}"
+        )
+
+    def _base_namespace(self, base_model: str) -> str:
+        return f"base:{base_model}:{self._cache_settings_fingerprint()}"
+
+    def _student_namespace(self, model_id: str) -> str:
+        return (
+            f"student:{model_id}:v{self._student_namespace_version}:"
+            f"{self._cache_settings_fingerprint()}"
+        )
+
+    def _path_namespace(self, resolved_path: Path, base_model: str | None) -> str:
+        stat_parts: list[str] = []
+        for name in ("adapters.safetensors", "model.safetensors", "config.json"):
+            candidate = resolved_path / name
+            if candidate.exists():
+                stat = candidate.stat()
+                stat_parts.append(f"{name}:{stat.st_mtime_ns}:{stat.st_size}")
+        digest = hashlib.sha256(
+            "|".join(
+                [
+                    str(resolved_path),
+                    base_model or self.config.base_model,
+                    self._cache_settings_fingerprint(),
+                    *stat_parts,
+                ]
+            ).encode("utf-8")
+        ).hexdigest()
+        return f"path:{digest}"
+
+    def _invalidate_student_transcript_caches(self) -> None:
+        self._student_namespace_version += 1
+        self.transcript_cache.invalidate_namespace_prefix("student:")
 
     # ------------------------------------------------------------------
     # Model lifecycle
@@ -94,62 +179,84 @@ class MLXBackend:
 
     def create_model(self, model_id: str, request: CreateModelInput) -> CreateModelOutput:
         """Create a new QLoRA model from the base model."""
-        self._ensure_base_model()
+        with self._model_lock:
+            logger.info("Creating model %s with LoRA rank=%d", model_id, request.lora_config.rank)
+            if self.models:
+                raise ValueError("Only one live training model is supported at a time")
 
-        # Load a fresh copy for this model_id
-        logger.info("Creating model %s with LoRA rank=%d", model_id, request.lora_config.rank)
-        try:
-            model, tokenizer = mlx_load(self.config.base_model)
-        except Exception as e:
-            logger.error("Failed to load model for %s: %s", model_id, e)
-            raise ValueError(f"Failed to load model for '{model_id}': {e}") from e
+            self._ensure_base_model(self.config.base_model)
+            model = self._base_model
+            tokenizer = self._base_tokenizer
 
-        # Apply QLoRA
-        model = self.lora_manager.apply_qlora(
-            model,
-            request.lora_config,
-            quantize_bits=self.config.quantize_bits,
-            quantize_group_size=self.config.quantize_group_size,
-            train_embeddings=request.lora_config.train_embeddings,
-            train_norms=request.lora_config.train_norms,
-        )
-        if request.lora_config.use_longlora:
-            enable_longlora_attention(
+            # Apply QLoRA in-place onto the single resident model.
+            model = self.lora_manager.apply_qlora(
                 model,
-                group_size_ratio=request.lora_config.longlora_group_size_ratio,
+                request.lora_config,
+                quantize_bits=self.config.quantize_bits,
+                quantize_group_size=self.config.quantize_group_size,
+                train_embeddings=request.lora_config.train_embeddings,
+                train_norms=request.lora_config.train_norms,
             )
-        if self.config.gradient_checkpointing:
-            enable_gradient_checkpointing(model)
+            if request.lora_config.use_longlora:
+                enable_longlora_attention(
+                    model,
+                    group_size_ratio=request.lora_config.longlora_group_size_ratio,
+                )
+            if self.config.gradient_checkpointing:
+                enable_gradient_checkpointing(model)
 
-        self.models[model_id] = model
-        self.tokenizers[model_id] = tokenizer
-        self.lora_configs[model_id] = request.lora_config
+            self.models[model_id] = model
+            self.tokenizers[model_id] = tokenizer
+            self.lora_configs[model_id] = request.lora_config
+            self._base_model = model
+            self._base_tokenizer = tokenizer
+            self._loaded_base_model_name = self.config.base_model
+            self._clear_sampling_state()
+            self._invalidate_student_transcript_caches()
 
-        return CreateModelOutput(
-            model_id=model_id,
-            base_model=self.config.base_model,
-            lora_config=request.lora_config,
-        )
+            return CreateModelOutput(
+                model_id=model_id,
+                base_model=self.config.base_model,
+                lora_config=request.lora_config,
+            )
 
     def unload_model(self, model_id: str, _request: UnloadModelInput) -> UnloadModelOutput:
         """Unload a model from memory."""
-        if model_id in self.models:
-            del self.models[model_id]
-            del self.tokenizers[model_id]
-            del self.lora_configs[model_id]
-            self.training.accumulated_grads.pop(model_id, None)
-            self.training.grad_accum_counts.pop(model_id, None)
-            self.training.optimizers.pop(model_id, None)
-            self.sampling_models.clear()
-            logger.info("Unloaded model %s", model_id)
+        with self._model_lock:
+            if model_id in self.models:
+                del self.models[model_id]
+                del self.tokenizers[model_id]
+                del self.lora_configs[model_id]
+                self.training.accumulated_grads.pop(model_id, None)
+                self.training.grad_accum_counts.pop(model_id, None)
+                self.training.optimizers.pop(model_id, None)
+                self._base_model = None
+                self._base_tokenizer = None
+                self._loaded_base_model_name = None
+                self._clear_sampling_state()
+                self._invalidate_student_transcript_caches()
+                logger.info("Unloaded model %s", model_id)
 
-        return UnloadModelOutput(model_id=model_id, status="unloaded")
+            return UnloadModelOutput(model_id=model_id, status="unloaded")
 
-    def _load_sampling_model(self, model_path: str, base_model: str | None) -> tuple[nn.Module, Any]:
+    def _load_sampling_model(
+        self, model_path: str, base_model: str | None
+    ) -> tuple[nn.Module, Any]:
+        """Load a sampling model from checkpoint.
+
+        Path-backed sampling is reserved for offline/manual evaluation. It is
+        not compatible with a live training model under the single-model
+        constraint, so we only allow it when no training model is resident.
+        """
+        if self.models:
+            raise ValueError(
+                "Path-backed sampling is unavailable while a live training model is resident"
+            )
+
         resolved_path = self._validate_checkpoint_path(model_path)
         cache_key = str(resolved_path)
-        if cache_key in self.sampling_models:
-            return self.sampling_models[cache_key]
+        if cache_key == self.current_loaded_sampler_path and self._base_model is not None:
+            return self._base_model, self._base_tokenizer
 
         config_path = resolved_path / "config.json"
         config_payload: dict[str, Any] = {}
@@ -161,14 +268,18 @@ class MLXBackend:
             or config_payload.get("base_model")
             or self.config.base_model
         )
-        model, tokenizer = mlx_load(resolved_base_model)
 
         adapter_path = resolved_path / "adapters.safetensors"
         full_weights_path = resolved_path / "model.safetensors"
+
         if adapter_path.exists():
             lora_cfg = config_payload.get("lora_config")
             if not lora_cfg:
                 raise ValueError(f"Missing lora_config in sampler config at {config_path}")
+
+            self._ensure_base_model(resolved_base_model)
+            model = self._base_model
+            tokenizer = self._base_tokenizer
             model = self.lora_manager.apply_qlora(
                 model,
                 LoraConfig(**lora_cfg),
@@ -176,15 +287,21 @@ class MLXBackend:
                 quantize_group_size=self.config.quantize_group_size,
             )
             model = self.lora_manager.load_adapter(model, resolved_path)
+            self._base_model = model
         elif full_weights_path.exists():
+            self._ensure_base_model(resolved_base_model)
+            model = self._base_model
+            tokenizer = self._base_tokenizer
             weights = mx.load(str(full_weights_path))
             model.load_weights(list(weights.items()), strict=False)
         else:
             raise FileNotFoundError(
-                f"No sampler weights found in {resolved_path}; expected adapters.safetensors or model.safetensors"
+                "No sampler weights found in "
+                f"{resolved_path}; expected adapters.safetensors or model.safetensors"
             )
 
-        self.sampling_models[cache_key] = (model, tokenizer)
+        self._loaded_base_model_name = resolved_base_model
+        self.current_loaded_sampler_path = cache_key
         return model, tokenizer
 
     def _get_model(self, model_id: str) -> nn.Module:
@@ -204,22 +321,25 @@ class MLXBackend:
     def forward_backward(
         self, model_id: str, request: ForwardBackwardInput
     ) -> ForwardBackwardOutput:
-        model = self._get_model(model_id)
-        model.train()
-        return self.training.forward_backward(model_id, model, request)
+        with self._model_lock:
+            model = self._get_model(model_id)
+            model.train()
+            return self.training.forward_backward(model_id, model, request)
 
     def forward(self, model_id: str, request: ForwardInput) -> ForwardOutput:
-        model = self._get_model(model_id)
-        model.eval()
-        return self.training.forward(model_id, model, request)
+        with self._model_lock:
+            model = self._get_model(model_id)
+            model.eval()
+            return self.training.forward(model_id, model, request)
 
     def optim_step(self, model_id: str, request: OptimStepInput) -> OptimStepOutput:
-        model = self._get_model(model_id)
-        result = self.training.optim_step(model_id, model, request)
-        # Any exported sampler path should reload after weights change so
-        # continual-learning loops never serve stale adapters.
-        self.sampling_models.clear()
-        return result
+        with self._model_lock:
+            model = self._get_model(model_id)
+            result = self.training.optim_step(model_id, model, request)
+            # Any path-backed sampler must reload after weights change.
+            self._clear_sampling_state()
+            self._invalidate_student_transcript_caches()
+            return result
 
     # ------------------------------------------------------------------
     # Inference
@@ -239,116 +359,202 @@ class MLXBackend:
         )
         return request.model_copy(update={"sampling_params": new_params})
 
-    def sample(self, model_id: str | None, request: SampleInput) -> SampleOutput:
-        """Generate samples. Uses model_id if provided, else base model."""
-        model_id = model_id or request.model_id
-        if request.num_samples > MAX_SAMPLES:
-            raise ValueError(f"num_samples={request.num_samples} exceeds maximum of {MAX_SAMPLES}")
-
+    def _resolve_sampling_target(
+        self, model_id: str | None, request: SampleInput
+    ) -> tuple[nn.Module, Any, str, str | None]:
+        resolved_model_id = model_id or request.model_id
         if request.model_path:
+            resolved_path = self._validate_checkpoint_path(request.model_path)
             model, tokenizer = self._load_sampling_model(request.model_path, request.base_model)
-        elif model_id and model_id in self.models:
-            model = self.models[model_id]
-            tokenizer = self.tokenizers[model_id]
-        else:
-            self._ensure_base_model()
-            model = self._base_model
-            tokenizer = self._base_tokenizer
+            namespace = self._path_namespace(resolved_path, request.base_model)
+            return model, tokenizer, "path", namespace
 
+        if resolved_model_id is not None:
+            if resolved_model_id in self.models:
+                namespace = self._student_namespace(resolved_model_id)
+                return (
+                    self.models[resolved_model_id],
+                    self.tokenizers[resolved_model_id],
+                    "student",
+                    namespace,
+                )
+            raise ValueError(f"Model {resolved_model_id} not found. Call create_model first.")
+
+        live_model_id = self._get_live_model_id()
+        if live_model_id is not None:
+            requested_base = request.base_model or self.config.base_model
+            if requested_base != self.config.base_model:
+                raise ValueError(
+                    "Teacher/base sampling against a different base model is unavailable while "
+                    "a live training model is resident"
+                )
+            self._assert_teacher_sampling_supported(live_model_id)
+            return (
+                self.models[live_model_id],
+                self.tokenizers[live_model_id],
+                "teacher",
+                self._base_namespace(requested_base),
+            )
+
+        self._ensure_base_model(request.base_model or self.config.base_model)
+        requested_base = request.base_model or self.config.base_model
+        return self._base_model, self._base_tokenizer, "base", self._base_namespace(requested_base)
+
+    def _sample_resolved(
+        self,
+        model: nn.Module,
+        tokenizer: Any,
+        request: SampleInput,
+        mode: str,
+        namespace: str | None,
+    ) -> SampleOutput:
         request = self._inject_eos_stop_token(request, tokenizer)
         model.eval()
-        return self.inference.sample(model, tokenizer, request)
+        context = (
+            self.lora_manager.temporarily_disable_lora(model)
+            if mode == "teacher"
+            else nullcontext()
+        )
+        with context:
+            return self.inference.sample(model, tokenizer, request, namespace=namespace)
+
+    def sample(self, model_id: str | None, request: SampleInput) -> SampleOutput:
+        """Generate samples. Uses model_id if provided, else base model."""
+        with self._model_lock:
+            if request.num_samples > MAX_SAMPLES:
+                raise ValueError(
+                    f"num_samples={request.num_samples} exceeds maximum of {MAX_SAMPLES}"
+                )
+
+            model, tokenizer, mode, namespace = self._resolve_sampling_target(model_id, request)
+            return self._sample_resolved(model, tokenizer, request, mode, namespace)
 
     def sample_batch(self, requests: list[tuple[str | None, SampleInput]]) -> list[SampleOutput]:
         """Generate samples for multiple requests, batching compatible ones."""
-        if not requests:
-            return []
+        with self._model_lock:
+            if not requests:
+                return []
 
-        resolved: list[tuple[object, object, SampleInput]] = []
-        for model_id, request in requests:
-            model_id = model_id or request.model_id
-            if request.num_samples > MAX_SAMPLES:
-                raise ValueError(f"num_samples={request.num_samples} exceeds maximum of {MAX_SAMPLES}")
+            resolved: list[tuple[object, object, SampleInput, str, str | None]] = []
+            for model_id, request in requests:
+                if request.num_samples > MAX_SAMPLES:
+                    raise ValueError(
+                        f"num_samples={request.num_samples} exceeds maximum of {MAX_SAMPLES}"
+                    )
+                model, tokenizer, mode, namespace = self._resolve_sampling_target(model_id, request)
+                request = self._inject_eos_stop_token(request, tokenizer)
+                model.eval()
+                resolved.append((model, tokenizer, request, mode, namespace))
 
-            if request.model_path:
-                model, tokenizer = self._load_sampling_model(request.model_path, request.base_model)
-            elif model_id and model_id in self.models:
-                model = self.models[model_id]
-                tokenizer = self.tokenizers[model_id]
-            else:
-                self._ensure_base_model()
-                model = self._base_model
-                tokenizer = self._base_tokenizer
-            request = self._inject_eos_stop_token(request, tokenizer)
-            model.eval()
-            resolved.append((model, tokenizer, request))
-
-        first_model, first_tokenizer, _first_request = resolved[0]
-        compatible = all(model is first_model and tokenizer is first_tokenizer for model, tokenizer, _ in resolved)
-        if compatible:
-            return self.inference.sample_batch(
-                first_model,
-                first_tokenizer,
-                [request for _model, _tokenizer, request in resolved],
+            first_model, first_tokenizer, _first_request, first_mode, first_namespace = resolved[0]
+            compatible = all(
+                model is first_model
+                and tokenizer is first_tokenizer
+                and mode == first_mode
+                and namespace == first_namespace
+                for model, tokenizer, _request, mode, namespace in resolved
             )
+            if compatible:
+                context = (
+                    self.lora_manager.temporarily_disable_lora(first_model)
+                    if first_mode == "teacher"
+                    else nullcontext()
+                )
+                with context:
+                    return self.inference.sample_batch(
+                        first_model,
+                        first_tokenizer,
+                        [request for _model, _tokenizer, request, _mode, _namespace in resolved],
+                        namespace=first_namespace,
+                    )
 
-        return [
-            self.inference.sample(model, tokenizer, request)
-            for model, tokenizer, request in resolved
-        ]
+            return [
+                self._sample_resolved(model, tokenizer, request, mode, namespace)
+                for model, tokenizer, request, mode, namespace in resolved
+            ]
 
     # ------------------------------------------------------------------
     # Checkpointing
     # ------------------------------------------------------------------
 
     def _validate_checkpoint_path(self, requested_path: str) -> Path:
-        """Validate that a checkpoint path is within the allowed base directory."""
-        resolved = Path(requested_path).resolve()
+        """Resolve a checkpoint path and ensure it stays under checkpoints_base.
+
+        Bare checkpoint names such as ``step_0016`` are interpreted relative to
+        the configured checkpoints directory so upstream Tinker's
+        ``save_state_async(name=...)`` API works without needing absolute paths.
+        """
         base = self.config.checkpoints_base.resolve()
-        if not str(resolved).startswith(str(base) + "/") and resolved != base:
-            raise ValueError(
-                f"Checkpoint path '{requested_path}' is outside the allowed "
-                f"directory '{self.config.checkpoints_base}'"
-            )
-        return resolved
+        candidate = Path(requested_path)
+
+        candidates = [candidate] if candidate.is_absolute() else [
+            (Path.cwd() / candidate),
+            (self.config.checkpoints_base / candidate),
+        ]
+
+        for path_candidate in candidates:
+            resolved = path_candidate.resolve()
+            if str(resolved).startswith(str(base) + "/") or resolved == base:
+                return resolved
+
+        raise ValueError(
+            f"Checkpoint path '{requested_path}' is outside the allowed "
+            f"directory '{self.config.checkpoints_base}'"
+        )
 
     def save_weights(self, model_id: str, request: SaveWeightsInput) -> SaveWeightsOutput:
-        model = self._get_model(model_id)
-        opt_state = self.training.get_optimizer_state(model_id)
-        checkpoint_dir = self._validate_checkpoint_path(request.path)
-        save_training_checkpoint(model, opt_state, checkpoint_dir)
-        return SaveWeightsOutput(path=str(checkpoint_dir))
+        with self._model_lock:
+            model = self._get_model(model_id)
+            opt_state = self.training.get_optimizer_state(model_id)
+            checkpoint_dir = self._validate_checkpoint_path(request.path)
+            save_training_checkpoint(model, opt_state, checkpoint_dir)
+            return SaveWeightsOutput(path=str(checkpoint_dir))
 
     def save_weights_for_sampler(
         self, model_id: str, request: SaveWeightsForSamplerInput
     ) -> SaveWeightsForSamplerOutput:
-        model = self._get_model(model_id)
-        path = request.path or str(self.config.checkpoints_base / model_id / "sampler" / "latest")
-        safe_path = self._validate_checkpoint_path(path)
-        lora_config = self.lora_configs.get(model_id)
-        if lora_config is None:
-            raise ValueError(f"LoRA config for model {model_id} not found")
-        save_sampler_weights(
-            model,
-            safe_path,
-            base_model=self.config.base_model,
-            lora_config=lora_config.model_dump(),
-        )
-        # Refresh cached sampler state for this path on the next read.
-        self.sampling_models.pop(str(safe_path), None)
-        return SaveWeightsForSamplerOutput(
-            path=None if request.ephemeral else str(safe_path),
-            sampling_session_id=request.sampling_session_id,
-        )
+        with self._model_lock:
+            model = self._get_model(model_id)
+            if request.path is None:
+                self._clear_sampling_state()
+                return SaveWeightsForSamplerOutput(
+                    path=None,
+                    sampling_session_id=request.sampling_session_id,
+                )
+
+            safe_path = self._validate_checkpoint_path(request.path)
+            lora_config = self.lora_configs.get(model_id)
+            if lora_config is None:
+                raise ValueError(f"LoRA config for model {model_id} not found")
+            save_sampler_weights(
+                model,
+                safe_path,
+                base_model=self.config.base_model,
+                lora_config=lora_config.model_dump(),
+            )
+            self._clear_sampling_state()
+            return SaveWeightsForSamplerOutput(
+                path=None if request.ephemeral else str(safe_path),
+                sampling_session_id=request.sampling_session_id,
+            )
 
     def load_weights(self, model_id: str, request: LoadWeightsInput) -> LoadWeightsOutput:
-        model = self._get_model(model_id)
-        checkpoint_dir = (
-            self.config.checkpoints_base / request.source_model_id / request.checkpoint_id
-        )
-        self._validate_checkpoint_path(str(checkpoint_dir))
-        opt_state = load_training_checkpoint(model, checkpoint_dir)
-        if opt_state is not None:
-            self.training.load_optimizer_state(model_id, opt_state)
-        self.sampling_models.clear()
-        return LoadWeightsOutput()
+        with self._model_lock:
+            model = self._get_model(model_id)
+            if request.path is not None:
+                checkpoint_dir = self._validate_checkpoint_path(request.path)
+            else:
+                if request.source_model_id is None or request.checkpoint_id is None:
+                    raise ValueError(
+                        "load_weights requires either path or both source_model_id and checkpoint_id"
+                    )
+                checkpoint_dir = (
+                    self.config.checkpoints_base / request.source_model_id / request.checkpoint_id
+                )
+                checkpoint_dir = self._validate_checkpoint_path(str(checkpoint_dir))
+            opt_state = load_training_checkpoint(model, checkpoint_dir)
+            if request.optimizer and opt_state is not None:
+                self.training.load_optimizer_state(model_id, opt_state)
+            self._clear_sampling_state()
+            self._invalidate_student_transcript_caches()
+            return LoadWeightsOutput()

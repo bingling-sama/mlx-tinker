@@ -92,6 +92,7 @@ class SamplingSessionDB(SQLModel, table=True):
     sampling_session_id: str = Field(primary_key=True)
     session_id: str = Field(foreign_key="sessions.session_id", index=True)
     sampling_session_seq_id: int = 0
+    model_id: str | None = Field(default=None, foreign_key="models.model_id", index=True)
     base_model: str | None = None
     model_path: str | None = None
     created_at: datetime = Field(

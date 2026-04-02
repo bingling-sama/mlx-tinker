@@ -17,3 +17,6 @@ checkpoints/
 scripts/
 workspace_reports/
 TODO.md
+!scripts/
+scripts/*
+!scripts/run_openclaw_rl.sh

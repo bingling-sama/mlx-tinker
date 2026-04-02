@@ -12,6 +12,14 @@ _engine = None
 _session_factory = None
 
 
+async def _ensure_schema_compatibility(conn) -> None:
+    """Apply lightweight additive migrations for local SQLite databases."""
+    columns = await conn.exec_driver_sql("PRAGMA table_info(sampling_sessions)")
+    existing = {row[1] for row in columns.fetchall()}
+    if "model_id" not in existing:
+        await conn.exec_driver_sql("ALTER TABLE sampling_sessions ADD COLUMN model_id VARCHAR")
+
+
 async def init_db(db_path: str | Path = "tinker.db") -> None:
     """Initialize the async SQLite engine with WAL mode and create all tables."""
     global _engine, _session_factory
@@ -27,6 +35,7 @@ async def init_db(db_path: str | Path = "tinker.db") -> None:
         await conn.exec_driver_sql("PRAGMA journal_mode=WAL")
         await conn.exec_driver_sql("PRAGMA synchronous=NORMAL")
         await conn.run_sync(SQLModel.metadata.create_all)
+        await _ensure_schema_compatibility(conn)
 
     _session_factory = sessionmaker(_engine, class_=AsyncSession, expire_on_commit=False)
 

@@ -54,3 +54,7 @@ class EngineConfig(BaseModel):
 
     # Memory
     max_kv_cache_size: int | None = None
+    kv_cache_bits: int | None = 4
+    kv_cache_group_size: int = 64
+    quantized_kv_start: int = 0
+    prefix_cache_disk_limit_gb: float = 2.0

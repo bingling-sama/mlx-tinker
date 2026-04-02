@@ -72,11 +72,8 @@ def create_app(config: EngineConfig | None = None) -> FastAPI:
         await init_db(config.database_path)
         logger.info("Database initialized at %s", config.database_path)
 
-        # Init backend
+        # Init backend (model loaded lazily on first request)
         _backend = MLXBackend(config)
-
-        # Warm up: eagerly load the base model
-        _backend._ensure_base_model()
 
         # Start engine
         _engine = TinkerEngine(config, _backend)
@@ -93,6 +90,8 @@ def create_app(config: EngineConfig | None = None) -> FastAPI:
         # Shutdown
         if _engine is not None:
             await _engine.stop()
+        if _backend is not None:
+            _backend.close()
         await close_db()
 
     app = FastAPI(title="MLX-Tinker", version="0.1.0", lifespan=lifespan)
@@ -301,13 +300,13 @@ def _register_routes(app: FastAPI) -> None:
             "path": request.path,
             "sampling_session_seq_id": request.sampling_session_seq_id,
             "seq_id": request.seq_id,
-            "ephemeral": False,
+            "sampling_session_id": None,
+            "ephemeral": request.path is None,
         }
         if request.path is None:
             sampling_session_id = str(uuid.uuid4())
             if _config is None:
                 raise RuntimeError("Server config is not initialized")
-            sampler_dir = _config.checkpoints_base / request.model_id / "sampler" / sampling_session_id
             async with get_session() as db:
                 model = await db.get(ModelDB, request.model_id)
                 if model is None:
@@ -318,14 +317,13 @@ def _register_routes(app: FastAPI) -> None:
                 sampling_session = SamplingSessionDB(
                     sampling_session_id=sampling_session_id,
                     session_id=model.session_id,
+                    model_id=request.model_id,
                     base_model=model.base_model,
-                    model_path=str(sampler_dir),
+                    model_path=None,
                 )
                 db.add(sampling_session)
                 await db.commit()
-            request_payload["path"] = str(sampler_dir)
             request_payload["sampling_session_id"] = sampling_session_id
-            request_payload["ephemeral"] = True
 
         return await _create_future(
             RequestType.SAVE_WEIGHTS_FOR_SAMPLER,
@@ -341,6 +339,8 @@ def _register_routes(app: FastAPI) -> None:
             {
                 "source_model_id": request.source_model_id,
                 "checkpoint_id": request.checkpoint_id,
+                "path": request.path,
+                "optimizer": request.optimizer,
             },
         )
 
@@ -449,11 +449,19 @@ async def _resolve_sampling_request(
                     detail=f"Sampling session {request.sampling_session_id} not found",
                 )
 
-        resolved_request["model_path"] = sampling_session.model_path
         resolved_request["base_model"] = sampling_session.base_model or resolved_request.get(
             "base_model"
         )
-        # Sampling sessions refer to exported weights, not an in-memory training model.
-        resolved_model_id = None
+        if sampling_session.model_id is not None:
+            resolved_model_id = sampling_session.model_id
+            resolved_request.pop("model_path", None)
+            resolved_request["model_id"] = sampling_session.model_id
+        elif sampling_session.model_path is not None:
+            resolved_request["model_path"] = sampling_session.model_path
+            # Path-backed sessions refer to exported weights, not an in-memory training model.
+            resolved_model_id = None
+        else:
+            resolved_request.pop("model_path", None)
+            resolved_model_id = None
 
     return resolved_model_id, resolved_request

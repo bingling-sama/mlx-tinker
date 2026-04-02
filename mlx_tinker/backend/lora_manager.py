@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import json
 import logging
-from pathlib import Path
 import re
+from collections.abc import Iterator
+from contextlib import contextmanager
+from pathlib import Path
 from typing import Any
 
 import mlx.core as mx
@@ -23,6 +25,29 @@ _NORM_SEGMENT_RE = re.compile(r"(^|\.)([^.]*norm[^.]*)($|\.)", re.IGNORECASE)
 
 class LoRAManager:
     """Manages QLoRA adapter creation, save, load, and removal."""
+
+    @staticmethod
+    def iter_lora_modules(model: nn.Module) -> Iterator[nn.Module]:
+        """Yield LoRA modules that support runtime scale adjustment."""
+        for module in model.modules():
+            if hasattr(module, "lora_a") and hasattr(module, "lora_b") and hasattr(module, "scale"):
+                yield module
+
+    def get_lora_scales(self, model: nn.Module) -> list[float]:
+        """Return the current LoRA scales for inspection and testing."""
+        return [float(module.scale) for module in self.iter_lora_modules(model)]
+
+    @contextmanager
+    def temporarily_disable_lora(self, model: nn.Module) -> Iterator[None]:
+        """Temporarily zero LoRA scale so the model behaves like its base weights."""
+        modules = [(module, float(module.scale)) for module in self.iter_lora_modules(model)]
+        for module, _scale in modules:
+            module.scale = 0.0
+        try:
+            yield
+        finally:
+            for module, scale in modules:
+                module.scale = scale
 
     def apply_qlora(
         self,

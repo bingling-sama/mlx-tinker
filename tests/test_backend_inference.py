@@ -261,8 +261,21 @@ class TestSample:
     def test_generate_step_forwards_max_kv_cache_size(self, model, tokenizer, monkeypatch):
         captured = {}
 
-        def fake_generate_step(*, prompt, model, max_tokens, sampler, max_kv_size):
+        def fake_generate_step(
+            *,
+            prompt,
+            model,
+            max_tokens,
+            sampler,
+            max_kv_size,
+            kv_bits,
+            kv_group_size,
+            quantized_kv_start,
+        ):
             captured["max_kv_size"] = max_kv_size
+            captured["kv_bits"] = kv_bits
+            captured["kv_group_size"] = kv_group_size
+            captured["quantized_kv_start"] = quantized_kv_start
             yield mx.array(0), mx.array([-0.25, -4.0, -5.0])
 
         generate_module = importlib.import_module("mlx_lm.generate")
@@ -270,7 +283,12 @@ class TestSample:
         inference_module = importlib.import_module("mlx_tinker.backend.inference")
         monkeypatch.setattr(inference_module, "_has_kv_cache_support", lambda _model: True)
 
-        inference = InferenceBackend(max_kv_cache_size=77)
+        inference = InferenceBackend(
+            max_kv_cache_size=77,
+            kv_cache_bits=4,
+            kv_cache_group_size=32,
+            quantized_kv_start=5,
+        )
         request = SampleInput(
             prompt=ModelInput(chunks=[EncodedTextChunk(tokens=[1, 2, 3])]),
             sampling_params=SamplingParams(temperature=1.0, max_tokens=1, stop_tokens=[0]),
@@ -281,6 +299,42 @@ class TestSample:
 
         assert result.sequences[0].tokens == [0]
         assert captured["max_kv_size"] == 77
+        assert captured["kv_bits"] == 4
+        assert captured["kv_group_size"] == 32
+        assert captured["quantized_kv_start"] == 5
+
+    def test_multiple_samples_falls_back_to_generate_step_when_kv_quant_enabled(
+        self, model, tokenizer, monkeypatch
+    ):
+        calls = {"batch": 0, "step": 0}
+
+        def fake_batch(model, prompt_tokens, sp, num_samples):
+            calls["batch"] += 1
+            raise AssertionError("BatchGenerator should be bypassed when kv quantization is enabled")
+
+        def fake_step(model, prompt_tokens, sp, num_samples, namespace=None):
+            calls["step"] += 1
+            return [
+                GeneratedSequence(stop_reason="length", tokens=[1], logprobs=[-0.1])
+                for _ in range(num_samples)
+            ]
+
+        inference = InferenceBackend(kv_cache_bits=4)
+        monkeypatch.setattr(inference, "_sample_with_batch_generator", fake_batch)
+        monkeypatch.setattr(inference, "_sample_with_generate_step", fake_step)
+        inference_module = importlib.import_module("mlx_tinker.backend.inference")
+        monkeypatch.setattr(inference_module, "_has_kv_cache_support", lambda _model: True)
+
+        request = SampleInput(
+            prompt=ModelInput(chunks=[EncodedTextChunk(tokens=[1, 2, 3])]),
+            sampling_params=SamplingParams(temperature=1.0, max_tokens=2),
+            num_samples=3,
+        )
+
+        result = inference.sample(model, tokenizer, request)
+
+        assert len(result.sequences) == 3
+        assert calls == {"batch": 0, "step": 1}
 
     def test_sample_batch_batches_multiple_requests(self, model, tokenizer, inference, monkeypatch):
         class FakeBatchGenerator:

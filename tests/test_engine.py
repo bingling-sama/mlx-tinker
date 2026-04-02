@@ -5,7 +5,6 @@ from types import SimpleNamespace
 
 import pytest
 import pytest_asyncio
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from mlx_tinker.config import EngineConfig
 from mlx_tinker.db.database import close_db, get_session, init_db
@@ -199,6 +198,38 @@ class TestGroupSampleFutures:
                 request_data={
                     "prompt": {"chunks": [{"type": "encoded_text", "tokens": [1, 2, 3]}]},
                     "sampling_params": "still-not-a-dict",
+                    "prompt_logprobs": False,
+                },
+            ),
+        ]
+
+        groups = engine._group_sample_futures(futures)
+
+        assert [len(group) for group in groups] == [1, 1, 1]
+
+    def test_groups_teacher_and_student_requests_separately(self):
+        engine = TinkerEngine(EngineConfig(), backend=SimpleNamespace())
+        futures = [
+            SimpleNamespace(
+                model_id="model-1",
+                request_data={
+                    "sampling_params": {"temperature": 1.0, "max_tokens": 4, "seed": 7},
+                    "prompt_logprobs": False,
+                },
+            ),
+            SimpleNamespace(
+                model_id=None,
+                request_data={
+                    "base_model": "test-model",
+                    "sampling_params": {"temperature": 1.0, "max_tokens": 4, "seed": 7},
+                    "prompt_logprobs": False,
+                },
+            ),
+            SimpleNamespace(
+                model_id=None,
+                request_data={
+                    "model_path": "checkpoints/model-1/sampler/manual",
+                    "sampling_params": {"temperature": 1.0, "max_tokens": 4, "seed": 7},
                     "prompt_logprobs": False,
                 },
             ),

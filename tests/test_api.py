@@ -7,7 +7,6 @@ request validation, and future lifecycle without loading a real model.
 from __future__ import annotations
 
 import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -162,7 +161,9 @@ class TestTrainingEndpoints:
                 "forward_backward_input": {
                     "data": [
                         {
-                            "model_input": {"chunks": [{"type": "encoded_text", "tokens": [1, 2, 3]}]},
+                            "model_input": {
+                                "chunks": [{"type": "encoded_text", "tokens": [1, 2, 3]}]
+                            },
                             "loss_fn_inputs": {
                                 "target_tokens": {"data": [2, 3, 4]},
                                 "weights": {"data": [1.0, 1.0, 1.0]},
@@ -224,7 +225,7 @@ class TestSamplingEndpoints:
         request_data = asyncio.run(_load_future_request_data())
         assert "prompt_logprobs" not in request_data
         assert request_data["sampling_session_id"] == sampling_session_id
-        assert request_data["model_path"] is None or isinstance(request_data["model_path"], str)
+        assert "model_path" not in request_data or request_data["model_path"] is None
 
 
 class TestFutureLifecycle:
@@ -386,6 +387,30 @@ class TestMoreEndpoints:
         assert resp.status_code == 200
         assert "request_id" in resp.json()
 
+    def test_load_weights_with_path_creates_future(self, client):
+        model_id = self._create_model(client)
+        resp = client.post(
+            "/api/v1/load_weights",
+            json={
+                "model_id": model_id,
+                "path": "step_0016",
+                "optimizer": True,
+            },
+        )
+        assert resp.status_code == 200
+        request_id = int(resp.json()["request_id"])
+
+        async def _load_future():
+            async with get_session() as session:
+                return await session.get(FutureDB, request_id)
+
+        future = asyncio.run(_load_future())
+        assert future is not None
+        assert future.request_data["path"] == "step_0016"
+        assert future.request_data["optimizer"] is True
+        assert future.request_data["source_model_id"] is None
+        assert future.request_data["checkpoint_id"] is None
+
     def test_sample_creates_future(self, client):
         resp = client.post(
             "/api/v1/asample",
@@ -428,10 +453,68 @@ class TestMoreEndpoints:
                 return future, sampling_session
 
         future, sampling_session = asyncio.run(_load_rows())
-        assert future.request_data["path"].startswith(str(config.checkpoints_base / model_id / "sampler"))
+        assert future.request_data["path"] is None
         assert future.request_data["ephemeral"] is True
         assert sampling_session is not None
-        assert sampling_session.model_path == future.request_data["path"]
+        assert sampling_session.model_id == model_id
+        assert sampling_session.model_path is None
+
+    def test_save_weights_for_sampler_with_explicit_path_keeps_export_path(self, client):
+        model_id = self._create_model(client)
+        export_path = f"checkpoints/{model_id}/sampler/manual"
+        resp = client.post(
+            "/api/v1/save_weights_for_sampler",
+            json={"model_id": model_id, "path": export_path, "sampling_session_seq_id": 1},
+        )
+        assert resp.status_code == 200
+        request_id = int(resp.json()["request_id"])
+
+        async def _load_future():
+            async with get_session() as session:
+                return await session.get(FutureDB, request_id)
+
+        future = asyncio.run(_load_future())
+        assert future is not None
+        assert future.request_data["path"] == export_path
+        assert future.request_data["ephemeral"] is False
+        assert future.request_data["sampling_session_id"] is None
+
+    def test_sample_resolves_live_sampling_session_model_id(self, client):
+        model_id = self._create_model(client)
+        save_resp = client.post(
+            "/api/v1/save_weights_for_sampler",
+            json={"model_id": model_id, "sampling_session_seq_id": 0},
+        )
+        request_id = int(save_resp.json()["request_id"])
+
+        async def _load_sampling_session_id():
+            async with get_session() as session:
+                future = await session.get(FutureDB, request_id)
+                assert future is not None
+                return future.request_data["sampling_session_id"]
+
+        sampling_session_id = asyncio.run(_load_sampling_session_id())
+        resp = client.post(
+            "/api/v1/asample",
+            json={
+                "sampling_session_id": sampling_session_id,
+                "prompt": {"chunks": [{"type": "encoded_text", "tokens": [1, 2, 3]}]},
+                "sampling_params": {"temperature": 1.0, "max_tokens": 5},
+            },
+        )
+        assert resp.status_code == 200
+        request_id = int(resp.json()["request_id"])
+        assert resp.json()["model_id"] == model_id
+
+        async def _load_future():
+            async with get_session() as session:
+                return await session.get(FutureDB, request_id)
+
+        future = asyncio.run(_load_future())
+        assert future is not None
+        assert future.model_id == model_id
+        assert "model_path" not in future.request_data
+        assert future.request_data["base_model"] == "test-model"
 
     def test_sample_resolves_sampling_session_path(self, client):
         session_resp = client.post("/api/v1/create_session", json={"sdk_version": "0.1.0"})

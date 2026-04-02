@@ -51,3 +51,9 @@ def test_nested_valid_path(backend):
     deep = backend.config.checkpoints_base / "a" / "b" / "c" / "d" / "checkpoint"
     result = backend._validate_checkpoint_path(str(deep))
     assert result == deep.resolve()
+
+
+def test_relative_checkpoint_name_resolves_under_base(backend):
+    """A bare checkpoint name should resolve under checkpoints_base."""
+    result = backend._validate_checkpoint_path("step_0016")
+    assert result == (backend.config.checkpoints_base / "step_0016").resolve()

@@ -252,8 +252,10 @@ class SaveWeightsOutput(BaseModel):
 
 
 class LoadWeightsInput(BaseModel):
-    source_model_id: str
-    checkpoint_id: str
+    source_model_id: str | None = None
+    checkpoint_id: str | None = None
+    path: str | None = None
+    optimizer: bool = False
 
 
 class LoadWeightsOutput(BaseModel):

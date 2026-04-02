@@ -70,7 +70,7 @@ def register_openai_routes(app, backend: MLXBackend) -> None:
     app.include_router(router)
 
 
-def _get_model_and_tokenizer(model_name: str | None = None):
+def _get_model_and_tokenizer_and_namespace(model_name: str | None = None):
     """Resolve model by name. Supports:
 
     - None / base model name → base model (default)
@@ -85,19 +85,30 @@ def _get_model_and_tokenizer(model_name: str | None = None):
         base_part, checkpoint_name = model_name.rsplit(":", 1)
         checkpoint_path = str(_backend.config.checkpoints_base / checkpoint_name)
         try:
-            return _backend._load_sampling_model(checkpoint_path, base_part or None)
+            resolved_path = _backend._validate_checkpoint_path(checkpoint_path)
+            namespace = _backend._path_namespace(resolved_path, base_part or None)
+            model, tokenizer = _backend._load_sampling_model(checkpoint_path, base_part or None)
+            return model, tokenizer, namespace
         except (ValueError, FileNotFoundError) as e:
             raise HTTPException(status_code=404, detail=f"Checkpoint not found: {checkpoint_name} ({e})")
 
     if model_name and model_name in _backend.models:
         # In-memory Tinker training model
-        return _backend.models[model_name], _backend.tokenizers[model_name]
+        return (
+            _backend.models[model_name],
+            _backend.tokenizers[model_name],
+            _backend._student_namespace(model_name),
+        )
 
     # Default: base model
     _backend._ensure_base_model()
     if _backend._base_model is None or _backend._base_tokenizer is None:
         raise HTTPException(status_code=503, detail="Base model not loaded")
-    return _backend._base_model, _backend._base_tokenizer
+    return (
+        _backend._base_model,
+        _backend._base_tokenizer,
+        _backend._base_namespace(_backend.config.base_model),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -437,6 +448,7 @@ def _iter_generated_tokens(
     temperature: float,
     top_p: float,
     max_tokens: int,
+    namespace: str | None = None,
     logits_processor=None,
 ):
     import mlx.core as mx
@@ -444,8 +456,21 @@ def _iter_generated_tokens(
     from mlx_lm.sample_utils import make_sampler
 
     sampler = make_sampler(temp=temperature, top_p=top_p)
-    prompt_array = mx.array(prompt_tokens)
+    prompt_cache = None
+    prompt_tail = list(prompt_tokens)
+    saved_chunk_lengths: set[int] = set()
+    generated_tokens: list[int] = []
+    if _backend is not None:
+        prompt_cache, prompt_tail = _backend.inference._prepare_prompt_cache(
+            model,
+            prompt_tokens,
+            namespace,
+        )
+    prompt_array = mx.array(prompt_tail)
     max_kv_size = getattr(_backend.config, "max_kv_cache_size", None) if _backend else None
+    kv_bits = getattr(_backend.config, "kv_cache_bits", None) if _backend else None
+    kv_group_size = getattr(_backend.config, "kv_cache_group_size", 64) if _backend else 64
+    quantized_kv_start = getattr(_backend.config, "quantized_kv_start", 0) if _backend else 0
 
     kwargs: dict[str, Any] = {}
     if logits_processor is not None:
@@ -454,21 +479,57 @@ def _iter_generated_tokens(
             kwargs["logits_processors"] = [logits_processor]
         elif "logits_processor" in generate_sig.parameters:
             kwargs["logits_processor"] = logits_processor
+    else:
+        generate_sig = inspect.signature(generate_step)
+    if prompt_cache is not None and "prompt_cache" in generate_sig.parameters:
+        kwargs["prompt_cache"] = prompt_cache
 
-    yield from generate_step(
-        prompt=prompt_array,
-        model=model,
-        max_tokens=max_tokens,
-        sampler=sampler,
-        max_kv_size=max_kv_size,
-        **kwargs,
-    )
+    try:
+        for token, logprobs in generate_step(
+            prompt=prompt_array,
+            model=model,
+            max_tokens=max_tokens,
+            sampler=sampler,
+            max_kv_size=max_kv_size,
+            kv_bits=kv_bits,
+            kv_group_size=kv_group_size,
+            quantized_kv_start=quantized_kv_start,
+            **kwargs,
+        ):
+            token_id = token.item() if hasattr(token, "item") else int(token)
+            generated_tokens.append(token_id)
+            if _backend is not None:
+                _backend.inference._checkpoint_transcript_prefixes(
+                    namespace,
+                    prompt_tokens,
+                    generated_tokens,
+                    prompt_cache,
+                    saved_chunk_lengths,
+                )
+            yield token, logprobs
+    finally:
+        if _backend is not None:
+            _backend.inference._persist_final_transcript(
+                namespace,
+                prompt_tokens,
+                generated_tokens,
+                prompt_cache,
+            )
 
 
-def _generate_tokens(model, tokenizer, prompt_tokens, temperature, top_p, max_tokens, logits_processor=None):
+def _generate_tokens(
+    model,
+    tokenizer,
+    prompt_tokens,
+    temperature,
+    top_p,
+    max_tokens,
+    namespace: str | None = None,
+    logits_processor=None,
+):
     generated_tokens = []
     for token, _ in _iter_generated_tokens(
-        model, prompt_tokens, temperature, top_p, max_tokens, logits_processor
+        model, prompt_tokens, temperature, top_p, max_tokens, namespace, logits_processor
     ):
         token_id = token.item() if hasattr(token, "item") else int(token)
         generated_tokens.append(token_id)
@@ -496,9 +557,23 @@ def _usage(prompt_tokens, generated_tokens):
 
 
 def _split_thinking(text: str) -> tuple[str | None, str]:
-    match = re.match(r"^(.*?)</think>\s*(.*)", text, flags=re.DOTALL)
-    if match:
-        return match.group(1).strip(), match.group(2).strip()
+    stripped = text.lstrip()
+
+    full_block_match = re.match(r"^<think>\s*(.*?)\s*</think>\s*(.*)$", stripped, flags=re.DOTALL)
+    if full_block_match:
+        reasoning = full_block_match.group(1).strip() or None
+        return reasoning, full_block_match.group(2).strip()
+
+    truncated_block_match = re.match(r"^<think>\s*(.*)$", stripped, flags=re.DOTALL)
+    if truncated_block_match:
+        reasoning = truncated_block_match.group(1).strip() or None
+        return reasoning, ""
+
+    orphan_close_match = re.match(r"^(.*?)</think>\s*(.*)$", stripped, flags=re.DOTALL)
+    if orphan_close_match:
+        reasoning = orphan_close_match.group(1).replace("<think>", "").strip() or None
+        return reasoning, orphan_close_match.group(2).strip()
+
     return None, text
 
 
@@ -518,7 +593,7 @@ def _safe_decode(tokenizer, tokens, skip_special=True):
 
 @router.post("/v1/chat/completions")
 async def chat_completions(request: ChatCompletionRequest):
-    _model, tokenizer = _get_model_and_tokenizer(request.model)
+    _model, tokenizer, namespace = _get_model_and_tokenizer_and_namespace(request.model)
     if request.tools and request.response_format is not None:
         raise HTTPException(status_code=400, detail="tools and response_format cannot be used together")
 
@@ -565,6 +640,7 @@ async def chat_completions(request: ChatCompletionRequest):
                 tokenizer,
                 prompt_tokens,
                 request,
+                namespace=namespace,
                 max_tokens=max_tokens,
                 enable_thinking=enable_thinking,
                 logits_processor=logits_processor,
@@ -576,7 +652,14 @@ async def chat_completions(request: ChatCompletionRequest):
         )
 
     generated_tokens = _generate_tokens(
-        _model, tokenizer, prompt_tokens, request.temperature, request.top_p, max_tokens, logits_processor,
+        _model,
+        tokenizer,
+        prompt_tokens,
+        request.temperature,
+        request.top_p,
+        max_tokens,
+        namespace,
+        logits_processor,
     )
     completion_text = _safe_decode(tokenizer, generated_tokens)
     resp_id = f"chatcmpl-{uuid.uuid4().hex[:12]}"
@@ -612,17 +695,24 @@ async def chat_completions(request: ChatCompletionRequest):
 
 @router.post("/v1/completions")
 async def completions(request: CompletionRequest):
-    _model, tokenizer = _get_model_and_tokenizer(request.model)
+    _model, tokenizer, namespace = _get_model_and_tokenizer_and_namespace(request.model)
     max_tokens = _request_max_tokens(request)
     prompt_text = request.prompt if isinstance(request.prompt, str) else request.prompt[0]
     prompt_tokens = tokenizer.encode(prompt_text)
     if request.stream:
         return StreamingResponse(
-            _stream_completion_response(_model, tokenizer, prompt_tokens, request, max_tokens=max_tokens),
+            _stream_completion_response(
+                _model,
+                tokenizer,
+                prompt_tokens,
+                request,
+                max_tokens=max_tokens,
+                namespace=namespace,
+            ),
             media_type="text/event-stream",
         )
     generated_tokens = _generate_tokens(
-        _model, tokenizer, prompt_tokens, request.temperature, request.top_p, max_tokens,
+        _model, tokenizer, prompt_tokens, request.temperature, request.top_p, max_tokens, namespace,
     )
     completion_text = _safe_decode(tokenizer, generated_tokens)
     completion_text, stop_hit = _apply_stop_sequences(completion_text, request.stop)
@@ -701,6 +791,7 @@ async def _stream_chat_response(
     prompt_tokens,
     request,
     *,
+    namespace: str | None,
     max_tokens: int,
     enable_thinking=True,
     logits_processor=None,
@@ -723,6 +814,7 @@ async def _stream_chat_response(
         request.temperature,
         request.top_p,
         max_tokens,
+        namespace,
         logits_processor,
     )
     full_text = _safe_decode(tokenizer, generated_tokens)
@@ -809,7 +901,7 @@ async def _stream_chat_response(
     yield "data: [DONE]\n\n"
 
 
-async def _stream_completion_response(model, tokenizer, prompt_tokens, request, *, max_tokens: int):
+async def _stream_completion_response(model, tokenizer, prompt_tokens, request, *, max_tokens: int, namespace: str | None):
     resp_id = f"cmpl-{uuid.uuid4().hex[:12]}"
     generated_tokens = _generate_tokens(
         model,
@@ -818,6 +910,7 @@ async def _stream_completion_response(model, tokenizer, prompt_tokens, request, 
         request.temperature,
         request.top_p,
         max_tokens,
+        namespace,
     )
     full_text = _safe_decode(tokenizer, generated_tokens)
     completion_text, stop_hit = _apply_stop_sequences(full_text, request.stop)

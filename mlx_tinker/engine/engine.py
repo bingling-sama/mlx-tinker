@@ -7,9 +7,9 @@ import logging
 import traceback
 from datetime import datetime, timezone
 
-from mlx_tinker.backend.inference import _sampling_params_key_from_mapping
 from sqlalchemy import update
 
+from mlx_tinker.backend.inference import _sampling_params_key_from_mapping
 from mlx_tinker.backend.mlx_backend import MLXBackend
 from mlx_tinker.config import EngineConfig
 from mlx_tinker.db.database import get_session
@@ -36,6 +36,18 @@ from mlx_tinker.types import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _sampling_mode_key(model_id: str | None, request_data: dict | None) -> tuple[str, str | None]:
+    """Return a grouping key that prevents mixing incompatible sampling modes."""
+    request_data = request_data or {}
+    model_path = request_data.get("model_path")
+    if isinstance(model_path, str) and model_path:
+        return ("path", model_path)
+    if model_id is not None:
+        return ("student", model_id)
+    base_model = request_data.get("base_model")
+    return ("teacher", base_model if isinstance(base_model, str) else None)
 
 
 class TinkerEngine:
@@ -152,11 +164,13 @@ class TinkerEngine:
 
         for future in futures:
             request_data = future.request_data or {}
-            sampling_params_key = _sampling_params_key_from_mapping(request_data.get("sampling_params"))
+            sampling_params_key = _sampling_params_key_from_mapping(
+                request_data.get("sampling_params")
+            )
             if sampling_params_key is None:
                 sampling_params_key = ("__invalid__", id(future))
             key = (
-                future.model_id,
+                _sampling_mode_key(future.model_id, request_data),
                 sampling_params_key,
                 bool(request_data.get("prompt_logprobs")),
             )
@@ -212,15 +226,23 @@ class TinkerEngine:
         """Dispatch a compatible sample batch to the backend in one call."""
         try:
             requests = [SampleInput(**future.request_data) for future in futures]
+            request_batch = [
+                (future.model_id, request)
+                for future, request in zip(futures, requests, strict=True)
+            ]
             results = await asyncio.to_thread(
                 self.backend.sample_batch,
-                [(future.model_id, request) for future, request in zip(futures, requests, strict=True)],
+                request_batch,
             )
             async with get_session() as session:
                 for future, result in zip(futures, results, strict=True):
                     await complete_future(session, future.request_id, result.model_dump())
         except Exception as e:
-            logger.error("sample batch failed for requests %s: %s", [f.request_id for f in futures], e)
+            logger.error(
+                "sample batch failed for requests %s: %s",
+                [f.request_id for f in futures],
+                e,
+            )
             async with get_session() as session:
                 for future in futures:
                     await fail_future(session, future.request_id, str(e))
