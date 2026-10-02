@@ -368,9 +368,9 @@ To achieve 100% 1:1 parity with the latest Tinker Cloud API (Tinker SDK v0.16.1+
 - [x] **`PUT /api/v1/training_runs/{model_id}/checkpoints/{checkpoint_id}/ttl`**: Update checkpoint expiration TTL.
 
 ### Phase 5: Sessions & Checkpoint Archive Downloads
-- [ ] **`GET /api/v1/sessions/{session_id}`**: Return associated `training_run_ids` and `sampler_ids` (`GetSessionResponse`).
-- [ ] **`GET /api/v1/sessions`**: Paginated session IDs (`ListSessionsResponse`).
-- [ ] **`GET /api/v1/training_runs/{model_id}/checkpoints/{checkpoint_id}/archive`**: Implement 302 Redirect with `Location` header pointing to checkpoint `.tar.gz` archive download.
+- [x] **`GET /api/v1/sessions/{session_id}`**: Return associated `training_run_ids` and `sampler_ids` (`GetSessionResponse`).
+- [x] **`GET /api/v1/sessions`**: Paginated session IDs (`ListSessionsResponse`).
+- [x] **`GET /api/v1/training_runs/{model_id}/checkpoints/{checkpoint_id}/archive`**: Implement 302 Redirect with `Location` header pointing to checkpoint `.tar.gz` archive download.
 
 ### Phase 6: Automated End-to-End SDK Verification
 - [ ] Expand `scripts/test_tinker_sdk_compat.py` to cover 100% of public methods in `ServiceClient`, `TrainingClient`, `SamplingClient`, and `RestClient`.

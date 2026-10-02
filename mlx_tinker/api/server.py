@@ -9,12 +9,16 @@ from __future__ import annotations
 import asyncio
 import logging
 import shutil
+import tarfile
+import tempfile
 import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Query
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, HTTPException, Query, Request, Response
+from fastapi.responses import FileResponse, JSONResponse
+from starlette.background import BackgroundTask
 from sqlalchemy import func, select
 
 from mlx_tinker.api.models import (
@@ -32,7 +36,9 @@ from mlx_tinker.api.models import (
     GetInfoResponse,
     GetSamplerResponse,
     GetServerCapabilitiesResponse,
+    GetSessionResponse,
     HealthResponse,
+    ListSessionsResponse,
     LoadWeightsRequest,
     ModelData,
     OptimStepRequest,
@@ -68,6 +74,7 @@ logger = logging.getLogger(__name__)
 _engine: TinkerEngine | None = None
 _backend: MLXBackend | None = None
 _config: EngineConfig | None = None
+_archive_cache: dict[str, dict] = {}
 
 
 def create_app(config: EngineConfig | None = None) -> FastAPI:
@@ -707,6 +714,146 @@ def _register_routes(app: FastAPI) -> None:
             row.expires_at = new_expires_at
             await db.commit()
             return {"status": "updated"}
+
+    @app.get("/api/v1/sessions/{session_id}")
+    async def get_session_by_id(session_id: str) -> GetSessionResponse:
+        async with get_session() as db:
+            sess = await db.get(SessionDB, session_id)
+            if sess is None:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Session {session_id} not found",
+                )
+
+            stmt_models = select(ModelDB.model_id).where(ModelDB.session_id == session_id)
+            model_ids = list((await db.execute(stmt_models)).scalars().all())
+
+            stmt_samplers = select(SamplingSessionDB.sampling_session_id).where(
+                SamplingSessionDB.session_id == session_id
+            )
+            sampler_ids = list((await db.execute(stmt_samplers)).scalars().all())
+
+            return GetSessionResponse(
+                training_run_ids=model_ids,
+                sampler_ids=sampler_ids,
+            )
+
+    @app.get("/api/v1/sessions")
+    async def list_sessions(
+        limit: int = Query(100, ge=1),
+        offset: int = Query(0, ge=0),
+    ) -> ListSessionsResponse:
+        async with get_session() as db:
+            stmt = (
+                select(SessionDB.session_id)
+                .order_by(SessionDB.created_at.desc())
+                .offset(offset)
+                .limit(limit)
+            )
+            session_ids = list((await db.execute(stmt)).scalars().all())
+            return ListSessionsResponse(sessions=session_ids)
+
+    @app.get("/api/v1/training_runs/{model_id}/checkpoints/{checkpoint_id:path}/archive")
+    async def get_checkpoint_archive(
+        model_id: str,
+        checkpoint_id: str,
+        request: Request,
+    ) -> Response:
+        clean_model_id = _normalize_model_id(model_id)
+        clean_id, pref_type = _normalize_checkpoint_id(checkpoint_id)
+        cfg = _config or EngineConfig()
+        base = cfg.checkpoints_base.resolve()
+
+        ckpt_dir: Path | None = None
+        if pref_type == CheckpointType.SAMPLER:
+            p = base / clean_model_id / "sampler" / clean_id
+            if p.is_dir():
+                ckpt_dir = p
+        elif pref_type == CheckpointType.TRAINING:
+            p = base / clean_model_id / clean_id
+            if p.is_dir():
+                ckpt_dir = p
+        else:
+            # Try sampler first, then training
+            p_sampler = base / clean_model_id / "sampler" / clean_id
+            p_training = base / clean_model_id / clean_id
+            if p_sampler.is_dir():
+                ckpt_dir = p_sampler
+            elif p_training.is_dir():
+                ckpt_dir = p_training
+
+        if ckpt_dir is None or not ckpt_dir.is_dir():
+            raise HTTPException(
+                status_code=404,
+                detail=f"Checkpoint {checkpoint_id} not found for model {model_id}",
+            )
+
+        # Purge any expired archive entries
+        now = datetime.now(timezone.utc)
+        expired_keys = [k for k, v in _archive_cache.items() if now > v.get("expires_at", now)]
+        for k in expired_keys:
+            _archive_cache.pop(k, None)
+
+        download_id = str(uuid.uuid4())
+        _archive_cache[download_id] = {
+            "source_dir": ckpt_dir,
+            "filename": f"{clean_model_id}_{clean_id}.tar.gz",
+            "expires_at": datetime.now(timezone.utc) + timedelta(minutes=15),
+        }
+
+        # Build download URL
+        base_url = str(request.base_url).rstrip("/")
+        download_url = f"{base_url}/api/v1/archives/{download_id}/download"
+
+        expires = datetime.now(timezone.utc) + timedelta(minutes=15)
+        # RFC 7231 / RFC 1123 format: Sun, 06 Nov 1994 08:49:37 GMT
+        expires_str = expires.strftime("%a, %d %b %Y %H:%M:%S GMT")
+
+        return Response(
+            status_code=302,
+            headers={
+                "Location": download_url,
+                "Expires": expires_str,
+            },
+        )
+
+    @app.get("/api/v1/archives/{archive_id}/download")
+    async def download_archive(archive_id: str) -> Response:
+        entry = _archive_cache.get(archive_id)
+        if not entry:
+            raise HTTPException(status_code=404, detail="Archive download link not found or expired")
+
+        if datetime.now(timezone.utc) > entry["expires_at"]:
+            _archive_cache.pop(archive_id, None)
+            raise HTTPException(status_code=410, detail="Archive download link expired")
+
+        source_dir: Path = entry["source_dir"]
+        if not source_dir.is_dir():
+            raise HTTPException(status_code=404, detail="Checkpoint directory no longer exists")
+
+        # Create tar.gz in tempfile
+        def _build_tar() -> Path:
+            tmp = tempfile.NamedTemporaryFile(prefix="tinker-ckpt-", suffix=".tar.gz", delete=False)
+            tmp_path = Path(tmp.name)
+            tmp.close()
+            with tarfile.open(tmp_path, "w:gz") as tar:
+                tar.add(source_dir, arcname=source_dir.name)
+            return tmp_path
+
+        tar_path = await asyncio.to_thread(_build_tar)
+
+        def _cleanup():
+            try:
+                tar_path.unlink(missing_ok=True)
+            except OSError:
+                pass
+
+        return FileResponse(
+            path=str(tar_path),
+            media_type="application/gzip",
+            filename=entry["filename"],
+            background=BackgroundTask(_cleanup),
+        )
 
     @app.delete("/api/v1/training_runs/{model_id}/checkpoints/{checkpoint_id:path}")
     async def delete_checkpoint(model_id: str, checkpoint_id: str) -> dict[str, str]:
