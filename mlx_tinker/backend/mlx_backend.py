@@ -20,6 +20,11 @@ from mlx_tinker.backend.checkpointing import (
     save_sampler_weights,
     save_training_checkpoint,
 )
+from mlx_tinker.backend.uri import (
+    format_tinker_path,
+    is_tinker_path,
+    tinker_path_to_relative_path,
+)
 from mlx_tinker.backend.gradient_checkpointing import enable_gradient_checkpointing
 from mlx_tinker.backend.inference import InferenceBackend, prepare_sample_request
 from mlx_tinker.backend.longlora import enable_longlora_attention
@@ -28,6 +33,7 @@ from mlx_tinker.backend.transcript_cache import TranscriptPrefixCacheManager
 from mlx_tinker.backend.training import TrainingBackend
 from mlx_tinker.config import EngineConfig
 from mlx_tinker.types import (
+    CheckpointType,
     CreateModelInput,
     CreateModelOutput,
     ForwardBackwardInput,
@@ -489,12 +495,19 @@ class MLXBackend:
     def _validate_checkpoint_path(self, requested_path: str) -> Path:
         """Resolve a checkpoint path and ensure it stays under checkpoints_base.
 
-        Bare checkpoint names such as ``step_0016`` are interpreted relative to
-        the configured checkpoints directory so upstream Tinker's
-        ``save_state_async(name=...)`` API works without needing absolute paths.
+        Handles:
+        1. `tinker://` virtual URIs (e.g. `tinker://<model_id>/weights/<checkpoint_id>`
+           or `tinker://<model_id>/sampler_weights/<checkpoint_id>`)
+        2. Bare checkpoint names such as ``step_0016``
+        3. Local filesystem paths relative to checkpoints_base or cwd
         """
+        if is_tinker_path(requested_path):
+            rel_path, _ = tinker_path_to_relative_path(requested_path)
+            candidate = Path(rel_path)
+        else:
+            candidate = Path(requested_path)
+
         base = self.config.checkpoints_base.resolve()
-        candidate = Path(requested_path)
 
         candidates = [candidate] if candidate.is_absolute() else [
             (Path.cwd() / candidate),
@@ -515,10 +528,25 @@ class MLXBackend:
         with self._model_lock:
             model = self._get_model(model_id)
             opt_state = self.training.get_optimizer_state(model_id)
-            target_path = request.path or f"{model_id}/{uuid.uuid4().hex[:8]}"
-            checkpoint_dir = self._validate_checkpoint_path(target_path)
+            checkpoint_name = request.path or uuid.uuid4().hex[:8]
+            if is_tinker_path(checkpoint_name):
+                target_rel_path, _ = tinker_path_to_relative_path(checkpoint_name)
+            elif "/" in checkpoint_name:
+                target_rel_path = checkpoint_name
+            else:
+                target_rel_path = f"{model_id}/{checkpoint_name}"
+
+            checkpoint_dir = self._validate_checkpoint_path(target_rel_path)
             save_training_checkpoint(model, opt_state, checkpoint_dir)
-            return SaveWeightsOutput(path=str(checkpoint_dir))
+
+            # Return standard tinker:// URI
+            # Extract checkpoint identifier relative to model directory
+            base = self.config.checkpoints_base.resolve()
+            rel_to_base = checkpoint_dir.relative_to(base).as_posix()
+            parts = rel_to_base.split("/", 1)
+            ckpt_id = parts[1] if len(parts) > 1 else parts[0]
+            tinker_uri = format_tinker_path(model_id, ckpt_id, CheckpointType.TRAINING)
+            return SaveWeightsOutput(path=tinker_uri)
 
     def save_weights_for_sampler(
         self, model_id: str, request: SaveWeightsForSamplerInput
@@ -532,7 +560,15 @@ class MLXBackend:
                     sampling_session_id=request.sampling_session_id,
                 )
 
-            safe_path = self._validate_checkpoint_path(request.path)
+            checkpoint_name = request.path
+            if is_tinker_path(checkpoint_name):
+                target_rel_path, _ = tinker_path_to_relative_path(checkpoint_name)
+            elif "/" in checkpoint_name:
+                target_rel_path = checkpoint_name
+            else:
+                target_rel_path = f"{model_id}/sampler/{checkpoint_name}"
+
+            safe_path = self._validate_checkpoint_path(target_rel_path)
             lora_config = self.lora_configs.get(model_id)
             if lora_config is None:
                 raise ValueError(f"LoRA config for model {model_id} not found")
@@ -543,8 +579,24 @@ class MLXBackend:
                 lora_config=lora_config.model_dump(),
             )
             self._clear_sampling_state()
+
+            if request.ephemeral:
+                out_path = None
+            else:
+                base = self.config.checkpoints_base.resolve()
+                rel_to_base = safe_path.relative_to(base).as_posix()
+                parts = rel_to_base.split("/")
+                # If rel_to_base is model_id/sampler/export_name
+                if len(parts) >= 3 and parts[1] == "sampler":
+                    ckpt_id = "/".join(parts[2:])
+                elif len(parts) > 1:
+                    ckpt_id = "/".join(parts[1:])
+                else:
+                    ckpt_id = parts[0]
+                out_path = format_tinker_path(model_id, ckpt_id, CheckpointType.SAMPLER)
+
             return SaveWeightsForSamplerOutput(
-                path=None if request.ephemeral else str(safe_path),
+                path=out_path,
                 sampling_session_id=request.sampling_session_id,
             )
 
@@ -553,6 +605,7 @@ class MLXBackend:
             model = self._get_model(model_id)
             if request.path is not None:
                 checkpoint_dir = self._validate_checkpoint_path(request.path)
+                return_path = request.path if is_tinker_path(request.path) else None
             else:
                 if request.source_model_id is None or request.checkpoint_id is None:
                     raise ValueError(
@@ -562,9 +615,21 @@ class MLXBackend:
                     self.config.checkpoints_base / request.source_model_id / request.checkpoint_id
                 )
                 checkpoint_dir = self._validate_checkpoint_path(str(checkpoint_dir))
+                return_path = format_tinker_path(
+                    request.source_model_id,
+                    request.checkpoint_id,
+                    CheckpointType.TRAINING,
+                )
             opt_state = load_training_checkpoint(model, checkpoint_dir)
             if request.optimizer and opt_state is not None:
                 self.training.load_optimizer_state(model_id, opt_state)
             self._clear_sampling_state()
             self._invalidate_student_transcript_caches()
-            return LoadWeightsOutput(path=str(checkpoint_dir))
+            if return_path is None:
+                base = self.config.checkpoints_base.resolve()
+                rel = checkpoint_dir.relative_to(base).as_posix()
+                parts = rel.split("/", 1)
+                m_id = parts[0]
+                c_id = parts[1] if len(parts) > 1 else "default"
+                return_path = format_tinker_path(m_id, c_id, CheckpointType.TRAINING)
+            return LoadWeightsOutput(path=return_path)

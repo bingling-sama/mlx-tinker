@@ -349,9 +349,9 @@ To achieve 100% 1:1 parity with the latest Tinker Cloud API (Tinker SDK v0.16.1+
 - [x] **`retrieve_future` Failure Category**: Align error category enum to `Literal["unknown", "server", "user"]` (replace non-standard `"execution_error"`).
 
 ### Phase 2: `tinker://` Virtual URI & Checkpoint Path System
-- [ ] **URI Encoder / Decoder**: Implement bidirectional mapping between `tinker://<model_id>/weights/<checkpoint_id>` (and `.../sampler_weights/...`) and the local filesystem path under `checkpoints_base / <model_id> / <checkpoint_id>`.
-- [ ] **`save_weights` & `save_weights_for_sampler`**: Return standard `tinker://` URI paths in response instead of local absolute disk paths.
-- [ ] **`load_weights` Path Resolution**: Teach `_validate_checkpoint_path` to resolve both `tinker://` URIs and local paths safely.
+- [x] **URI Encoder / Decoder**: Implement bidirectional mapping between `tinker://<model_id>/weights/<checkpoint_id>` (and `.../sampler_weights/...`) and the local filesystem path under `checkpoints_base / <model_id> / <checkpoint_id>`.
+- [x] **`save_weights` & `save_weights_for_sampler`**: Return standard `tinker://` URI paths in response instead of local absolute disk paths.
+- [x] **`load_weights` Path Resolution**: Teach `_validate_checkpoint_path` to resolve both `tinker://` URIs and local paths safely.
 
 ### Phase 3: Sampler & Weight Metadata Endpoints
 - [ ] **`GET /api/v1/samplers/{sampler_id}`**: Query `SamplingSessionDB` and return `GetSamplerResponse(sampler_id, base_model, model_path)`. Enables `sampling_client.get_base_model()` and `sampling_client.get_tokenizer()`.
