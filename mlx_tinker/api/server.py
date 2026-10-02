@@ -12,6 +12,7 @@ import shutil
 import tarfile
 import tempfile
 import uuid
+import zstandard as zstd
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -24,6 +25,9 @@ from sqlalchemy import func, select
 from mlx_tinker.api.models import (
     Checkpoint,
     CheckpointsListResponse,
+    ClientConfigRequest,
+    ClientConfigResponse,
+    ClientDynamicConfigResponse,
     CreateModelRequest,
     CreateSamplingSessionRequest,
     CreateSamplingSessionResponse,
@@ -60,6 +64,11 @@ from mlx_tinker.api.models import (
     WeightsInfoRequest,
     WeightsInfoResponse,
 )
+from mlx_tinker.api.proto_wire import (
+    decode_forward_backward_proto,
+    serialize_forward_backward_output_proto,
+    serialize_sample_response_proto,
+)
 from mlx_tinker.backend.mlx_backend import MLXBackend
 from mlx_tinker.backend.uri import format_tinker_path
 from mlx_tinker.config import EngineConfig
@@ -79,8 +88,10 @@ _archive_cache: dict[str, dict] = {}
 
 def create_app(config: EngineConfig | None = None) -> FastAPI:
     """Create the FastAPI application with the Tinker API routes."""
+    global _config
     if config is None:
         config = EngineConfig()
+    _config = config
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -180,6 +191,14 @@ def _register_routes(app: FastAPI) -> None:
                 await db.commit()
         return SessionHeartbeatResponse()
 
+    @app.post("/api/v1/client/config")
+    async def client_config(request: ClientConfigRequest) -> ClientConfigResponse:
+        return ClientConfigResponse()
+
+    @app.post("/api/v1/client/dynamic_config")
+    async def client_dynamic_config(request: ClientConfigRequest) -> ClientDynamicConfigResponse:
+        return ClientDynamicConfigResponse()
+
     @app.post("/api/v1/create_sampling_session")
     async def create_sampling_session(
         request: CreateSamplingSessionRequest,
@@ -275,17 +294,32 @@ def _register_routes(app: FastAPI) -> None:
     # ------------------------------------------------------------------
 
     @app.post("/api/v1/forward_backward")
-    async def forward_backward(request: ForwardBackwardRequest) -> UntypedAPIFuture:
-        fbi = request.forward_backward_input
-        return await _create_future(
-            RequestType.FORWARD_BACKWARD,
-            request.model_id,
-            {
-                "data": [d.model_dump() for d in fbi.data],
-                "loss_fn": fbi.loss_fn,
-                "loss_fn_config": fbi.loss_fn_config,
-            },
-        )
+    async def forward_backward(request: Request) -> UntypedAPIFuture:
+        content_type = request.headers.get("content-type", "")
+        if "application/x-protobuf" in content_type:
+            raw_body = await request.body()
+            if request.headers.get("content-encoding") == "zstd":
+                raw_body = zstd.ZstdDecompressor().decompress(raw_body)
+            model_id, request_data = decode_forward_backward_proto(raw_body)
+            return await _create_future(
+                RequestType.FORWARD_BACKWARD,
+                model_id,
+                request_data,
+            )
+        else:
+            json_data = await request.json()
+            parsed_req = ForwardBackwardRequest(**json_data)
+            fbi = parsed_req.forward_backward_input
+            return await _create_future(
+                RequestType.FORWARD_BACKWARD,
+                parsed_req.model_id,
+                {
+                    "data": [d.model_dump() for d in fbi.data],
+                    "loss_fn": fbi.loss_fn,
+                    "loss_fn_config": fbi.loss_fn_config,
+                    "forward_only": False,
+                },
+            )
 
     @app.post("/api/v1/forward")
     async def forward(request: ForwardRequest) -> UntypedAPIFuture:
@@ -374,10 +408,13 @@ def _register_routes(app: FastAPI) -> None:
     @app.post("/api/v1/asample")
     async def asample(request: SampleRequest) -> UntypedAPIFuture:
         resolved_model_id, resolved_request = await _resolve_sampling_request(request)
+        num_samples = request.num_samples or 1
+        sample_sequence_ids = [f"seq_{uuid.uuid4().hex}" for _ in range(num_samples)]
         return await _create_future(
             RequestType.SAMPLE,
             resolved_model_id,
             resolved_request,
+            sample_sequence_ids=sample_sequence_ids,
         )
 
     # ------------------------------------------------------------------
@@ -385,15 +422,17 @@ def _register_routes(app: FastAPI) -> None:
     # ------------------------------------------------------------------
 
     @app.post("/api/v1/retrieve_future")
-    async def retrieve_future(request: RetrieveFutureRequest):
+    async def retrieve_future(request: Request):
+        json_body = await request.json()
+        req_obj = RetrieveFutureRequest(**json_body)
         deadline = asyncio.get_running_loop().time() + 1.0
         future = None
         while True:
             async with get_session() as db:
-                future = await db.get(FutureDB, int(request.request_id))
+                future = await db.get(FutureDB, int(req_obj.request_id))
                 if future is None:
                     raise HTTPException(
-                        status_code=404, detail=f"Future {request.request_id} not found"
+                        status_code=404, detail=f"Future {req_obj.request_id} not found"
                     )
             if future.status != RequestStatus.PENDING:
                 break
@@ -403,7 +442,7 @@ def _register_routes(app: FastAPI) -> None:
 
         if future.status == RequestStatus.PENDING:
             return TryAgainResponse(
-                request_id=request.request_id,
+                request_id=req_obj.request_id,
                 queue_state="active",
             )
         elif future.status == RequestStatus.FAILED:
@@ -422,6 +461,15 @@ def _register_routes(app: FastAPI) -> None:
                 content={"error": error, "category": category},
             )
         else:
+            accept_header = request.headers.get("accept", "")
+            if "application/x-protobuf" in accept_header:
+                if future.request_type == RequestType.FORWARD_BACKWARD:
+                    proto_bytes = serialize_forward_backward_output_proto(future.result_data or {})
+                    return Response(content=proto_bytes, media_type="application/x-protobuf")
+                elif future.request_type == RequestType.SAMPLE:
+                    proto_bytes = serialize_sample_response_proto(future.result_data or {})
+                    return Response(content=proto_bytes, media_type="application/x-protobuf")
+
             return JSONResponse(
                 status_code=200,
                 content=future.result_data or {},
@@ -464,11 +512,11 @@ def _register_routes(app: FastAPI) -> None:
         if not path:
             raise HTTPException(status_code=400, detail="tinker_path or model_path must be provided")
 
-        if _backend is None:
-            raise HTTPException(status_code=500, detail="Backend is not initialized")
+        cfg = _config or EngineConfig()
+        backend = _backend if (_backend is not None and _backend.config.checkpoints_base == cfg.checkpoints_base) else MLXBackend(cfg)
 
         try:
-            info = _backend.get_weights_info(path)
+            info = backend.get_weights_info(path)
             return WeightsInfoResponse(**info)
         except FileNotFoundError as e:
             raise HTTPException(status_code=404, detail=str(e))
@@ -1054,6 +1102,7 @@ async def _create_future(
     request_type: RequestType,
     model_id: str | None,
     request_data: dict,
+    sample_sequence_ids: list[str] | None = None,
 ) -> UntypedAPIFuture:
     """Helper to insert a future into the DB and return an UntypedAPIFuture."""
     async with get_session() as db:
@@ -1069,6 +1118,7 @@ async def _create_future(
     return UntypedAPIFuture(
         request_id=str(future.request_id),
         model_id=model_id,
+        sample_sequence_ids=sample_sequence_ids,
     )
 
 

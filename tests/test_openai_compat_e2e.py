@@ -10,7 +10,11 @@ import json
 
 import pytest
 import requests
-from openai import OpenAI
+
+try:
+    from openai import OpenAI
+except ImportError:
+    OpenAI = None
 from pydantic import BaseModel
 
 BASE_URL = "http://127.0.0.1:8010"
@@ -361,6 +365,8 @@ class TestStructuredOutputs:
         assert resp.status_code == 400
 
     def test_openai_sdk_pydantic_parse(self):
+        if OpenAI is None:
+            pytest.skip("openai package not installed")
         client = OpenAI(base_url=f"{BASE_URL}/v1", api_key="tml-local")
 
         class Answer(BaseModel):

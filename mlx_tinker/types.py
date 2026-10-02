@@ -228,6 +228,7 @@ class ForwardBackwardInput(BaseModel):
     data: list[Datum]
     loss_fn: Literal["cross_entropy", "importance_sampling", "ppo", "cispo", "dro"]
     loss_fn_config: dict[str, float] | None = None
+    forward_only: bool = False
 
 
 class ForwardBackwardOutput(BaseModel):

@@ -247,6 +247,7 @@ class UntypedAPIFuture(BaseModel):
     """Returned by submit endpoints. SDK polls retrieve_future with request_id."""
     request_id: str
     model_id: str | None = None
+    sample_sequence_ids: list[str] | None = None
 
 
 class RetrieveFutureRequest(BaseModel):
@@ -271,6 +272,35 @@ class RequestFailedResponse(BaseModel):
 # ---------------------------------------------------------------------------
 # Health / capabilities
 # ---------------------------------------------------------------------------
+
+
+class ClientConfigRequest(BaseModel):
+    sdk_version: str
+
+
+class ClientConfigResponse(BaseModel):
+    pjwt_auth_enabled: bool = False
+    credential_default_source: str = "api_key"
+    sample_dispatch_bytes_semaphore_size: int = 10 * 1024 * 1024
+    inflight_response_bytes_semaphore_size: int = 50 * 1024 * 1024
+    parallel_fwdbwd_chunks: bool = True
+    proto_compress_fwdbwd: bool = False
+    fwdbwd_max_chunk_len: int = 1024
+    fwdbwd_max_chunk_bytes_count: int = 5_000_000
+    fwdbwd_dispatch_bytes_semaphore_size: int = 50 * 1000 * 1000
+    billing_exception_max_pause_duration_sec: int = 60 * 60
+    sample_no_retries: bool = False
+    sample_enable_stuck_detection: bool = True
+    sample_max_concurrent_requests: int = 2000
+    use_pyqwest_transport: bool = True
+    create_model_via_load_weights: bool = False
+    sample_use_retrieve_futures: bool = False
+
+
+class ClientDynamicConfigResponse(BaseModel):
+    refresh_interval_sec: int = 300
+    sample_cancel_enabled: bool = False
+    sample_cancel_max_batch_size: int = 64
 
 
 class HealthResponse(BaseModel):

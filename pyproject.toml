@@ -15,7 +15,7 @@ dependencies = [
     "transformers>=4.48.0",
     "greenlet>=3.3.2",
     "datasets>=4.8.4",
-    "tinker>=0.16.1",
+    "tinker>=0.31.0",
     "protobuf>=5.28.3,<7",
 ]
 

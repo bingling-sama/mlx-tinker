@@ -279,33 +279,66 @@ class TrainingBackend:
             captured_logprobs[0] = target_lp
             return loss_fn_impl(target_lp, weights, samp_lp, adv, cfg)
 
-        loss_and_grad_fn = nn.value_and_grad(model, compute_loss)
+        if request.forward_only:
+            def compute_loss_val(
+                input_ids: mx.array,
+                targets: mx.array,
+                weights: mx.array,
+                adv: mx.array,
+                samp_lp: mx.array,
+            ) -> mx.array:
+                if use_chunked:
+                    hidden = model.model(input_ids)
+                    target_lp = chunked_target_logprobs(
+                        hidden,
+                        model.lm_head.weight,
+                        targets,
+                    )
+                else:
+                    logits = model(input_ids)
+                    target_lp = _compute_target_logprobs(logits, targets)
+                captured_logprobs[0] = target_lp
+                return loss_fn_impl(target_lp, weights, samp_lp, adv, cfg)
 
-        loss_val, combined_grads = loss_and_grad_fn(
-            model,
-            input_tokens,
-            target_tokens,
-            token_weights,
-            advantages,
-            sampling_logprobs,
-        )
-        eval_targets = [loss_val, batch_token_count]
-        if captured_logprobs[0] is not None:
-            eval_targets.append(captured_logprobs[0])
-        mx.eval(*eval_targets)
-
-        if self.accumulated_grads[model_id] is None:
-            self.accumulated_grads[model_id] = combined_grads
-            _materialize_tree(self.accumulated_grads[model_id], async_eval=True)
-        else:
-            self.accumulated_grads[model_id] = tree_map(
-                lambda acc, cur: acc + cur,
-                self.accumulated_grads[model_id],
-                combined_grads,
+            loss_val = compute_loss_val(
+                input_tokens,
+                target_tokens,
+                token_weights,
+                advantages,
+                sampling_logprobs,
             )
-            _materialize_tree(self.accumulated_grads[model_id], async_eval=True)
-        self.grad_accum_counts[model_id] += len(request.data)
-        self.total_tokens[model_id] += float(batch_token_count.item())
+            eval_targets = [loss_val, batch_token_count]
+            if captured_logprobs[0] is not None:
+                eval_targets.append(captured_logprobs[0])
+            mx.eval(*eval_targets)
+        else:
+            loss_and_grad_fn = nn.value_and_grad(model, compute_loss)
+
+            loss_val, combined_grads = loss_and_grad_fn(
+                model,
+                input_tokens,
+                target_tokens,
+                token_weights,
+                advantages,
+                sampling_logprobs,
+            )
+            eval_targets = [loss_val, batch_token_count]
+            if captured_logprobs[0] is not None:
+                eval_targets.append(captured_logprobs[0])
+            mx.eval(*eval_targets)
+
+            if self.accumulated_grads[model_id] is None:
+                self.accumulated_grads[model_id] = combined_grads
+                _materialize_tree(self.accumulated_grads[model_id], async_eval=True)
+            else:
+                self.accumulated_grads[model_id] = tree_map(
+                    lambda acc, cur: acc + cur,
+                    self.accumulated_grads[model_id],
+                    combined_grads,
+                )
+                _materialize_tree(self.accumulated_grads[model_id], async_eval=True)
+            self.grad_accum_counts[model_id] += len(request.data)
+            self.total_tokens[model_id] += float(batch_token_count.item())
 
         all_logprobs_out = []
         per_seq_losses: list[float | None] = []
