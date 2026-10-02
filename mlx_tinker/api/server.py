@@ -25,6 +25,7 @@ from mlx_tinker.api.models import (
     ForwardRequest,
     GetInfoRequest,
     GetInfoResponse,
+    GetSamplerResponse,
     GetServerCapabilitiesResponse,
     HealthResponse,
     LoadWeightsRequest,
@@ -42,6 +43,8 @@ from mlx_tinker.api.models import (
     TryAgainResponse,
     UnloadModelRequest,
     UntypedAPIFuture,
+    WeightsInfoRequest,
+    WeightsInfoResponse,
 )
 from mlx_tinker.backend.mlx_backend import MLXBackend
 from mlx_tinker.config import EngineConfig
@@ -413,6 +416,48 @@ def _register_routes(app: FastAPI) -> None:
     @app.post("/api/v1/telemetry")
     async def telemetry(request: TelemetryRequest) -> TelemetryResponse:
         return TelemetryResponse(status="accepted")
+
+    # ------------------------------------------------------------------
+    # Sampler & Weight Metadata (Phase 3)
+    # ------------------------------------------------------------------
+
+    @app.get("/api/v1/samplers/{sampler_id}")
+    async def get_sampler(sampler_id: str) -> GetSamplerResponse:
+        async with get_session() as db:
+            sampling_session = await db.get(SamplingSessionDB, sampler_id)
+            if sampling_session is None:
+                raise HTTPException(status_code=404, detail=f"Sampler {sampler_id} not found")
+
+        resolved_base_model = sampling_session.base_model
+        if not resolved_base_model and _config is not None:
+            resolved_base_model = _config.base_model
+        elif not resolved_base_model:
+            resolved_base_model = "unknown"
+
+        return GetSamplerResponse(
+            sampler_id=sampling_session.sampling_session_id,
+            base_model=resolved_base_model,
+            model_path=sampling_session.model_path,
+        )
+
+    @app.post("/api/v1/weights_info")
+    async def weights_info(request: WeightsInfoRequest) -> WeightsInfoResponse:
+        path = request.path
+        if not path:
+            raise HTTPException(status_code=400, detail="tinker_path or model_path must be provided")
+
+        if _backend is None:
+            raise HTTPException(status_code=500, detail="Backend is not initialized")
+
+        try:
+            info = _backend.get_weights_info(path)
+            return WeightsInfoResponse(**info)
+        except FileNotFoundError as e:
+            raise HTTPException(status_code=404, detail=str(e))
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to inspect weights: {e}")
 
 
 async def _create_future(

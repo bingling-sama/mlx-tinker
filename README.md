@@ -354,8 +354,8 @@ To achieve 100% 1:1 parity with the latest Tinker Cloud API (Tinker SDK v0.16.1+
 - [x] **`load_weights` Path Resolution**: Teach `_validate_checkpoint_path` to resolve both `tinker://` URIs and local paths safely.
 
 ### Phase 3: Sampler & Weight Metadata Endpoints
-- [ ] **`GET /api/v1/samplers/{sampler_id}`**: Query `SamplingSessionDB` and return `GetSamplerResponse(sampler_id, base_model, model_path)`. Enables `sampling_client.get_base_model()` and `sampling_client.get_tokenizer()`.
-- [ ] **`POST /api/v1/weights_info`**: Accept `{"tinker_path": str}`, inspect local checkpoint metadata, and return `WeightsInfoResponse`. Enables `service_client.create_training_client_from_state(path)`.
+- [x] **`GET /api/v1/samplers/{sampler_id}`**: Query `SamplingSessionDB` and return `GetSamplerResponse(sampler_id, base_model, model_path)`. Enables `sampling_client.get_base_model()` and `sampling_client.get_tokenizer()`.
+- [x] **`POST /api/v1/weights_info`**: Accept `{"tinker_path": str}`, inspect local checkpoint metadata, and return `WeightsInfoResponse`. Enables `service_client.create_training_client_from_state(path)`.
 
 ### Phase 4: Training Run & Checkpoint Management REST API (`RestClient`)
 - [ ] **`GET /api/v1/training_runs/{training_run_id}`**: Query `ModelDB` and return single `TrainingRun`.

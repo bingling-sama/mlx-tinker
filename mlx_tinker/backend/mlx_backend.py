@@ -537,7 +537,13 @@ class MLXBackend:
                 target_rel_path = f"{model_id}/{checkpoint_name}"
 
             checkpoint_dir = self._validate_checkpoint_path(target_rel_path)
-            save_training_checkpoint(model, opt_state, checkpoint_dir)
+            lora_config = self.lora_configs.get(model_id)
+            meta: dict[str, Any] = {
+                "base_model": self.config.base_model,
+            }
+            if lora_config is not None:
+                meta["lora_config"] = lora_config.model_dump()
+            save_training_checkpoint(model, opt_state, checkpoint_dir, metadata=meta)
 
             # Return standard tinker:// URI
             # Extract checkpoint identifier relative to model directory
@@ -633,3 +639,55 @@ class MLXBackend:
                 c_id = parts[1] if len(parts) > 1 else "default"
                 return_path = format_tinker_path(m_id, c_id, CheckpointType.TRAINING)
             return LoadWeightsOutput(path=return_path)
+
+    def get_weights_info(self, requested_path: str) -> dict[str, Any]:
+        """Inspect checkpoint files and metadata to return weights info."""
+        checkpoint_dir = self._validate_checkpoint_path(requested_path)
+        if not checkpoint_dir.is_dir():
+            raise FileNotFoundError(f"Checkpoint directory not found: {checkpoint_dir}")
+
+        config_path = checkpoint_dir / "config.json"
+        metadata_path = checkpoint_dir / "metadata.json"
+        adapter_path = checkpoint_dir / "adapters.safetensors"
+        model_path = checkpoint_dir / "model.safetensors"
+
+        base_model = self.config.base_model
+        is_lora = False
+        lora_rank = None
+        train_unembed = None
+        train_mlp = None
+        train_attn = None
+
+        payload: dict[str, Any] = {}
+        if config_path.exists():
+            try:
+                payload = json.loads(config_path.read_text())
+            except Exception:
+                pass
+        elif metadata_path.exists():
+            try:
+                payload = json.loads(metadata_path.read_text())
+            except Exception:
+                pass
+
+        if "base_model" in payload and payload["base_model"]:
+            base_model = payload["base_model"]
+
+        lora_config_dict = payload.get("lora_config")
+        if isinstance(lora_config_dict, dict):
+            is_lora = True
+            lora_rank = lora_config_dict.get("rank")
+            train_unembed = lora_config_dict.get("train_unembed", False)
+            train_mlp = lora_config_dict.get("train_mlp", True)
+            train_attn = lora_config_dict.get("train_attn", True)
+        elif adapter_path.exists():
+            is_lora = True
+
+        return {
+            "base_model": base_model,
+            "is_lora": is_lora,
+            "lora_rank": lora_rank,
+            "train_unembed": train_unembed,
+            "train_mlp": train_mlp,
+            "train_attn": train_attn,
+        }
