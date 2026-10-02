@@ -4,8 +4,8 @@ version = "0.1.0"
 description = "Tinker API-compatible backend for Apple Silicon using MLX"
 requires-python = ">=3.12"
 dependencies = [
-    "mlx>=0.24.0",
-    "mlx-lm>=0.22.0",
+    "mlx>=0.32.0",
+    "mlx-lm>=0.32.0",
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.34.0",
     "sqlmodel>=0.0.22",

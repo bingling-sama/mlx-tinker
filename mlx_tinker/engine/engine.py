@@ -122,8 +122,8 @@ class TinkerEngine:
                 RequestType.FORWARD_BACKWARD,
                 max_batch_size=self.config.max_batch_size,
             )
-            for future in fb_batch:
-                await self._dispatch_forward_backward(future)
+            if fb_batch:
+                await self._dispatch_forward_backward_batch(fb_batch)
                 did_work = True
 
             # 2. Process batchable forward requests
@@ -132,8 +132,8 @@ class TinkerEngine:
                 RequestType.FORWARD,
                 max_batch_size=self.config.max_batch_size,
             )
-            for future in fwd_batch:
-                await self._dispatch_forward(future)
+            if fwd_batch:
+                await self._dispatch_forward_batch(fwd_batch)
                 did_work = True
 
             # 3. Process sample requests
@@ -198,6 +198,46 @@ class TinkerEngine:
             async with get_session() as session:
                 await fail_future(session, future.request_id, str(e))
 
+    async def _dispatch_forward_backward_batch(self, futures: list[FutureDB]) -> None:
+        """Dispatch a batch of forward_backward requests, coalescing compatible ones."""
+        if not futures:
+            return
+        if len(futures) == 1:
+            await self._dispatch_forward_backward(futures[0])
+            return
+
+        groups: dict[tuple, list[FutureDB]] = {}
+        for future in futures:
+            req_data = future.request_data or {}
+            cfg_items = tuple(sorted((req_data.get("loss_fn_config") or {}).items()))
+            key = (future.model_id, req_data.get("loss_fn", "cross_entropy"), cfg_items)
+            groups.setdefault(key, []).append(future)
+
+        for (model_id, _loss_fn, _cfg), group_futures in groups.items():
+            if len(group_futures) == 1:
+                await self._dispatch_forward_backward(group_futures[0])
+                continue
+
+            try:
+                requests = [ForwardBackwardInput(**f.request_data) for f in group_futures]
+                results = await asyncio.to_thread(
+                    self.backend.forward_backward_batch,
+                    model_id,
+                    requests,
+                )
+                async with get_session() as session:
+                    for future, result in zip(group_futures, results, strict=True):
+                        await complete_future(session, future.request_id, result.model_dump())
+            except Exception as e:
+                logger.error(
+                    "forward_backward batch failed for requests %s: %s",
+                    [f.request_id for f in group_futures],
+                    e,
+                )
+                async with get_session() as session:
+                    for future in group_futures:
+                        await fail_future(session, future.request_id, str(e))
+
     async def _dispatch_forward(self, future: FutureDB) -> None:
         """Dispatch a forward request to the backend."""
         try:
@@ -209,6 +249,43 @@ class TinkerEngine:
             logger.error("forward failed for request %d: %s", future.request_id, e)
             async with get_session() as session:
                 await fail_future(session, future.request_id, str(e))
+
+    async def _dispatch_forward_batch(self, futures: list[FutureDB]) -> None:
+        """Dispatch a batch of forward requests, coalescing compatible ones."""
+        if not futures:
+            return
+        if len(futures) == 1:
+            await self._dispatch_forward(futures[0])
+            return
+
+        groups: dict[str | None, list[FutureDB]] = {}
+        for future in futures:
+            groups.setdefault(future.model_id, []).append(future)
+
+        for model_id, group_futures in groups.items():
+            if len(group_futures) == 1:
+                await self._dispatch_forward(group_futures[0])
+                continue
+
+            try:
+                requests = [ForwardInput(**f.request_data) for f in group_futures]
+                results = await asyncio.to_thread(
+                    self.backend.forward_batch,
+                    model_id,
+                    requests,
+                )
+                async with get_session() as session:
+                    for future, result in zip(group_futures, results, strict=True):
+                        await complete_future(session, future.request_id, result.model_dump())
+            except Exception as e:
+                logger.error(
+                    "forward batch failed for requests %s: %s",
+                    [f.request_id for f in group_futures],
+                    e,
+                )
+                async with get_session() as session:
+                    for future in group_futures:
+                        await fail_future(session, future.request_id, str(e))
 
     async def _dispatch_sample(self, future: FutureDB) -> None:
         """Dispatch a sample request to the backend."""

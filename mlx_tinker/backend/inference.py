@@ -258,7 +258,17 @@ class InferenceBackend:
         }
 
         try:
-            while responses := generator.next():
+            while True:
+                if hasattr(generator, "next_generated"):
+                    responses = generator.next_generated()
+                else:
+                    res = generator.next()
+                    if isinstance(res, tuple):
+                        responses = res[1]
+                    else:
+                        responses = res
+                if not responses:
+                    break
                 for response in responses:
                     token_id = int(response.token)
                     sequence = by_uid[response.uid]

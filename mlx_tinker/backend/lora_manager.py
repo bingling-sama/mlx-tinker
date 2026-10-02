@@ -154,6 +154,7 @@ class LoRAManager:
             total,
             100.0 * trainable / total,
         )
+        mx.eval(model.parameters())
 
         return model
 

@@ -23,6 +23,7 @@ class CountingTinyModel(TinyModelWithCache):
     def __init__(self) -> None:
         super().__init__()
         self.processed_tokens = 0
+        mx.eval(self.parameters())
 
     def make_cache(self):
         return [KVCache() for _ in self.layers]
@@ -52,6 +53,7 @@ class PrefixConsistentTinyModel(nn.Module):
         self.embed = nn.Embedding(vocab_size, dim)
         self.head = nn.Linear(dim, vocab_size, bias=False)
         self.layers = [object()]
+        mx.eval(self.parameters())
 
     def make_cache(self):
         return [KVCache()]
@@ -63,7 +65,7 @@ class PrefixConsistentTinyModel(nn.Module):
 
         prefix_sum = mx.zeros((h.shape[0], 1, h.shape[2]), dtype=h.dtype)
         if cache[0].offset > 0:
-            _, values = cache[0].state
+            _, values, *_ = cache[0].state
             prefix_sum = mx.sum(values[:, :, : cache[0].offset, :], axis=2)
 
         running = mx.cumsum(h, axis=1) + prefix_sum

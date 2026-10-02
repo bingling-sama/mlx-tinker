@@ -34,7 +34,10 @@ def test_transcript_cache_untrimmable_safety(tmp_path: Path):
 
     # Create an untrimmable cache entry (using ArraysCache)
     arrays_cache = [ArraysCache(size=2)]
-    arrays_cache[0].state = [mx.ones((1, 4, 8)), mx.ones((1, 8, 8, 8))]
+    state_val = [mx.ones((1, 4, 8)), mx.ones((1, 8, 8, 8))]
+    if len(arrays_cache[0].state) >= 3:
+        state_val.append(mx.array([4]))
+    arrays_cache[0].state = state_val
     manager.enqueue_persist("ns", [10, 20, 30, 40], arrays_cache, "final")
     manager.wait_for_idle()
 

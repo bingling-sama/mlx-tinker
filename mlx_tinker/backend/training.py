@@ -58,11 +58,14 @@ def _has_split_lm_head(model: nn.Module) -> bool:
     return True
 
 
-def _materialize_tree(tree: dict) -> None:
+def _materialize_tree(tree: dict, async_eval: bool = False) -> None:
     """Force evaluation of every leaf in a tree."""
     leaves = [leaf for _name, leaf in tree_flatten(tree)]
     if leaves:
-        mx.eval(*leaves)
+        if async_eval:
+            mx.async_eval(*leaves)
+        else:
+            mx.eval(*leaves)
 
 
 def _grad_norm_array(grads: dict) -> mx.array:
@@ -214,18 +217,12 @@ class TrainingBackend:
             self.grad_accum_counts[model_id] = 0
             self.total_tokens[model_id] = 0.0
 
-    def forward_backward(
+    def _forward_backward_internal(
         self,
         model_id: str,
         model: nn.Module,
         request: ForwardBackwardInput,
-    ) -> ForwardBackwardOutput:
-        """Compute loss and accumulate gradients without applying them.
-
-        Gradients are accumulated across multiple forward_backward calls
-        until optim_step is invoked. Uses sum-reduction for correct
-        gradient accumulation across variable-length sequences.
-        """
+    ) -> tuple[ForwardBackwardOutput, list[float | None]]:
         self.ensure_optimizer(model_id, model)
         loss_fn_impl = LOSS_FUNCTION_MAP[request.loss_fn]
 
@@ -299,26 +296,40 @@ class TrainingBackend:
 
         if self.accumulated_grads[model_id] is None:
             self.accumulated_grads[model_id] = combined_grads
-            _materialize_tree(self.accumulated_grads[model_id])
+            _materialize_tree(self.accumulated_grads[model_id], async_eval=True)
         else:
             self.accumulated_grads[model_id] = tree_map(
                 lambda acc, cur: acc + cur,
                 self.accumulated_grads[model_id],
                 combined_grads,
             )
-            _materialize_tree(self.accumulated_grads[model_id])
+            _materialize_tree(self.accumulated_grads[model_id], async_eval=True)
         self.grad_accum_counts[model_id] += len(request.data)
         self.total_tokens[model_id] += float(batch_token_count.item())
 
         all_logprobs_out = []
+        per_seq_losses: list[float | None] = []
         if captured_logprobs[0] is not None:
+            target_lp = captured_logprobs[0]
             for row_idx, seq_len in enumerate(seq_lens):
-                lp_list = captured_logprobs[0][row_idx, :seq_len].tolist()
+                lp_list = target_lp[row_idx, :seq_len].tolist()
                 all_logprobs_out.append({"logprobs": TensorData(data=lp_list, dtype="float32")})
+                row_lp = target_lp[row_idx, :seq_len]
+                row_w = token_weights[row_idx, :seq_len]
+                if request.loss_fn == "cross_entropy":
+                    row_loss = float((-row_lp * row_w).sum().item())
+                elif request.loss_fn == "importance_sampling":
+                    row_adv = advantages[row_idx, :seq_len]
+                    row_samp = sampling_logprobs[row_idx, :seq_len]
+                    row_loss = float((-(mx.exp(row_lp - row_samp) * row_adv)).sum().item())
+                else:
+                    row_loss = None
+                per_seq_losses.append(row_loss)
         else:
             all_logprobs_out = [
                 {"logprobs": TensorData(data=[], dtype="float32")} for _ in request.data
             ]
+            per_seq_losses = [None] * len(request.data)
 
         loss_sum = loss_val.item()
         logger.info(
@@ -329,7 +340,7 @@ class TrainingBackend:
             self.grad_accum_counts[model_id],
         )
 
-        return ForwardBackwardOutput(
+        output = ForwardBackwardOutput(
             loss_fn_output_type=request.loss_fn,
             loss_fn_outputs=[lp.copy() for lp in all_logprobs_out],
             metrics={
@@ -337,6 +348,83 @@ class TrainingBackend:
                 "num_sequences:sum": float(len(request.data)),
             },
         )
+        return output, per_seq_losses
+
+    def forward_backward(
+        self,
+        model_id: str,
+        model: nn.Module,
+        request: ForwardBackwardInput,
+    ) -> ForwardBackwardOutput:
+        """Compute loss and accumulate gradients without applying them.
+
+        Gradients are accumulated across multiple forward_backward calls
+        until optim_step is invoked. Uses sum-reduction for correct
+        gradient accumulation across variable-length sequences.
+        """
+        output, _ = self._forward_backward_internal(model_id, model, request)
+        return output
+
+    def forward_backward_batch(
+        self,
+        model_id: str,
+        model: nn.Module,
+        requests: list[ForwardBackwardInput],
+    ) -> list[ForwardBackwardOutput]:
+        """Process a batch of ForwardBackwardInput requests with hardware coalescing."""
+        if not requests:
+            return []
+        if len(requests) == 1:
+            return [self.forward_backward(model_id, model, requests[0])]
+
+        first = requests[0]
+        can_coalesce = all(
+            r.loss_fn == first.loss_fn and r.loss_fn_config == first.loss_fn_config
+            for r in requests[1:]
+        )
+        if not can_coalesce:
+            return [self.forward_backward(model_id, model, r) for r in requests]
+
+        slice_lens = [len(r.data) for r in requests]
+        combined_data = [d for r in requests for d in r.data]
+        combined_request = ForwardBackwardInput(
+            data=combined_data,
+            loss_fn=first.loss_fn,
+            loss_fn_config=first.loss_fn_config,
+        )
+
+        combined_output, per_seq_losses = self._forward_backward_internal(
+            model_id, model, combined_request
+        )
+
+        outputs: list[ForwardBackwardOutput] = []
+        offset = 0
+        total_loss = combined_output.metrics.get("loss:sum", 0.0)
+        total_sequences = sum(slice_lens)
+
+        for count in slice_lens:
+            req_outputs = combined_output.loss_fn_outputs[offset : offset + count]
+            req_seq_losses = per_seq_losses[offset : offset + count]
+            if all(sl is not None for sl in req_seq_losses):
+                req_loss_sum = sum(req_seq_losses)
+            else:
+                req_loss_sum = (
+                    total_loss * (count / total_sequences) if total_sequences > 0 else 0.0
+                )
+
+            outputs.append(
+                ForwardBackwardOutput(
+                    loss_fn_output_type=first.loss_fn,
+                    loss_fn_outputs=req_outputs,
+                    metrics={
+                        "loss:sum": req_loss_sum,
+                        "num_sequences:sum": float(count),
+                    },
+                )
+            )
+            offset += count
+
+        return outputs
 
     def forward(
         self,
@@ -365,6 +453,36 @@ class TrainingBackend:
             logprobs=all_logprobs,
             metrics={"num_sequences:sum": len(request.data)},
         )
+
+    def forward_batch(
+        self,
+        model_id: str,
+        model: nn.Module,
+        requests: list[ForwardInput],
+    ) -> list[ForwardOutput]:
+        """Process a batch of ForwardInput requests coalesced into a single forward pass."""
+        if not requests:
+            return []
+        if len(requests) == 1:
+            return [self.forward(model_id, model, requests[0])]
+
+        slice_lens = [len(r.data) for r in requests]
+        combined_data = [d for r in requests for d in r.data]
+        combined_request = ForwardInput(data=combined_data)
+
+        combined_output = self.forward(model_id, model, combined_request)
+        outputs: list[ForwardOutput] = []
+        offset = 0
+        for count in slice_lens:
+            outputs.append(
+                ForwardOutput(
+                    logprobs=combined_output.logprobs[offset : offset + count],
+                    metrics={"num_sequences:sum": count},
+                )
+            )
+            offset += count
+
+        return outputs
 
     def optim_step(
         self,

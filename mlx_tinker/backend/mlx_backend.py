@@ -117,6 +117,7 @@ class MLXBackend:
         self._base_model = model
         self._base_tokenizer = tokenizer
         self._loaded_base_model_name = requested_model
+        mx.eval(model.parameters())
         self._clear_sampling_state()
         logger.info("Base model loaded")
 
@@ -326,11 +327,27 @@ class MLXBackend:
             model.train()
             return self.training.forward_backward(model_id, model, request)
 
+    def forward_backward_batch(
+        self, model_id: str, requests: list[ForwardBackwardInput]
+    ) -> list[ForwardBackwardOutput]:
+        with self._model_lock:
+            model = self._get_model(model_id)
+            model.train()
+            return self.training.forward_backward_batch(model_id, model, requests)
+
     def forward(self, model_id: str, request: ForwardInput) -> ForwardOutput:
         with self._model_lock:
             model = self._get_model(model_id)
             model.eval()
             return self.training.forward(model_id, model, request)
+
+    def forward_batch(
+        self, model_id: str, requests: list[ForwardInput]
+    ) -> list[ForwardOutput]:
+        with self._model_lock:
+            model = self._get_model(model_id)
+            model.eval()
+            return self.training.forward_batch(model_id, model, requests)
 
     def optim_step(self, model_id: str, request: OptimStepInput) -> OptimStepOutput:
         with self._model_lock:
