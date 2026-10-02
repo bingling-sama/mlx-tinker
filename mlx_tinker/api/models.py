@@ -347,6 +347,10 @@ class CheckpointArchiveUrlResponse(BaseModel):
     expires: datetime | str | None = None
 
 
+class SetTtlRequest(BaseModel):
+    ttl_seconds: int | None = None
+
+
 # ---------------------------------------------------------------------------
 # Training runs
 # ---------------------------------------------------------------------------

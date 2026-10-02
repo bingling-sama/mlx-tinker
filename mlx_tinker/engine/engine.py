@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import traceback
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import update
 
@@ -13,7 +13,7 @@ from mlx_tinker.backend.inference import _sampling_params_key_from_mapping
 from mlx_tinker.backend.mlx_backend import MLXBackend
 from mlx_tinker.config import EngineConfig
 from mlx_tinker.db.database import get_session
-from mlx_tinker.db.models import FutureDB, ModelDB
+from mlx_tinker.db.models import CheckpointDB, FutureDB, ModelDB
 from mlx_tinker.engine.scheduler import (
     complete_future,
     fail_future,
@@ -22,6 +22,8 @@ from mlx_tinker.engine.scheduler import (
     find_sample_requests,
 )
 from mlx_tinker.types import (
+    CheckpointStatus,
+    CheckpointType,
     CreateModelInput,
     ForwardBackwardInput,
     ForwardInput,
@@ -371,6 +373,32 @@ class TinkerEngine:
         result = await asyncio.to_thread(self.backend.save_weights, future.model_id, request)
         async with get_session() as session:
             await complete_future(session, future.request_id, result.model_dump())
+            if result.path and future.model_id:
+                ckpt_id = result.path.split("/weights/")[-1]
+                now = datetime.now(timezone.utc)
+                expires_at = None
+                if request.ttl_seconds is not None:
+                    expires_at = now + timedelta(seconds=request.ttl_seconds)
+                ckpt = await session.get(
+                    CheckpointDB, (future.model_id, ckpt_id, CheckpointType.TRAINING)
+                )
+                if ckpt is None:
+                    ckpt = CheckpointDB(
+                        model_id=future.model_id,
+                        checkpoint_id=ckpt_id,
+                        checkpoint_type=CheckpointType.TRAINING,
+                        status=CheckpointStatus.COMPLETED,
+                        created_at=now,
+                        completed_at=now,
+                        public=False,
+                        expires_at=expires_at,
+                    )
+                    session.add(ckpt)
+                else:
+                    ckpt.status = CheckpointStatus.COMPLETED
+                    ckpt.completed_at = now
+                    ckpt.expires_at = expires_at
+                await session.commit()
 
     async def _handle_save_weights_for_sampler(self, future: FutureDB) -> None:
         request = SaveWeightsForSamplerInput(**future.request_data)
@@ -379,6 +407,32 @@ class TinkerEngine:
         )
         async with get_session() as session:
             await complete_future(session, future.request_id, result.model_dump())
+            if result.path and future.model_id and not request.ephemeral:
+                ckpt_id = result.path.split("/sampler_weights/")[-1]
+                now = datetime.now(timezone.utc)
+                expires_at = None
+                if request.ttl_seconds is not None:
+                    expires_at = now + timedelta(seconds=request.ttl_seconds)
+                ckpt = await session.get(
+                    CheckpointDB, (future.model_id, ckpt_id, CheckpointType.SAMPLER)
+                )
+                if ckpt is None:
+                    ckpt = CheckpointDB(
+                        model_id=future.model_id,
+                        checkpoint_id=ckpt_id,
+                        checkpoint_type=CheckpointType.SAMPLER,
+                        status=CheckpointStatus.COMPLETED,
+                        created_at=now,
+                        completed_at=now,
+                        public=False,
+                        expires_at=expires_at,
+                    )
+                    session.add(ckpt)
+                else:
+                    ckpt.status = CheckpointStatus.COMPLETED
+                    ckpt.completed_at = now
+                    ckpt.expires_at = expires_at
+                await session.commit()
 
     async def _handle_load_weights(self, future: FutureDB) -> None:
         request = LoadWeightsInput(**future.request_data)

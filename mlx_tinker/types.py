@@ -264,6 +264,7 @@ class SaveWeightsForSamplerInput(BaseModel):
     seq_id: int | None = None
     sampling_session_id: str | None = None
     ephemeral: bool = False
+    ttl_seconds: int | None = None
 
 
 class SaveWeightsForSamplerOutput(BaseModel):

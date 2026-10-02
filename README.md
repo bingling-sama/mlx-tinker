@@ -358,14 +358,14 @@ To achieve 100% 1:1 parity with the latest Tinker Cloud API (Tinker SDK v0.16.1+
 - [x] **`POST /api/v1/weights_info`**: Accept `{"tinker_path": str}`, inspect local checkpoint metadata, and return `WeightsInfoResponse`. Enables `service_client.create_training_client_from_state(path)`.
 
 ### Phase 4: Training Run & Checkpoint Management REST API (`RestClient`)
-- [ ] **`GET /api/v1/training_runs/{training_run_id}`**: Query `ModelDB` and return single `TrainingRun`.
-- [ ] **`GET /api/v1/training_runs`**: Paginated listing of training runs with `limit`, `offset`, and cursor support (`TrainingRunsResponse`).
-- [ ] **`GET /api/v1/training_runs/{model_id}/checkpoints`**: List all checkpoints for a specific run (`CheckpointsListResponse`).
-- [ ] **`GET /api/v1/checkpoints`**: Global paginated list of all user checkpoints across runs.
-- [ ] **`DELETE /api/v1/training_runs/{model_id}/checkpoints/{checkpoint_id}`**: Delete checkpoint from DB and disk.
-- [ ] **`POST /api/v1/training_runs/{model_id}/checkpoints/{checkpoint_id}/publish`**: Stub/set checkpoint public flag.
-- [ ] **`DELETE /api/v1/training_runs/{model_id}/checkpoints/{checkpoint_id}/publish`**: Stub/unset checkpoint public flag.
-- [ ] **`PUT /api/v1/training_runs/{model_id}/checkpoints/{checkpoint_id}/ttl`**: Update checkpoint expiration TTL.
+- [x] **`GET /api/v1/training_runs/{training_run_id}`**: Query `ModelDB` and return single `TrainingRun`.
+- [x] **`GET /api/v1/training_runs`**: Paginated listing of training runs with `limit`, `offset`, and cursor support (`TrainingRunsResponse`).
+- [x] **`GET /api/v1/training_runs/{model_id}/checkpoints`**: List all checkpoints for a specific run (`CheckpointsListResponse`).
+- [x] **`GET /api/v1/checkpoints`**: Global paginated list of all user checkpoints across runs.
+- [x] **`DELETE /api/v1/training_runs/{model_id}/checkpoints/{checkpoint_id}`**: Delete checkpoint from DB and disk.
+- [x] **`POST /api/v1/training_runs/{model_id}/checkpoints/{checkpoint_id}/publish`**: Stub/set checkpoint public flag.
+- [x] **`DELETE /api/v1/training_runs/{model_id}/checkpoints/{checkpoint_id}/publish`**: Stub/unset checkpoint public flag.
+- [x] **`PUT /api/v1/training_runs/{model_id}/checkpoints/{checkpoint_id}/ttl`**: Update checkpoint expiration TTL.
 
 ### Phase 5: Sessions & Checkpoint Archive Downloads
 - [ ] **`GET /api/v1/sessions/{session_id}`**: Return associated `training_run_ids` and `sampler_ids` (`GetSessionResponse`).

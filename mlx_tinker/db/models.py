@@ -39,6 +39,7 @@ class ModelDB(SQLModel, table=True):
     status: str = Field(index=True)
     request_id: int = 0
     session_id: str = Field(foreign_key="sessions.session_id", index=True)
+    user_metadata: dict = Field(default_factory=dict, sa_type=JSON)
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
         sa_type=DateTime(timezone=True),
@@ -84,6 +85,12 @@ class CheckpointDB(SQLModel, table=True):
         sa_type=DateTime(timezone=True),
     )
     error_message: str | None = None
+    public: bool = Field(default=False)
+    expires_at: datetime | None = Field(
+        default=None,
+        sa_type=DateTime(timezone=True),
+    )
+    size_bytes: int | None = None
 
 
 class SamplingSessionDB(SQLModel, table=True):

@@ -19,6 +19,21 @@ async def _ensure_schema_compatibility(conn) -> None:
     if "model_id" not in existing:
         await conn.exec_driver_sql("ALTER TABLE sampling_sessions ADD COLUMN model_id VARCHAR")
 
+    ckpt_columns = await conn.exec_driver_sql("PRAGMA table_info(checkpoints)")
+    ckpt_existing = {row[1] for row in ckpt_columns.fetchall()}
+    if ckpt_existing:
+        if "public" not in ckpt_existing:
+            await conn.exec_driver_sql("ALTER TABLE checkpoints ADD COLUMN public BOOLEAN DEFAULT 0")
+        if "expires_at" not in ckpt_existing:
+            await conn.exec_driver_sql("ALTER TABLE checkpoints ADD COLUMN expires_at DATETIME")
+        if "size_bytes" not in ckpt_existing:
+            await conn.exec_driver_sql("ALTER TABLE checkpoints ADD COLUMN size_bytes INTEGER")
+
+    model_columns = await conn.exec_driver_sql("PRAGMA table_info(models)")
+    model_existing = {row[1] for row in model_columns.fetchall()}
+    if model_existing and "user_metadata" not in model_existing:
+        await conn.exec_driver_sql("ALTER TABLE models ADD COLUMN user_metadata JSON")
+
 
 async def init_db(db_path: str | Path = "tinker.db") -> None:
     """Initialize the async SQLite engine with WAL mode and create all tables."""

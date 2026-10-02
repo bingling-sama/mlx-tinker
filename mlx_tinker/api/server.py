@@ -8,19 +8,24 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import shutil
 import uuid
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import JSONResponse
+from sqlalchemy import func, select
 
 from mlx_tinker.api.models import (
+    Checkpoint,
+    CheckpointsListResponse,
     CreateModelRequest,
     CreateSamplingSessionRequest,
     CreateSamplingSessionResponse,
     CreateSessionRequest,
     CreateSessionResponse,
+    Cursor,
     ForwardBackwardRequest,
     ForwardRequest,
     GetInfoRequest,
@@ -37,9 +42,12 @@ from mlx_tinker.api.models import (
     SaveWeightsRequest,
     SessionHeartbeatRequest,
     SessionHeartbeatResponse,
+    SetTtlRequest,
     SupportedModel,
     TelemetryRequest,
     TelemetryResponse,
+    TrainingRun,
+    TrainingRunsResponse,
     TryAgainResponse,
     UnloadModelRequest,
     UntypedAPIFuture,
@@ -47,11 +55,12 @@ from mlx_tinker.api.models import (
     WeightsInfoResponse,
 )
 from mlx_tinker.backend.mlx_backend import MLXBackend
+from mlx_tinker.backend.uri import format_tinker_path
 from mlx_tinker.config import EngineConfig
 from mlx_tinker.db.database import close_db, get_session, init_db
-from mlx_tinker.db.models import FutureDB, ModelDB, SamplingSessionDB, SessionDB
+from mlx_tinker.db.models import CheckpointDB, FutureDB, ModelDB, SamplingSessionDB, SessionDB
 from mlx_tinker.engine.engine import TinkerEngine
-from mlx_tinker.types import RequestStatus, RequestType
+from mlx_tinker.types import CheckpointStatus, CheckpointType, RequestStatus, RequestType
 
 logger = logging.getLogger(__name__)
 
@@ -206,6 +215,7 @@ def _register_routes(app: FastAPI) -> None:
                 status="creating",
                 request_id=future.request_id,
                 session_id=request.session_id,
+                user_metadata=request.user_metadata or {},
             )
             db.add(model_db)
             await db.commit()
@@ -307,6 +317,7 @@ def _register_routes(app: FastAPI) -> None:
             "seq_id": request.seq_id,
             "sampling_session_id": None,
             "ephemeral": request.path is None,
+            "ttl_seconds": request.ttl_seconds,
         }
         if request.path is None:
             sampling_session_id = str(uuid.uuid4())
@@ -458,6 +469,438 @@ def _register_routes(app: FastAPI) -> None:
             raise HTTPException(status_code=400, detail=str(e))
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to inspect weights: {e}")
+
+    # ------------------------------------------------------------------
+    # Training Run & Checkpoint Management (Phase 4)
+    # ------------------------------------------------------------------
+
+    @app.get("/api/v1/training_runs/{training_run_id}")
+    async def get_training_run(
+        training_run_id: str,
+        access_scope: str = "owned",
+    ) -> TrainingRun:
+        clean_model_id = _normalize_model_id(training_run_id)
+        async with get_session() as db:
+            model = await db.get(ModelDB, clean_model_id)
+            if model is None:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Training run {training_run_id} not found",
+                )
+        return await _build_training_run(model, _config)
+
+    @app.get("/api/v1/training_runs")
+    async def list_training_runs(
+        limit: int = Query(20, ge=1),
+        offset: int = Query(0, ge=0),
+        access_scope: str = "owned",
+    ) -> TrainingRunsResponse:
+        async with get_session() as db:
+            count_stmt = select(func.count()).select_from(ModelDB)
+            total = (await db.execute(count_stmt)).scalar() or 0
+
+            stmt = select(ModelDB).order_by(ModelDB.created_at.desc()).offset(offset).limit(limit)
+            models = list((await db.execute(stmt)).scalars().all())
+
+        runs = [await _build_training_run(m, _config) for m in models]
+        return TrainingRunsResponse(
+            training_runs=runs,
+            cursor=Cursor(offset=offset, limit=limit, total_count=total),
+        )
+
+    @app.get("/api/v1/training_runs/{model_id}/checkpoints")
+    async def list_checkpoints(model_id: str) -> CheckpointsListResponse:
+        clean_model_id = _normalize_model_id(model_id)
+        cfg = _config or EngineConfig()
+        base = cfg.checkpoints_base.resolve()
+        async with get_session() as db:
+            model = await db.get(ModelDB, clean_model_id)
+            if model is None and not (base / clean_model_id).is_dir():
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Training run {model_id} not found",
+                )
+
+        checkpoints = await _get_checkpoints_for_model(clean_model_id, cfg)
+        return CheckpointsListResponse(checkpoints=checkpoints, cursor=None)
+
+    @app.get("/api/v1/checkpoints")
+    async def list_user_checkpoints(
+        limit: int = Query(100, ge=1),
+        offset: int = Query(0, ge=0),
+    ) -> CheckpointsListResponse:
+        cfg = _config or EngineConfig()
+        async with get_session() as db:
+            models = list((await db.execute(select(ModelDB))).scalars().all())
+            model_ids = {m.model_id for m in models}
+
+        base = cfg.checkpoints_base.resolve()
+        if base.is_dir():
+            for child in base.iterdir():
+                if child.is_dir() and child.name not in ("prefix_cache", "tmp"):
+                    model_ids.add(child.name)
+
+        all_checkpoints: list[Checkpoint] = []
+        for mid in sorted(model_ids):
+            ckpts = await _get_checkpoints_for_model(mid, cfg)
+            all_checkpoints.extend(ckpts)
+
+        all_checkpoints.sort(
+            key=lambda c: c.time if isinstance(c.time, datetime) else datetime.min.replace(tzinfo=timezone.utc),
+            reverse=True,
+        )
+        total = len(all_checkpoints)
+        sliced = all_checkpoints[offset : offset + limit]
+        return CheckpointsListResponse(
+            checkpoints=sliced,
+            cursor=Cursor(offset=offset, limit=limit, total_count=total),
+        )
+
+    @app.post("/api/v1/training_runs/{model_id}/checkpoints/{checkpoint_id:path}/publish")
+    async def publish_checkpoint(model_id: str, checkpoint_id: str) -> dict[str, str]:
+        clean_model_id = _normalize_model_id(model_id)
+        clean_id, pref_type = _normalize_checkpoint_id(checkpoint_id)
+        cfg = _config or EngineConfig()
+        base = cfg.checkpoints_base.resolve()
+
+        async with get_session() as db:
+            stmt = select(CheckpointDB).where(
+                CheckpointDB.model_id == clean_model_id,
+                (CheckpointDB.checkpoint_id == clean_id) | (CheckpointDB.checkpoint_id == checkpoint_id),
+            )
+            if pref_type:
+                stmt = stmt.where(CheckpointDB.checkpoint_type == pref_type)
+            row = (await db.execute(stmt)).scalars().first()
+
+            if row is None:
+                sampler_path = base / clean_model_id / "sampler" / clean_id
+                training_path = base / clean_model_id / clean_id
+                if pref_type == CheckpointType.SAMPLER and sampler_path.is_dir():
+                    ckpt_type = CheckpointType.SAMPLER
+                elif pref_type == CheckpointType.TRAINING and training_path.is_dir():
+                    ckpt_type = CheckpointType.TRAINING
+                elif sampler_path.is_dir():
+                    ckpt_type = CheckpointType.SAMPLER
+                elif training_path.is_dir():
+                    ckpt_type = CheckpointType.TRAINING
+                else:
+                    raise HTTPException(
+                        status_code=404,
+                        detail=f"Checkpoint {checkpoint_id} not found for model {model_id}",
+                    )
+                row = CheckpointDB(
+                    model_id=clean_model_id,
+                    checkpoint_id=clean_id,
+                    checkpoint_type=ckpt_type,
+                    status=CheckpointStatus.COMPLETED,
+                    public=True,
+                )
+                db.add(row)
+                await db.commit()
+                return {"status": "published"}
+
+            if row.public:
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"Checkpoint {checkpoint_id} is already public",
+                )
+
+            row.public = True
+            await db.commit()
+            return {"status": "published"}
+
+    @app.delete("/api/v1/training_runs/{model_id}/checkpoints/{checkpoint_id:path}/publish")
+    async def unpublish_checkpoint(model_id: str, checkpoint_id: str) -> dict[str, str]:
+        clean_model_id = _normalize_model_id(model_id)
+        clean_id, pref_type = _normalize_checkpoint_id(checkpoint_id)
+        cfg = _config or EngineConfig()
+        base = cfg.checkpoints_base.resolve()
+
+        async with get_session() as db:
+            stmt = select(CheckpointDB).where(
+                CheckpointDB.model_id == clean_model_id,
+                (CheckpointDB.checkpoint_id == clean_id) | (CheckpointDB.checkpoint_id == checkpoint_id),
+            )
+            if pref_type:
+                stmt = stmt.where(CheckpointDB.checkpoint_type == pref_type)
+            row = (await db.execute(stmt)).scalars().first()
+
+            if row is None:
+                sampler_path = base / clean_model_id / "sampler" / clean_id
+                training_path = base / clean_model_id / clean_id
+                if not (sampler_path.is_dir() or training_path.is_dir()):
+                    raise HTTPException(
+                        status_code=404,
+                        detail=f"Checkpoint {checkpoint_id} not found for model {model_id}",
+                    )
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"Checkpoint {checkpoint_id} is already private",
+                )
+
+            if not row.public:
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"Checkpoint {checkpoint_id} is already private",
+                )
+
+            row.public = False
+            await db.commit()
+            return {"status": "unpublished"}
+
+    @app.put("/api/v1/training_runs/{model_id}/checkpoints/{checkpoint_id:path}/ttl")
+    async def set_checkpoint_ttl(
+        model_id: str,
+        checkpoint_id: str,
+        request: SetTtlRequest,
+    ) -> dict[str, str]:
+        if request.ttl_seconds is not None and request.ttl_seconds <= 0:
+            raise HTTPException(status_code=400, detail="ttl_seconds must be positive")
+
+        clean_model_id = _normalize_model_id(model_id)
+        clean_id, pref_type = _normalize_checkpoint_id(checkpoint_id)
+        cfg = _config or EngineConfig()
+        base = cfg.checkpoints_base.resolve()
+
+        async with get_session() as db:
+            stmt = select(CheckpointDB).where(
+                CheckpointDB.model_id == clean_model_id,
+                (CheckpointDB.checkpoint_id == clean_id) | (CheckpointDB.checkpoint_id == checkpoint_id),
+            )
+            if pref_type:
+                stmt = stmt.where(CheckpointDB.checkpoint_type == pref_type)
+            row = (await db.execute(stmt)).scalars().first()
+
+            new_expires_at = (
+                datetime.now(timezone.utc) + timedelta(seconds=request.ttl_seconds)
+                if request.ttl_seconds is not None
+                else None
+            )
+
+            if row is None:
+                sampler_path = base / clean_model_id / "sampler" / clean_id
+                training_path = base / clean_model_id / clean_id
+                if pref_type == CheckpointType.SAMPLER and sampler_path.is_dir():
+                    ckpt_type = CheckpointType.SAMPLER
+                elif pref_type == CheckpointType.TRAINING and training_path.is_dir():
+                    ckpt_type = CheckpointType.TRAINING
+                elif sampler_path.is_dir():
+                    ckpt_type = CheckpointType.SAMPLER
+                elif training_path.is_dir():
+                    ckpt_type = CheckpointType.TRAINING
+                else:
+                    raise HTTPException(
+                        status_code=404,
+                        detail=f"Checkpoint {checkpoint_id} not found for model {model_id}",
+                    )
+                row = CheckpointDB(
+                    model_id=clean_model_id,
+                    checkpoint_id=clean_id,
+                    checkpoint_type=ckpt_type,
+                    status=CheckpointStatus.COMPLETED,
+                    expires_at=new_expires_at,
+                )
+                db.add(row)
+                await db.commit()
+                return {"status": "updated"}
+
+            row.expires_at = new_expires_at
+            await db.commit()
+            return {"status": "updated"}
+
+    @app.delete("/api/v1/training_runs/{model_id}/checkpoints/{checkpoint_id:path}")
+    async def delete_checkpoint(model_id: str, checkpoint_id: str) -> dict[str, str]:
+        clean_model_id = _normalize_model_id(model_id)
+        clean_id, pref_type = _normalize_checkpoint_id(checkpoint_id)
+        cfg = _config or EngineConfig()
+        base = cfg.checkpoints_base.resolve()
+
+        deleted_disk = False
+        if pref_type in (None, CheckpointType.SAMPLER):
+            sampler_path = base / clean_model_id / "sampler" / clean_id
+            if sampler_path.is_dir():
+                shutil.rmtree(sampler_path)
+                deleted_disk = True
+
+        if pref_type in (None, CheckpointType.TRAINING):
+            training_path = base / clean_model_id / clean_id
+            if training_path.is_dir():
+                shutil.rmtree(training_path)
+                deleted_disk = True
+
+        async with get_session() as db:
+            stmt = select(CheckpointDB).where(
+                CheckpointDB.model_id == clean_model_id,
+                (CheckpointDB.checkpoint_id == clean_id) | (CheckpointDB.checkpoint_id == checkpoint_id),
+            )
+            if pref_type:
+                stmt = stmt.where(CheckpointDB.checkpoint_type == pref_type)
+            rows = list((await db.execute(stmt)).scalars().all())
+
+            for row in rows:
+                await db.delete(row)
+
+            if rows:
+                await db.commit()
+
+        if not deleted_disk and not rows:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Checkpoint {checkpoint_id} not found for model {model_id}",
+            )
+
+        return {"status": "deleted"}
+
+
+def _normalize_checkpoint_id(checkpoint_id: str) -> tuple[str, CheckpointType | None]:
+    """Normalize checkpoint_id, stripping any prefix like weights/ or sampler_weights/ or sampler/ or tinker://."""
+    if checkpoint_id.startswith("tinker://"):
+        parts = checkpoint_id[len("tinker://") :].split("/")
+        if len(parts) >= 3:
+            ctype = CheckpointType.TRAINING if parts[1] == "weights" else CheckpointType.SAMPLER
+            return "/".join(parts[2:]), ctype
+    if checkpoint_id.startswith("weights/"):
+        return checkpoint_id[len("weights/") :], CheckpointType.TRAINING
+    elif checkpoint_id.startswith("sampler_weights/"):
+        return checkpoint_id[len("sampler_weights/") :], CheckpointType.SAMPLER
+    elif checkpoint_id.startswith("sampler/"):
+        return checkpoint_id[len("sampler/") :], CheckpointType.SAMPLER
+    return checkpoint_id, None
+
+
+def _normalize_model_id(model_id: str) -> str:
+    """Extract clean model_id if passed as a tinker:// URI."""
+    if model_id.startswith("tinker://"):
+        return model_id[len("tinker://") :].split("/")[0]
+    return model_id
+
+
+async def _get_checkpoints_for_model(
+    model_id: str, config: EngineConfig | None = None
+) -> list[Checkpoint]:
+    cfg = config or _config or EngineConfig()
+    async with get_session() as db:
+        stmt = select(CheckpointDB).where(CheckpointDB.model_id == model_id)
+        db_rows = list((await db.execute(stmt)).scalars().all())
+
+    db_by_key = {(r.checkpoint_id, r.checkpoint_type): r for r in db_rows}
+    checkpoints: dict[tuple[str, str], Checkpoint] = {}
+
+    base = cfg.checkpoints_base.resolve()
+    model_dir = base / model_id
+
+    # 1. Scan sampler checkpoints on disk: model_dir / "sampler" / <name>
+    sampler_dir = model_dir / "sampler"
+    if sampler_dir.is_dir():
+        for child in sampler_dir.iterdir():
+            if child.is_dir():
+                ckpt_id = child.name
+                size_bytes = sum(f.stat().st_size for f in child.rglob("*") if f.is_file())
+                mtime = datetime.fromtimestamp(child.stat().st_mtime, tz=timezone.utc)
+                db_row = db_by_key.get((ckpt_id, CheckpointType.SAMPLER))
+                public = db_row.public if db_row else False
+                expires_at = db_row.expires_at if db_row else None
+                created_at = (db_row.completed_at or db_row.created_at) if db_row else mtime
+                if db_row and db_row.size_bytes is not None:
+                    size_bytes = db_row.size_bytes
+                tinker_path = format_tinker_path(model_id, ckpt_id, CheckpointType.SAMPLER)
+                checkpoints[(ckpt_id, "sampler")] = Checkpoint(
+                    checkpoint_id=ckpt_id,
+                    checkpoint_type="sampler",
+                    time=created_at,
+                    tinker_path=tinker_path,
+                    size_bytes=size_bytes,
+                    public=public,
+                    expires_at=expires_at,
+                )
+
+    # 2. Scan training checkpoints on disk: model_dir / <name> (excluding "sampler")
+    if model_dir.is_dir():
+        for child in model_dir.iterdir():
+            if child.name == "sampler":
+                continue
+            if child.is_dir():
+                ckpt_id = child.name
+                size_bytes = sum(f.stat().st_size for f in child.rglob("*") if f.is_file())
+                mtime = datetime.fromtimestamp(child.stat().st_mtime, tz=timezone.utc)
+                db_row = db_by_key.get((ckpt_id, CheckpointType.TRAINING))
+                public = db_row.public if db_row else False
+                expires_at = db_row.expires_at if db_row else None
+                created_at = (db_row.completed_at or db_row.created_at) if db_row else mtime
+                if db_row and db_row.size_bytes is not None:
+                    size_bytes = db_row.size_bytes
+                tinker_path = format_tinker_path(model_id, ckpt_id, CheckpointType.TRAINING)
+                checkpoints[(ckpt_id, "training")] = Checkpoint(
+                    checkpoint_id=ckpt_id,
+                    checkpoint_type="training",
+                    time=created_at,
+                    tinker_path=tinker_path,
+                    size_bytes=size_bytes,
+                    public=public,
+                    expires_at=expires_at,
+                )
+
+    # 3. Add any DB rows not already discovered from disk
+    for r in db_rows:
+        ckpt_type_str = "sampler" if r.checkpoint_type == CheckpointType.SAMPLER else "training"
+        key = (r.checkpoint_id, ckpt_type_str)
+        if key not in checkpoints:
+            tinker_path = format_tinker_path(model_id, r.checkpoint_id, r.checkpoint_type)
+            checkpoints[key] = Checkpoint(
+                checkpoint_id=r.checkpoint_id,
+                checkpoint_type=ckpt_type_str,
+                time=r.completed_at or r.created_at,
+                tinker_path=tinker_path,
+                size_bytes=r.size_bytes,
+                public=r.public,
+                expires_at=r.expires_at,
+            )
+
+    result = list(checkpoints.values())
+    result.sort(
+        key=lambda c: c.time if isinstance(c.time, datetime) else datetime.min.replace(tzinfo=timezone.utc),
+        reverse=True,
+    )
+    return result
+
+
+async def _build_training_run(
+    model: ModelDB, config: EngineConfig | None = None
+) -> TrainingRun:
+    cfg = config or _config or EngineConfig()
+    checkpoints = await _get_checkpoints_for_model(model.model_id, cfg)
+    last_checkpoint = next((c for c in checkpoints if c.checkpoint_type == "training"), None)
+    last_sampler_checkpoint = next((c for c in checkpoints if c.checkpoint_type == "sampler"), None)
+
+    async with get_session() as db:
+        stmt = select(func.max(FutureDB.created_at)).where(FutureDB.model_id == model.model_id)
+        latest_future_time = (await db.execute(stmt)).scalar()
+
+        session = await db.get(SessionDB, model.session_id)
+        user_meta = None
+        if model.user_metadata and isinstance(model.user_metadata, dict):
+            user_meta = {str(k): str(v) for k, v in model.user_metadata.items()}
+        elif session and session.user_metadata and isinstance(session.user_metadata, dict):
+            user_meta = {str(k): str(v) for k, v in session.user_metadata.items()}
+
+    last_request_time = latest_future_time or model.created_at
+    lora_rank = model.lora_config.get("rank") if isinstance(model.lora_config, dict) else None
+    is_lora = True
+    if isinstance(model.lora_config, dict) and model.lora_config.get("is_lora") is False:
+        is_lora = False
+
+    return TrainingRun(
+        training_run_id=model.model_id,
+        base_model=model.base_model,
+        model_owner="",
+        is_lora=is_lora,
+        corrupted=False,
+        lora_rank=lora_rank,
+        last_request_time=last_request_time,
+        last_checkpoint=last_checkpoint,
+        last_sampler_checkpoint=last_sampler_checkpoint,
+        user_metadata=user_meta,
+    )
 
 
 async def _create_future(
