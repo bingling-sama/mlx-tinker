@@ -359,6 +359,25 @@ class InferenceBackend:
 
         return sequences
 
+    def _is_cache_trimmable(self, model: nn.Module) -> bool:
+        cached = getattr(model, "_is_trimmable_cache", None)
+        if cached is not None:
+            return cached
+        if not hasattr(model, "make_cache"):
+            return False
+        try:
+            from mlx_lm.models.cache import can_trim_prompt_cache
+
+            c = model.make_cache()
+            result = bool(can_trim_prompt_cache(c))
+        except Exception:
+            result = False
+        try:
+            model._is_trimmable_cache = result
+        except Exception:
+            pass
+        return result
+
     def _should_use_transcript_cache(self, model: nn.Module, namespace: str | None) -> bool:
         return bool(
             namespace
@@ -366,6 +385,7 @@ class InferenceBackend:
             and self.transcript_cache.enabled
             and self.max_kv_cache_size is None
             and _has_kv_cache_support(model)
+            and self._is_cache_trimmable(model)
         )
 
     def _prepare_prompt_cache(
@@ -430,7 +450,10 @@ class InferenceBackend:
             checkpoint_tokens = transcript_tokens[:checkpoint_length]
             checkpoint_cache = copy.deepcopy(prompt_cache)
             if checkpoint_length < current_length:
-                trim_prompt_cache(checkpoint_cache, current_length - checkpoint_length)
+                to_trim = current_length - checkpoint_length
+                trimmed = trim_prompt_cache(checkpoint_cache, to_trim)
+                if trimmed != to_trim:
+                    break
             parent_length = checkpoint_length - self.transcript_cache.chunk_size
             parent_tokens = checkpoint_tokens[:parent_length] if parent_length > 0 else None
             self.transcript_cache.enqueue_persist(

@@ -20,3 +20,5 @@ TODO.md
 !scripts/
 scripts/*
 !scripts/run_openclaw_rl.sh
+Qwen3.5-*/
+hfd.sh

@@ -127,43 +127,45 @@ class TranscriptPrefixCacheManager:
         if exact_hash is not None and len(tokens) > 1:
             entry = self._load_entry(exact_hash)
             if entry is not None:
-                prompt_cache = entry
-                trim_prompt_cache(prompt_cache, 1)
-                result = CacheLookup(
-                    prompt_cache=prompt_cache,
-                    uncached_tail=[tokens[-1]],
-                    cached_tokens=len(tokens) - 1,
-                    loaded_bytes=self._entries[exact_hash].nbytes,
-                    key_hash=exact_hash,
-                )
-                self.last_lookup = {
-                    "namespace": namespace,
-                    "hit_tokens": result.cached_tokens,
-                    "loaded_bytes": result.loaded_bytes,
-                    "checkpoint_reason": "exact",
-                }
-                return result
+                trimmed = trim_prompt_cache(entry, 1)
+                if trimmed == 1:
+                    result = CacheLookup(
+                        prompt_cache=entry,
+                        uncached_tail=[tokens[-1]],
+                        cached_tokens=len(tokens) - 1,
+                        loaded_bytes=self._entries[exact_hash].nbytes,
+                        key_hash=exact_hash,
+                    )
+                    self.last_lookup = {
+                        "namespace": namespace,
+                        "hit_tokens": result.cached_tokens,
+                        "loaded_bytes": result.loaded_bytes,
+                        "checkpoint_reason": "exact",
+                    }
+                    return result
 
         shorter_len = self._entries[shorter_hash].token_count if shorter_hash is not None else 0
         if longer_hash is not None and common_prefix > shorter_len and len(tokens) > 1:
             entry = self._load_entry(longer_hash)
             if entry is not None:
                 prefix_len = min(len(tokens) - 1, common_prefix)
-                trim_prompt_cache(entry, self._entries[longer_hash].token_count - prefix_len)
-                result = CacheLookup(
-                    prompt_cache=entry,
-                    uncached_tail=list(tokens[prefix_len:]),
-                    cached_tokens=prefix_len,
-                    loaded_bytes=self._entries[longer_hash].nbytes,
-                    key_hash=longer_hash,
-                )
-                self.last_lookup = {
-                    "namespace": namespace,
-                    "hit_tokens": result.cached_tokens,
-                    "loaded_bytes": result.loaded_bytes,
-                    "checkpoint_reason": "longer",
-                }
-                return result
+                to_trim = self._entries[longer_hash].token_count - prefix_len
+                trimmed = trim_prompt_cache(entry, to_trim)
+                if trimmed == to_trim:
+                    result = CacheLookup(
+                        prompt_cache=entry,
+                        uncached_tail=list(tokens[prefix_len:]),
+                        cached_tokens=prefix_len,
+                        loaded_bytes=self._entries[longer_hash].nbytes,
+                        key_hash=longer_hash,
+                    )
+                    self.last_lookup = {
+                        "namespace": namespace,
+                        "hit_tokens": result.cached_tokens,
+                        "loaded_bytes": result.loaded_bytes,
+                        "checkpoint_reason": "longer",
+                    }
+                    return result
 
         if shorter_hash is not None:
             entry = self._load_entry(shorter_hash)
@@ -438,18 +440,20 @@ class TranscriptPrefixCacheManager:
     ) -> tuple[str | None, str | None, str | None, int]:
         current = root
         last_entry_hash: str | None = None
+        prev_entry_hash: str | None = None
         last_cache_index = -1
         index = 0
 
         while index < len(tokens) and tokens[index] in current.children:
             current = current.children[tokens[index]]
             if current.entry_hash is not None:
+                prev_entry_hash = last_entry_hash
                 last_entry_hash = current.entry_hash
                 last_cache_index = index
             index += 1
 
         if last_cache_index == len(tokens) - 1:
-            return last_entry_hash, None, None, len(tokens)
+            return last_entry_hash, prev_entry_hash, None, len(tokens)
 
         shorter_hash = last_entry_hash if last_cache_index >= 0 else None
         longer_hash: str | None = None
