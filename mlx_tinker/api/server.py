@@ -293,7 +293,7 @@ def _register_routes(app: FastAPI) -> None:
         return await _create_future(
             RequestType.SAVE_WEIGHTS,
             request.model_id,
-            {"path": request.path},
+            {"path": request.path, "ttl_seconds": request.ttl_seconds},
         )
 
     @app.post("/api/v1/save_weights_for_sampler")
@@ -391,9 +391,14 @@ def _register_routes(app: FastAPI) -> None:
                 if future.result_data
                 else "Unknown error"
             )
+            category = (
+                future.result_data.get("category", "server")
+                if future.result_data and future.result_data.get("category") in {"unknown", "server", "user"}
+                else "server"
+            )
             return JSONResponse(
                 status_code=200,
-                content={"error": error, "category": "execution_error"},
+                content={"error": error, "category": category},
             )
         else:
             return JSONResponse(

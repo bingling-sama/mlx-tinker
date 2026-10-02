@@ -339,14 +339,14 @@ await training.optim_step_async(tinker.AdamParams(learning_rate=5e-5))
 To achieve 100% 1:1 parity with the latest Tinker Cloud API (Tinker SDK v0.16.1+), the following roadmap organizes remaining work into sequential phases:
 
 ### Phase 1: Schema & Data Model Alignment (Pydantic Models)
-- [ ] **`SaveWeightsRequest`**: Make `path` optional (`path: str | None = None`) and add `ttl_seconds: int | None = None`.
-- [ ] **`LoadWeightsResponse`**: Add missing `path: str | None = None`.
-- [ ] **`SessionHeartbeatResponse`**: Return standard `type: Literal["session_heartbeat"] = "session_heartbeat"` instead of empty dict `{}`.
-- [ ] **`TrainingRun`**: Align fields with official SDK (`training_run_id`, `base_model`, `model_owner`, `is_lora`, `corrupted`, `lora_rank`, `last_request_time`, `last_checkpoint`, `last_sampler_checkpoint`, `user_metadata`).
-- [ ] **`Checkpoint`**: Align fields with official SDK (`checkpoint_id`, `checkpoint_type`, `time`, `tinker_path`, `size_bytes`, `public`, `expires_at`).
-- [ ] **`Cursor`**: Add `total_count: int` to pagination cursor.
-- [ ] **`WeightsInfoResponse`**: Add `train_attn`, `train_mlp`, `train_unembed` fields.
-- [ ] **`retrieve_future` Failure Category**: Align error category enum to `Literal["unknown", "server", "user"]` (replace non-standard `"execution_error"`).
+- [x] **`SaveWeightsRequest`**: Make `path` optional (`path: str | None = None`) and add `ttl_seconds: int | None = None`.
+- [x] **`LoadWeightsResponse`**: Add missing `path: str | None = None`.
+- [x] **`SessionHeartbeatResponse`**: Return standard `type: Literal["session_heartbeat"] = "session_heartbeat"` instead of empty dict `{}`.
+- [x] **`TrainingRun`**: Align fields with official SDK (`training_run_id`, `base_model`, `model_owner`, `is_lora`, `corrupted`, `lora_rank`, `last_request_time`, `last_checkpoint`, `last_sampler_checkpoint`, `user_metadata`).
+- [x] **`Checkpoint`**: Align fields with official SDK (`checkpoint_id`, `checkpoint_type`, `time`, `tinker_path`, `size_bytes`, `public`, `expires_at`).
+- [x] **`Cursor`**: Add `total_count: int` to pagination cursor.
+- [x] **`WeightsInfoResponse`**: Add `train_attn`, `train_mlp`, `train_unembed` fields.
+- [x] **`retrieve_future` Failure Category**: Align error category enum to `Literal["unknown", "server", "user"]` (replace non-standard `"execution_error"`).
 
 ### Phase 2: `tinker://` Virtual URI & Checkpoint Path System
 - [ ] **URI Encoder / Decoder**: Implement bidirectional mapping between `tinker://<model_id>/weights/<checkpoint_id>` (and `.../sampler_weights/...`) and the local filesystem path under `checkpoints_base / <model_id> / <checkpoint_id>`.

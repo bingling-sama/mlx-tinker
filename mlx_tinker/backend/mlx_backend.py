@@ -9,6 +9,7 @@ import threading
 from contextlib import nullcontext
 from pathlib import Path
 from typing import Any
+import uuid
 
 import mlx.core as mx
 import mlx.nn as nn
@@ -514,7 +515,8 @@ class MLXBackend:
         with self._model_lock:
             model = self._get_model(model_id)
             opt_state = self.training.get_optimizer_state(model_id)
-            checkpoint_dir = self._validate_checkpoint_path(request.path)
+            target_path = request.path or f"{model_id}/{uuid.uuid4().hex[:8]}"
+            checkpoint_dir = self._validate_checkpoint_path(target_path)
             save_training_checkpoint(model, opt_state, checkpoint_dir)
             return SaveWeightsOutput(path=str(checkpoint_dir))
 
@@ -565,4 +567,4 @@ class MLXBackend:
                 self.training.load_optimizer_state(model_id, opt_state)
             self._clear_sampling_state()
             self._invalidate_student_transcript_caches()
-            return LoadWeightsOutput()
+            return LoadWeightsOutput(path=str(checkpoint_dir))

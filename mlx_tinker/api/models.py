@@ -7,9 +7,10 @@ type discriminators match the SDK's Pydantic models exactly so that
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from mlx_tinker.types import (
     AdamParams,
@@ -42,10 +43,11 @@ class CreateSessionResponse(BaseModel):
 
 class SessionHeartbeatRequest(BaseModel):
     session_id: str
+    type: Literal["session_heartbeat"] = "session_heartbeat"
 
 
 class SessionHeartbeatResponse(BaseModel):
-    pass
+    type: Literal["session_heartbeat"] = "session_heartbeat"
 
 
 class CreateSamplingSessionRequest(BaseModel):
@@ -81,7 +83,10 @@ class CreateModelResponse(BaseModel):
 
 
 class UnloadModelRequest(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
     model_id: str
+    type: Literal["unload_model"] = "unload_model"
 
 
 class UnloadModelResponse(BaseModel):
@@ -90,7 +95,10 @@ class UnloadModelResponse(BaseModel):
 
 
 class GetInfoRequest(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
     model_id: str
+    type: Literal["get_info"] = "get_info"
 
 
 class ModelData(BaseModel):
@@ -150,9 +158,12 @@ class ForwardBackwardOutputWire(BaseModel):
 
 
 class SaveWeightsRequest(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
     model_id: str
-    path: str
+    path: str | None = None
     seq_id: int | None = None
+    ttl_seconds: int | None = None
     type: Literal["save_weights"] = "save_weights"
 
 
@@ -162,6 +173,8 @@ class SaveWeightsResponse(BaseModel):
 
 
 class SaveWeightsForSamplerRequest(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
     model_id: str
     path: str | None = None
     sampling_session_seq_id: int | None = None
@@ -177,6 +190,8 @@ class SaveWeightsForSamplerResponse(BaseModel):
 
 
 class LoadWeightsRequest(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
     model_id: str
     source_model_id: str | None = None
     checkpoint_id: str | None = None
@@ -187,6 +202,7 @@ class LoadWeightsRequest(BaseModel):
 
 
 class LoadWeightsResponse(BaseModel):
+    path: str | None = None
     type: Literal["load_weights"] | None = None
 
 
@@ -238,6 +254,9 @@ class RetrieveFutureRequest(BaseModel):
     allow_metadata_only: bool = False
 
 
+FutureRetrieveRequest = RetrieveFutureRequest
+
+
 class TryAgainResponse(BaseModel):
     type: Literal["try_again"] = "try_again"
     request_id: str
@@ -246,7 +265,7 @@ class TryAgainResponse(BaseModel):
 
 class RequestFailedResponse(BaseModel):
     error: str
-    category: str | None = None
+    category: Literal["unknown", "server", "user"] = "server"
 
 
 # ---------------------------------------------------------------------------
@@ -268,13 +287,23 @@ class GetServerCapabilitiesResponse(BaseModel):
 
 
 class WeightsInfoRequest(BaseModel):
-    model_path: str
+    model_config = ConfigDict(protected_namespaces=())
+
+    tinker_path: str | None = None
+    model_path: str | None = None
+
+    @property
+    def path(self) -> str:
+        return self.tinker_path or self.model_path or ""
 
 
 class WeightsInfoResponse(BaseModel):
     base_model: str
     is_lora: bool
     lora_rank: int | None = None
+    train_unembed: bool | None = None
+    train_mlp: bool | None = None
+    train_attn: bool | None = None
 
 
 class TelemetryRequest(BaseModel):
@@ -297,13 +326,25 @@ class TelemetryResponse(BaseModel):
 
 class Checkpoint(BaseModel):
     checkpoint_id: str
-    checkpoint_type: str
-    status: str
-    created_at: str
+    checkpoint_type: Literal["training", "sampler"] | str
+    time: datetime | str
+    tinker_path: str
+    size_bytes: int | None = None
+    public: bool = False
+    expires_at: datetime | str | None = None
 
 
-class ListCheckpointsResponse(BaseModel):
+class CheckpointsListResponse(BaseModel):
     checkpoints: list[Checkpoint]
+    cursor: Cursor | None = None
+
+
+ListCheckpointsResponse = CheckpointsListResponse
+
+
+class CheckpointArchiveUrlResponse(BaseModel):
+    url: str
+    expires: datetime | str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -312,20 +353,51 @@ class ListCheckpointsResponse(BaseModel):
 
 
 class TrainingRun(BaseModel):
-    model_id: str
+    model_config = ConfigDict(protected_namespaces=())
+
+    training_run_id: str
     base_model: str
-    status: str
-    created_at: str
+    model_owner: str = ""
+    is_lora: bool = True
+    corrupted: bool = False
+    lora_rank: int | None = None
+    last_request_time: datetime | str
+    last_checkpoint: Checkpoint | None = None
+    last_sampler_checkpoint: Checkpoint | None = None
+    user_metadata: dict[str, str] | None = None
 
 
 class Cursor(BaseModel):
     offset: int
     limit: int
+    total_count: int = 0
 
 
 class TrainingRunsResponse(BaseModel):
     training_runs: list[TrainingRun]
     cursor: Cursor
+
+
+# ---------------------------------------------------------------------------
+# Sessions & Samplers (RestClient responses)
+# ---------------------------------------------------------------------------
+
+
+class GetSamplerResponse(BaseModel):
+    sampler_id: str
+    base_model: str
+    model_path: str | None = None
+
+
+class GetSessionResponse(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
+    training_run_ids: list[str]
+    sampler_ids: list[str]
+
+
+class ListSessionsResponse(BaseModel):
+    sessions: list[str]
 
 
 # ---------------------------------------------------------------------------

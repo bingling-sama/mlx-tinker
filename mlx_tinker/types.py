@@ -273,7 +273,8 @@ class SaveWeightsForSamplerOutput(BaseModel):
 
 
 class SaveWeightsInput(BaseModel):
-    path: str
+    path: str | None = None
+    ttl_seconds: int | None = None
 
 
 class SaveWeightsOutput(BaseModel):
@@ -289,6 +290,7 @@ class LoadWeightsInput(BaseModel):
 
 
 class LoadWeightsOutput(BaseModel):
+    path: str | None = None
     type: str = "load_weights"
 
 
