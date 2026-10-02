@@ -334,6 +334,48 @@ await training.forward_backward_async(rl_batch, loss_fn="importance_sampling")
 await training.optim_step_async(tinker.AdamParams(learning_rate=5e-5))
 ```
 
+## 1:1 Tinker Cloud API Parity Roadmap
+
+To achieve 100% 1:1 parity with the latest Tinker Cloud API (Tinker SDK v0.16.1+), the following roadmap organizes remaining work into sequential phases:
+
+### Phase 1: Schema & Data Model Alignment (Pydantic Models)
+- [ ] **`SaveWeightsRequest`**: Make `path` optional (`path: str | None = None`) and add `ttl_seconds: int | None = None`.
+- [ ] **`LoadWeightsResponse`**: Add missing `path: str | None = None`.
+- [ ] **`SessionHeartbeatResponse`**: Return standard `type: Literal["session_heartbeat"] = "session_heartbeat"` instead of empty dict `{}`.
+- [ ] **`TrainingRun`**: Align fields with official SDK (`training_run_id`, `base_model`, `model_owner`, `is_lora`, `corrupted`, `lora_rank`, `last_request_time`, `last_checkpoint`, `last_sampler_checkpoint`, `user_metadata`).
+- [ ] **`Checkpoint`**: Align fields with official SDK (`checkpoint_id`, `checkpoint_type`, `time`, `tinker_path`, `size_bytes`, `public`, `expires_at`).
+- [ ] **`Cursor`**: Add `total_count: int` to pagination cursor.
+- [ ] **`WeightsInfoResponse`**: Add `train_attn`, `train_mlp`, `train_unembed` fields.
+- [ ] **`retrieve_future` Failure Category**: Align error category enum to `Literal["unknown", "server", "user"]` (replace non-standard `"execution_error"`).
+
+### Phase 2: `tinker://` Virtual URI & Checkpoint Path System
+- [ ] **URI Encoder / Decoder**: Implement bidirectional mapping between `tinker://<model_id>/weights/<checkpoint_id>` (and `.../sampler_weights/...`) and the local filesystem path under `checkpoints_base / <model_id> / <checkpoint_id>`.
+- [ ] **`save_weights` & `save_weights_for_sampler`**: Return standard `tinker://` URI paths in response instead of local absolute disk paths.
+- [ ] **`load_weights` Path Resolution**: Teach `_validate_checkpoint_path` to resolve both `tinker://` URIs and local paths safely.
+
+### Phase 3: Sampler & Weight Metadata Endpoints
+- [ ] **`GET /api/v1/samplers/{sampler_id}`**: Query `SamplingSessionDB` and return `GetSamplerResponse(sampler_id, base_model, model_path)`. Enables `sampling_client.get_base_model()` and `sampling_client.get_tokenizer()`.
+- [ ] **`POST /api/v1/weights_info`**: Accept `{"tinker_path": str}`, inspect local checkpoint metadata, and return `WeightsInfoResponse`. Enables `service_client.create_training_client_from_state(path)`.
+
+### Phase 4: Training Run & Checkpoint Management REST API (`RestClient`)
+- [ ] **`GET /api/v1/training_runs/{training_run_id}`**: Query `ModelDB` and return single `TrainingRun`.
+- [ ] **`GET /api/v1/training_runs`**: Paginated listing of training runs with `limit`, `offset`, and cursor support (`TrainingRunsResponse`).
+- [ ] **`GET /api/v1/training_runs/{model_id}/checkpoints`**: List all checkpoints for a specific run (`CheckpointsListResponse`).
+- [ ] **`GET /api/v1/checkpoints`**: Global paginated list of all user checkpoints across runs.
+- [ ] **`DELETE /api/v1/training_runs/{model_id}/checkpoints/{checkpoint_id}`**: Delete checkpoint from DB and disk.
+- [ ] **`POST /api/v1/training_runs/{model_id}/checkpoints/{checkpoint_id}/publish`**: Stub/set checkpoint public flag.
+- [ ] **`DELETE /api/v1/training_runs/{model_id}/checkpoints/{checkpoint_id}/publish`**: Stub/unset checkpoint public flag.
+- [ ] **`PUT /api/v1/training_runs/{model_id}/checkpoints/{checkpoint_id}/ttl`**: Update checkpoint expiration TTL.
+
+### Phase 5: Sessions & Checkpoint Archive Downloads
+- [ ] **`GET /api/v1/sessions/{session_id}`**: Return associated `training_run_ids` and `sampler_ids` (`GetSessionResponse`).
+- [ ] **`GET /api/v1/sessions`**: Paginated session IDs (`ListSessionsResponse`).
+- [ ] **`GET /api/v1/training_runs/{model_id}/checkpoints/{checkpoint_id}/archive`**: Implement 302 Redirect with `Location` header pointing to checkpoint `.tar.gz` archive download.
+
+### Phase 6: Automated End-to-End SDK Verification
+- [ ] Expand `scripts/test_tinker_sdk_compat.py` to cover 100% of public methods in `ServiceClient`, `TrainingClient`, `SamplingClient`, and `RestClient`.
+- [ ] Assert zero 404s, zero Pydantic validation warnings, and complete parity with official Tinker SDK.
+
 ## Benchmark: Tinker (official) vs mlx-tinker
 
 50-step SFT on WikiSQL with QLoRA (rank-8, 4-bit quantization, batch_size=2):

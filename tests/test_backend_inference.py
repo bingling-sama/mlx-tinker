@@ -537,3 +537,119 @@ class TestSample:
         result = inference.sample(model, tokenizer, request)
         assert len(result.sequences) == 1
         assert len(result.sequences[0].tokens) == 1
+
+    def test_resolve_stop_tokens_with_qwen_im_end_and_strings(self, inference):
+        from mlx_tinker.backend.inference import resolve_stop_tokens
+
+        class MockQwenTokenizer:
+            eos_token_id = 151643
+
+            def encode(self, text, add_special_tokens=False):
+                if text == "<|im_end|>":
+                    return [151645]
+                if text == "<|endoftext|>":
+                    return [151643]
+                if text == "###":
+                    return [9999]
+                if text == "multi_word":
+                    return [101, 102]
+                return [1]
+
+        tok = MockQwenTokenizer()
+        # Default incorporates eos_token_id (151643) and common end token <|im_end|> (151645)
+        resolved = resolve_stop_tokens(tok)
+        assert 151643 in resolved
+        assert 151645 in resolved
+
+        # Client-provided stop_strings (single token encoded) are incorporated
+        resolved_custom = resolve_stop_tokens(tok, stop_strings=["###", "multi_word"])
+        assert 9999 in resolved_custom
+        assert 101 not in resolved_custom
+
+    def test_sampling_params_stop_field_normalization(self):
+        # Single string
+        sp1 = SamplingParams(stop="<|im_end|>")
+        assert sp1.stop_strings == ["<|im_end|>"]
+
+        # List of strings and token IDs
+        sp2 = SamplingParams(stop=["<|im_end|>", 151645])
+        assert sp2.stop_strings == ["<|im_end|>"]
+        assert sp2.stop_tokens == [151645]
+
+        # Single int
+        sp3 = SamplingParams(stop=151645)
+        assert sp3.stop_tokens == [151645]
+
+    def test_early_stopping_on_qwen_im_end_with_generate_step(
+        self, model, monkeypatch, inference
+    ):
+        class MockQwenTokenizer:
+            eos_token_id = 151643
+
+            def encode(self, text, add_special_tokens=False):
+                if text == "<|im_end|>":
+                    return [151645]
+                return [1]
+
+        tok = MockQwenTokenizer()
+
+        def fake_generate_step(*, prompt, model, max_tokens, sampler, **kwargs):
+            # Model emits 42, then Qwen's <|im_end|> (151645), then more tokens
+            for token_id in [42, 151645, 99, 100, 101]:
+                yield mx.array(token_id), mx.zeros(10)
+
+        generate_module = importlib.import_module("mlx_lm.generate")
+        monkeypatch.setattr(generate_module, "generate_step", fake_generate_step)
+        inference_module = importlib.import_module("mlx_tinker.backend.inference")
+        monkeypatch.setattr(inference_module, "_has_kv_cache_support", lambda _model: True)
+
+        # Client requests max_tokens=64 with stop_strings=["<|im_end|>"]
+        request = SampleInput(
+            prompt=ModelInput(chunks=[EncodedTextChunk(tokens=[1, 2, 3])]),
+            sampling_params=SamplingParams(
+                temperature=1.0, max_tokens=64, stop_strings=["<|im_end|>"]
+            ),
+            num_samples=1,
+        )
+
+        result = inference.sample(model, tok, request)
+        assert len(result.sequences) == 1
+        seq = result.sequences[0]
+        # Generation must stop early at 151645 and NOT continue to 64 tokens
+        assert seq.tokens == [42, 151645]
+        assert seq.stop_reason == "stop"
+
+    def test_early_stopping_simple_loop_on_qwen_im_end(
+        self, model, monkeypatch, inference
+    ):
+        class MockQwenTokenizer:
+            eos_token_id = 151643
+
+            def encode(self, text, add_special_tokens=False):
+                if text == "<|im_end|>":
+                    return [151645]
+                return [1]
+
+        tok = MockQwenTokenizer()
+
+        tokens_to_sample = iter([42, 151645, 99, 100])
+        monkeypatch.setattr(
+            "mlx_tinker.backend.inference._sample_token",
+            lambda *args, **kwargs: next(tokens_to_sample),
+        )
+        inference_module = importlib.import_module("mlx_tinker.backend.inference")
+        monkeypatch.setattr(inference_module, "_has_kv_cache_support", lambda _model: False)
+
+        request = SampleInput(
+            prompt=ModelInput(chunks=[EncodedTextChunk(tokens=[1, 2, 3])]),
+            sampling_params=SamplingParams(
+                temperature=1.0, max_tokens=64, stop_strings=["<|im_end|>"]
+            ),
+            num_samples=1,
+        )
+
+        result = inference.sample(model, tok, request)
+        assert len(result.sequences) == 1
+        seq = result.sequences[0]
+        assert seq.tokens == [42, 151645]
+        assert seq.stop_reason == "stop"

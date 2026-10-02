@@ -16,6 +16,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from mlx_tinker.api.lora_catalog import LoraCatalogService
+from mlx_tinker.backend.inference import resolve_stop_tokens
 from mlx_tinker.backend.mlx_backend import MLXBackend
 
 logger = logging.getLogger(__name__)
@@ -407,6 +408,7 @@ def _postprocess_chat_output(
     forced_tool_name: str | None,
     generated_tokens: list[int],
     eos_token_id: int,
+    stop_tokens: set[int] | None = None,
 ) -> tuple[dict[str, Any], str]:
     stopped_text, stop_hit = _apply_stop_sequences(full_text, stop)
     reasoning_content = None
@@ -435,6 +437,7 @@ def _postprocess_chat_output(
         eos_token_id,
         has_tool_calls=has_tool_calls,
         stop_hit=stop_hit,
+        stop_tokens=stop_tokens,
     )
     return message, finish_reason
 
@@ -528,25 +531,122 @@ def _generate_tokens(
     max_tokens,
     namespace: str | None = None,
     logits_processor=None,
+    stop: list[str] | str | None = None,
 ):
+    stop_sequences = _normalized_stop_sequences(stop) if stop is not None else []
+    stop_tokens = set(resolve_stop_tokens(tokenizer, stop_strings=stop_sequences))
+
     generated_tokens = []
     for token, _ in _iter_generated_tokens(
         model, prompt_tokens, temperature, top_p, max_tokens, namespace, logits_processor
     ):
         token_id = token.item() if hasattr(token, "item") else int(token)
         generated_tokens.append(token_id)
-        if token_id == tokenizer.eos_token_id:
+        if token_id in stop_tokens:
             break
     return generated_tokens
 
 
-def _finish_reason(generated_tokens, eos_token_id, has_tool_calls=False, stop_hit=False):
+def _call_generate_tokens(
+    generate_fn,
+    model,
+    tokenizer,
+    prompt_tokens,
+    temperature,
+    top_p,
+    max_tokens,
+    namespace=None,
+    logits_processor=None,
+    stop=None,
+):
+    try:
+        sig = inspect.signature(generate_fn)
+        if "stop" in sig.parameters or any(
+            p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()
+        ):
+            return generate_fn(
+                model,
+                tokenizer,
+                prompt_tokens,
+                temperature,
+                top_p,
+                max_tokens,
+                namespace,
+                logits_processor,
+                stop=stop,
+            )
+    except (ValueError, TypeError):
+        pass
+    return generate_fn(
+        model,
+        tokenizer,
+        prompt_tokens,
+        temperature,
+        top_p,
+        max_tokens,
+        namespace,
+        logits_processor,
+    )
+
+
+def _call_generate_tokens_completion(
+    generate_fn,
+    model,
+    tokenizer,
+    prompt_tokens,
+    temperature,
+    top_p,
+    max_tokens,
+    namespace=None,
+    stop=None,
+):
+    try:
+        sig = inspect.signature(generate_fn)
+        if "stop" in sig.parameters or any(
+            p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()
+        ):
+            return generate_fn(
+                model,
+                tokenizer,
+                prompt_tokens,
+                temperature,
+                top_p,
+                max_tokens,
+                namespace,
+                stop=stop,
+            )
+    except (ValueError, TypeError):
+        pass
+    return generate_fn(
+        model,
+        tokenizer,
+        prompt_tokens,
+        temperature,
+        top_p,
+        max_tokens,
+        namespace,
+    )
+
+
+def _finish_reason(
+    generated_tokens,
+    eos_token_id,
+    has_tool_calls=False,
+    stop_hit=False,
+    stop_tokens: set[int] | None = None,
+):
     if has_tool_calls:
         return "tool_calls"
     if stop_hit:
         return "stop"
-    if generated_tokens and generated_tokens[-1] == eos_token_id:
-        return "stop"
+    if generated_tokens:
+        last = generated_tokens[-1]
+        if last == eos_token_id:
+            return "stop"
+        if isinstance(eos_token_id, (list, tuple, set)) and last in eos_token_id:
+            return "stop"
+        if stop_tokens and last in stop_tokens:
+            return "stop"
     return "length"
 
 
@@ -653,7 +753,10 @@ async def chat_completions(request: ChatCompletionRequest):
             media_type="text/event-stream",
         )
 
-    generated_tokens = _generate_tokens(
+    stop_sequences = _normalized_stop_sequences(request.stop) if request.stop else []
+    stop_tokens = set(resolve_stop_tokens(tokenizer, stop_strings=stop_sequences))
+    generated_tokens = _call_generate_tokens(
+        _generate_tokens,
         _model,
         tokenizer,
         prompt_tokens,
@@ -662,6 +765,7 @@ async def chat_completions(request: ChatCompletionRequest):
         max_tokens,
         namespace,
         logits_processor,
+        stop=request.stop,
     )
     completion_text = _safe_decode(tokenizer, generated_tokens)
     resp_id = f"chatcmpl-{uuid.uuid4().hex[:12]}"
@@ -674,6 +778,7 @@ async def chat_completions(request: ChatCompletionRequest):
         forced_tool_name=forced_tool_name,
         generated_tokens=generated_tokens,
         eos_token_id=tokenizer.eos_token_id,
+        stop_tokens=stop_tokens,
     )
 
     return {
@@ -713,8 +818,18 @@ async def completions(request: CompletionRequest):
             ),
             media_type="text/event-stream",
         )
-    generated_tokens = _generate_tokens(
-        _model, tokenizer, prompt_tokens, request.temperature, request.top_p, max_tokens, namespace,
+    stop_sequences = _normalized_stop_sequences(request.stop) if request.stop else []
+    stop_tokens = set(resolve_stop_tokens(tokenizer, stop_strings=stop_sequences))
+    generated_tokens = _call_generate_tokens_completion(
+        _generate_tokens,
+        _model,
+        tokenizer,
+        prompt_tokens,
+        request.temperature,
+        request.top_p,
+        max_tokens,
+        namespace,
+        stop=request.stop,
     )
     completion_text = _safe_decode(tokenizer, generated_tokens)
     completion_text, stop_hit = _apply_stop_sequences(completion_text, request.stop)
@@ -727,7 +842,9 @@ async def completions(request: CompletionRequest):
         "choices": [{
             "text": completion_text,
             "index": 0,
-            "finish_reason": _finish_reason(generated_tokens, tokenizer.eos_token_id, stop_hit=stop_hit),
+            "finish_reason": _finish_reason(
+                generated_tokens, tokenizer.eos_token_id, stop_hit=stop_hit, stop_tokens=stop_tokens
+            ),
         }],
         "usage": _usage(prompt_tokens, generated_tokens),
     }
@@ -811,8 +928,12 @@ async def _stream_chat_response(
     """
     resp_id = f"chatcmpl-{uuid.uuid4().hex[:12]}"
 
+    stop_sequences = _normalized_stop_sequences(request.stop) if request.stop else []
+    stop_tokens = set(resolve_stop_tokens(tokenizer, stop_strings=stop_sequences))
+
     # Generate full response
-    generated_tokens = _generate_tokens(
+    generated_tokens = _call_generate_tokens(
+        _generate_tokens,
         model,
         tokenizer,
         prompt_tokens,
@@ -821,6 +942,7 @@ async def _stream_chat_response(
         max_tokens,
         namespace,
         logits_processor,
+        stop=request.stop,
     )
     full_text = _safe_decode(tokenizer, generated_tokens)
     message, finish_reason = _postprocess_chat_output(
@@ -832,6 +954,7 @@ async def _stream_chat_response(
         forced_tool_name=forced_tool_name,
         generated_tokens=generated_tokens,
         eos_token_id=tokenizer.eos_token_id,
+        stop_tokens=stop_tokens,
     )
     has_tool_calls = bool(message.get("tool_calls"))
 
@@ -908,7 +1031,10 @@ async def _stream_chat_response(
 
 async def _stream_completion_response(model, tokenizer, prompt_tokens, request, *, max_tokens: int, namespace: str | None):
     resp_id = f"cmpl-{uuid.uuid4().hex[:12]}"
-    generated_tokens = _generate_tokens(
+    stop_sequences = _normalized_stop_sequences(request.stop) if request.stop else []
+    stop_tokens = set(resolve_stop_tokens(tokenizer, stop_strings=stop_sequences))
+    generated_tokens = _call_generate_tokens_completion(
+        _generate_tokens,
         model,
         tokenizer,
         prompt_tokens,
@@ -916,10 +1042,13 @@ async def _stream_completion_response(model, tokenizer, prompt_tokens, request, 
         request.top_p,
         max_tokens,
         namespace,
+        stop=request.stop,
     )
     full_text = _safe_decode(tokenizer, generated_tokens)
     completion_text, stop_hit = _apply_stop_sequences(full_text, request.stop)
-    finish_reason = _finish_reason(generated_tokens, tokenizer.eos_token_id, stop_hit=stop_hit)
+    finish_reason = _finish_reason(
+        generated_tokens, tokenizer.eos_token_id, stop_hit=stop_hit, stop_tokens=stop_tokens
+    )
     ts = int(time.time())
 
     chunk_size = 4

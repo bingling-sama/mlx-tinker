@@ -8,6 +8,8 @@ wheels/
 *.egg-info/
 .venv/
 *.db
+*.db-shm
+*.db-wal
 *.sqlite
 checkpoints/
 .ruff_cache/

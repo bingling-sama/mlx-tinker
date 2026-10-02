@@ -5,7 +5,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, Discriminator, Tag
+from pydantic import BaseModel, Discriminator, Tag, model_validator
 
 # ---------------------------------------------------------------------------
 # Enumerations
@@ -88,8 +88,38 @@ class SamplingParams(BaseModel):
     seed: int = 0
     stop_tokens: list[int] | None = None
     stop_strings: list[str] | None = None
+    stop: str | list[str | int] | int | None = None
     top_k: int = -1
     top_p: float = 1.0
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_stop(cls, data: object) -> object:
+        if not isinstance(data, dict):
+            return data
+        stop = data.get("stop")
+        if stop is not None:
+            stop_strings = list(data.get("stop_strings") or [])
+            stop_tokens = list(data.get("stop_tokens") or [])
+            if isinstance(stop, str):
+                if stop and stop not in stop_strings:
+                    stop_strings.append(stop)
+            elif isinstance(stop, (list, tuple)):
+                for item in stop:
+                    if isinstance(item, str):
+                        if item and item not in stop_strings:
+                            stop_strings.append(item)
+                    elif isinstance(item, int):
+                        if item not in stop_tokens:
+                            stop_tokens.append(item)
+            elif isinstance(stop, int):
+                if stop not in stop_tokens:
+                    stop_tokens.append(stop)
+            if stop_strings:
+                data["stop_strings"] = stop_strings
+            if stop_tokens:
+                data["stop_tokens"] = stop_tokens
+        return data
 
 
 class LossFnConfig(BaseModel):

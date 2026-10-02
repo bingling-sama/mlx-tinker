@@ -185,3 +185,27 @@ def test_path_backed_sampling_is_rejected_while_live_model_is_resident(tmp_path)
 
     with pytest.raises(ValueError, match="Path-backed sampling is unavailable"):
         backend.sample(None, _sample_request(model_path="checkpoints/model-1/sampler/latest"))
+
+
+def test_inject_eos_stop_token_converts_stop_strings_and_qwen_eos(tmp_path):
+    class MockQwenTokenizer:
+        eos_token_id = 151643
+
+        def encode(self, text, add_special_tokens=False):
+            if text == "<|im_end|>":
+                return [151645]
+            if text == "<|endoftext|>":
+                return [151643]
+            return [1]
+
+    req = _sample_request(
+        sampling_params=SamplingParams(
+            temperature=1.0, max_tokens=64, stop_strings=["<|im_end|>"]
+        )
+    )
+
+    injected = MLXBackend._inject_eos_stop_token(req, MockQwenTokenizer())
+    stop_tokens = injected.sampling_params.stop_tokens
+    assert stop_tokens is not None
+    assert 151643 in stop_tokens  # eos_token_id
+    assert 151645 in stop_tokens  # <|im_end|> encoded

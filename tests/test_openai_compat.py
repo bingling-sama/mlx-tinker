@@ -787,3 +787,34 @@ class TestBackendNotInitialized:
             assert resp.status_code == 503
         finally:
             oai._backend = old
+
+    def test_generate_tokens_early_stopping_on_qwen_im_end(self, monkeypatch):
+        from mlx_tinker.api.openai_compat import _generate_tokens
+        import mlx.core as mx
+
+        class MockQwenTokenizer:
+            eos_token_id = 151643
+
+            def encode(self, text, add_special_tokens=False):
+                if text == "<|im_end|>":
+                    return [151645]
+                return [1]
+
+        def fake_generate_step(*args, **kwargs):
+            for tok_id in [10, 20, 151645, 999]:
+                yield mx.array(tok_id), mx.zeros(5)
+
+        generate_module = importlib.import_module("mlx_lm.generate")
+        monkeypatch.setattr(generate_module, "generate_step", fake_generate_step)
+
+        # Generating tokens should stop at 151645 (<|im_end|>) and NOT emit 999
+        tokens = _generate_tokens(
+            model=MagicMock(),
+            tokenizer=MockQwenTokenizer(),
+            prompt_tokens=[1, 2],
+            temperature=1.0,
+            top_p=1.0,
+            max_tokens=64,
+            stop=["<|im_end|>"],
+        )
+        assert tokens == [10, 20, 151645]

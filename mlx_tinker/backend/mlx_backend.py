@@ -20,7 +20,7 @@ from mlx_tinker.backend.checkpointing import (
     save_training_checkpoint,
 )
 from mlx_tinker.backend.gradient_checkpointing import enable_gradient_checkpointing
-from mlx_tinker.backend.inference import InferenceBackend
+from mlx_tinker.backend.inference import InferenceBackend, prepare_sample_request
 from mlx_tinker.backend.longlora import enable_longlora_attention
 from mlx_tinker.backend.lora_manager import LoRAManager
 from mlx_tinker.backend.transcript_cache import TranscriptPrefixCacheManager
@@ -364,17 +364,8 @@ class MLXBackend:
 
     @staticmethod
     def _inject_eos_stop_token(request: SampleInput, tokenizer) -> SampleInput:
-        """Ensure eos_token_id is in stop_tokens if the tokenizer defines one."""
-        eos_id = getattr(tokenizer, "eos_token_id", None)
-        if eos_id is None:
-            return request
-        current = request.sampling_params.stop_tokens or []
-        if eos_id in current:
-            return request
-        new_params = request.sampling_params.model_copy(
-            update={"stop_tokens": list(current) + [eos_id]}
-        )
-        return request.model_copy(update={"sampling_params": new_params})
+        """Ensure eos_token_id, common end tokens, and stop_strings are resolved into stop_tokens."""
+        return prepare_sample_request(request, tokenizer)
 
     def _resolve_sampling_target(
         self, model_id: str | None, request: SampleInput

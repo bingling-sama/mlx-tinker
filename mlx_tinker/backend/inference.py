@@ -73,24 +73,134 @@ def _sampling_params_key(sp: SamplingParams) -> tuple:
     )
 
 
+def _encode_to_single_token(tokenizer: Any, s: str) -> int | None:
+    if not hasattr(tokenizer, "encode") or not callable(tokenizer.encode):
+        return None
+    try:
+        token_ids = tokenizer.encode(s, add_special_tokens=False)
+    except TypeError:
+        try:
+            token_ids = tokenizer.encode(s)
+        except Exception:
+            return None
+    except Exception:
+        return None
+
+    if hasattr(token_ids, "tolist"):
+        token_ids = token_ids.tolist()
+    elif not isinstance(token_ids, (list, tuple)):
+        try:
+            token_ids = list(token_ids)
+        except Exception:
+            return None
+
+    if len(token_ids) == 1:
+        try:
+            return int(token_ids[0])
+        except (ValueError, TypeError):
+            return None
+    return None
+
+
+def _extract_eos_tokens(tokenizer: Any) -> list[int]:
+    eos_id = getattr(tokenizer, "eos_token_id", None)
+    if eos_id is None:
+        return []
+    if isinstance(eos_id, int):
+        return [eos_id]
+    if isinstance(eos_id, (list, tuple, set)):
+        result = []
+        for x in eos_id:
+            try:
+                result.append(int(x))
+            except (ValueError, TypeError):
+                pass
+        return result
+    return []
+
+
+def resolve_stop_tokens(
+    tokenizer: Any,
+    stop_tokens: list[int] | tuple[int, ...] | set[int] | None = None,
+    stop_strings: list[str] | tuple[str, ...] | None = None,
+) -> list[int]:
+    """Resolve token IDs for stopping, including tokenizer EOS, common end tokens, and stop_strings."""
+    resolved: set[int] = set(stop_tokens or [])
+
+    # 1. Include tokenizer.eos_token_id
+    for tok_id in _extract_eos_tokens(tokenizer):
+        resolved.add(tok_id)
+
+    # 2. Include common end tokens (e.g. Qwen <|im_end|>, <|endoftext|>)
+    for s in ("<|im_end|>", "<|endoftext|>"):
+        tid = _encode_to_single_token(tokenizer, s)
+        if tid is not None:
+            resolved.add(tid)
+
+    # 3. Include client-provided stop_strings
+    if stop_strings:
+        for s in stop_strings:
+            if isinstance(s, str) and s:
+                tid = _encode_to_single_token(tokenizer, s)
+                if tid is not None:
+                    resolved.add(tid)
+
+    return sorted(resolved)
+
+
+def prepare_sample_request(request: SampleInput, tokenizer: Any) -> SampleInput:
+    """Ensure stop_tokens in request.sampling_params includes EOS tokens and encoded stop_strings."""
+    sp = request.sampling_params
+    resolved_stop_tokens = resolve_stop_tokens(
+        tokenizer,
+        stop_tokens=sp.stop_tokens,
+        stop_strings=sp.stop_strings,
+    )
+    if resolved_stop_tokens == (sp.stop_tokens or []):
+        return request
+    new_sp = sp.model_copy(update={"stop_tokens": resolved_stop_tokens})
+    return request.model_copy(update={"sampling_params": new_sp})
+
+
 def _sampling_params_key_from_mapping(data: Mapping[str, object] | None) -> tuple | None:
     """Build the same compatibility key from raw request data without validation."""
     if not isinstance(data, Mapping):
         return None
 
-    stop_tokens = data.get("stop_tokens")
-    stop_strings = data.get("stop_strings")
-    if stop_tokens is not None and not isinstance(stop_tokens, (list, tuple)):
-        return None
-    if stop_strings is not None and not isinstance(stop_strings, (list, tuple)):
-        return None
+    stop_tokens = (
+        list(data.get("stop_tokens") or [])
+        if isinstance(data.get("stop_tokens"), (list, tuple))
+        else []
+    )
+    stop_strings = (
+        list(data.get("stop_strings") or [])
+        if isinstance(data.get("stop_strings"), (list, tuple))
+        else []
+    )
+
+    raw_stop = data.get("stop")
+    if raw_stop is not None:
+        if isinstance(raw_stop, str):
+            if raw_stop and raw_stop not in stop_strings:
+                stop_strings.append(raw_stop)
+        elif isinstance(raw_stop, (list, tuple)):
+            for item in raw_stop:
+                if isinstance(item, str):
+                    if item and item not in stop_strings:
+                        stop_strings.append(item)
+                elif isinstance(item, int):
+                    if item not in stop_tokens:
+                        stop_tokens.append(item)
+        elif isinstance(raw_stop, int):
+            if raw_stop not in stop_tokens:
+                stop_tokens.append(raw_stop)
 
     return (
         data.get("temperature", 1.0),
         data.get("max_tokens", 256),
         data.get("seed", 0),
-        tuple(stop_tokens or []),
-        tuple(stop_strings or []),
+        tuple(stop_tokens),
+        tuple(stop_strings),
         data.get("top_k", -1),
         data.get("top_p", 1.0),
     )
@@ -129,6 +239,8 @@ class InferenceBackend:
         """Generate samples for multiple compatible requests in one backend call."""
         if not requests:
             return []
+
+        requests = [prepare_sample_request(r, tokenizer) for r in requests]
 
         if len(requests) == 1:
             return [self.sample(model, tokenizer, requests[0], namespace=namespace)]
@@ -178,6 +290,7 @@ class InferenceBackend:
         Uses mlx-lm's generate_step for real models with KV cache support,
         falls back to a simple autoregressive loop for simpler models.
         """
+        request = prepare_sample_request(request, tokenizer)
         prompt_tokens = request.prompt.get_tokens()
         sp = request.sampling_params
         self._seed_rng(sp)
@@ -315,6 +428,7 @@ class InferenceBackend:
             prompt_cache, prompt_tail = self._prepare_prompt_cache(model, prompt_tokens, namespace)
             prompt_array = mx.array(prompt_tail)
             saved_chunk_lengths: set[int] = set()
+            stop_tokens_set = set(sp.stop_tokens or [])
 
             for token, logprobs in self._iter_generate_step(
                 generate_step,
@@ -338,7 +452,7 @@ class InferenceBackend:
                     saved_chunk_lengths,
                 )
 
-                if sp.stop_tokens and token_id in sp.stop_tokens:
+                if stop_tokens_set and token_id in stop_tokens_set:
                     sequences.append(
                         GeneratedSequence(
                             stop_reason="stop",
@@ -517,6 +631,7 @@ class InferenceBackend:
             generated_tokens: list[int] = []
             generated_logprobs: list[float] = []
             current_tokens = list(prompt_tokens)
+            stop_tokens_set = set(sp.stop_tokens or [])
 
             for _ in range(sp.max_tokens):
                 input_ids = mx.array(current_tokens)[None, :]
@@ -535,7 +650,7 @@ class InferenceBackend:
                 generated_logprobs.append(token_logprob)
                 current_tokens.append(token_id)
 
-                if sp.stop_tokens and token_id in sp.stop_tokens:
+                if stop_tokens_set and token_id in stop_tokens_set:
                     sequences.append(
                         GeneratedSequence(
                             stop_reason="stop",
