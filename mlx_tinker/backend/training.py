@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import logging
 import math
-from typing import Literal
+from functools import partial
+from typing import Callable, Literal
 
 import mlx.core as mx
 import mlx.nn as nn
@@ -85,23 +86,27 @@ def _clip_grad_norm(grads: dict, max_norm: float) -> tuple[dict, float, float]:
         (clipped_grads, pre_clip_norm, post_clip_norm)
     """
     grad_norm = _grad_norm_array(grads)
-    grad_norm_clipped = grad_norm
-
+    
     if max_norm > 0:
         max_norm_array = mx.array(max_norm, dtype=mx.float32)
         grad_norm_clipped = mx.minimum(grad_norm, max_norm_array)
         scale = mx.minimum(mx.array(1.0, dtype=mx.float32), max_norm_array / (grad_norm + 1e-6))
-        grads = tree_map(lambda g: g * scale, grads)
+        grads = tree_map(lambda g: g * scale.astype(g.dtype), grads)
+    else:
+        grad_norm_clipped = grad_norm
 
     mx.eval(grad_norm, grad_norm_clipped)
     return grads, float(grad_norm.item()), float(grad_norm_clipped.item())
 
 
 def _compute_target_logprobs(logits: mx.array, targets: mx.array) -> mx.array:
-    """Gather target-token logprobs in float32 for stable loss computation."""
+    """Gather target-token logprobs in float32 without materializing full [B, T, V] tensor."""
     logits_f32 = logits.astype(mx.float32)
-    log_probs = logits_f32 - mx.logsumexp(logits_f32, axis=-1, keepdims=True)
-    return mx.take_along_axis(log_probs, targets[:, :, None].astype(mx.int32), axis=-1).squeeze(-1)
+    target_logits = mx.take_along_axis(
+        logits_f32, targets[:, :, None].astype(mx.int32), axis=-1
+    ).squeeze(-1)
+    lse = mx.logsumexp(logits_f32, axis=-1)
+    return target_logits - lse
 
 
 def _pad_1d_rows(rows: list[list[float]] | list[list[int]], dtype) -> mx.array:
@@ -195,6 +200,16 @@ class TrainingBackend:
         self.grad_accum_counts: dict[str, int] = {}
         self.total_tokens: dict[str, float] = {}
         self.optimizers: dict[str, optim.Optimizer] = {}
+        self._step_cache: dict[tuple, Callable] = {}
+
+    def clear_cache(self, model_id: str | None = None) -> None:
+        """Clear cached compiled steps for a specific model or all models."""
+        if model_id is None:
+            self._step_cache.clear()
+        else:
+            self._step_cache = {
+                k: v for k, v in self._step_cache.items() if k[0] != model_id
+            }
 
     def _create_optimizer(self, learning_rate: float = 1e-5) -> optim.Optimizer:
         """Create an optimizer based on the configured type."""
@@ -256,77 +271,154 @@ class TrainingBackend:
         # Prefer the split-backbone path whenever we can compute target logprobs
         # directly from hidden states without materializing full-vocab logits.
         use_chunked = _has_split_lm_head(model)
-        captured_logprobs = [None]
+        cfg_key = (
+            cfg.clip_low_threshold,
+            cfg.clip_high_threshold,
+            cfg.beta,
+        )
+        cache_key = (
+            model_id,
+            id(model),
+            request.loss_fn,
+            use_chunked,
+            cfg_key,
+            request.forward_only,
+        )
 
-        def compute_loss(
-            model: nn.Module,
-            input_ids: mx.array,
-            targets: mx.array,
-            weights: mx.array,
-            adv: mx.array,
-            samp_lp: mx.array,
-        ) -> mx.array:
-            if use_chunked:
-                hidden = model.model(input_ids)
-                target_lp = chunked_target_logprobs(
-                    hidden,
-                    model.lm_head.weight,
-                    targets,
-                )
-            else:
-                logits = model(input_ids)
-                target_lp = _compute_target_logprobs(logits, targets)
-            captured_logprobs[0] = target_lp
-            return loss_fn_impl(target_lp, weights, samp_lp, adv, cfg)
-
-        if request.forward_only:
-            def compute_loss_val(
+        step_fn = self._step_cache.get(cache_key)
+        if step_fn is None:
+            def compute_loss(
+                m: nn.Module,
                 input_ids: mx.array,
                 targets: mx.array,
                 weights: mx.array,
                 adv: mx.array,
                 samp_lp: mx.array,
-            ) -> mx.array:
+            ) -> tuple[mx.array, mx.array]:
                 if use_chunked:
-                    hidden = model.model(input_ids)
+                    hidden = m.model(input_ids)
                     target_lp = chunked_target_logprobs(
                         hidden,
-                        model.lm_head.weight,
+                        m.lm_head.weight,
                         targets,
                     )
                 else:
-                    logits = model(input_ids)
+                    logits = m(input_ids)
                     target_lp = _compute_target_logprobs(logits, targets)
-                captured_logprobs[0] = target_lp
-                return loss_fn_impl(target_lp, weights, samp_lp, adv, cfg)
+                loss = loss_fn_impl(target_lp, weights, samp_lp, adv, cfg)
+                return loss, target_lp
 
-            loss_val = compute_loss_val(
+            state = [model.state]
+            if request.forward_only:
+                @partial(mx.compile, inputs=state, outputs=state)
+                def compiled_fwd(input_ids, targets, weights, adv, samp_lp):
+                    return compute_loss(model, input_ids, targets, weights, adv, samp_lp)
+
+                step_fn = compiled_fwd
+            else:
+                loss_and_grad_fn = nn.value_and_grad(model, compute_loss)
+
+                @partial(mx.compile, inputs=state, outputs=state)
+                def compiled_bwd(input_ids, targets, weights, adv, samp_lp):
+                    return loss_and_grad_fn(model, input_ids, targets, weights, adv, samp_lp)
+
+                step_fn = compiled_bwd
+
+            self._step_cache[cache_key] = step_fn
+
+        if request.forward_only:
+            loss_val, target_lp = step_fn(
                 input_tokens,
                 target_tokens,
                 token_weights,
                 advantages,
                 sampling_logprobs,
             )
-            eval_targets = [loss_val, batch_token_count]
-            if captured_logprobs[0] is not None:
-                eval_targets.append(captured_logprobs[0])
+            combined_grads = None
+            
+            # Vectorized per-sequence loss tensor
+            if request.loss_fn == "cross_entropy":
+                per_seq_tensor = (-target_lp * token_weights).sum(axis=-1)
+            elif request.loss_fn == "importance_sampling":
+                per_seq_tensor = (-(mx.exp(target_lp - sampling_logprobs) * advantages)).sum(axis=-1)
+            elif request.loss_fn == "ppo":
+                ratio = mx.exp(target_lp - sampling_logprobs)
+                clip_low = cfg.clip_low_threshold
+                clip_high = cfg.clip_high_threshold
+                clipped_ratio = mx.clip(ratio, 1.0 - clip_low, 1.0 + clip_high)
+                surr1 = ratio * advantages
+                surr2 = clipped_ratio * advantages
+                per_seq_tensor = -mx.minimum(surr1, surr2).sum(axis=-1)
+            elif request.loss_fn == "cispo":
+                ratio = mx.exp(target_lp - sampling_logprobs)
+                clip_low = cfg.clip_low_threshold
+                clip_high = cfg.clip_high_threshold
+                positive_adv = advantages > 0
+                clipped_ratio = mx.where(
+                    positive_adv,
+                    mx.clip(ratio, 1.0 - clip_high, 1.0 + clip_high),
+                    mx.clip(ratio, 1.0 - clip_low, 1.0 + clip_low),
+                )
+                per_seq_tensor = -(mx.stop_gradient(clipped_ratio) * target_lp * advantages).sum(axis=-1)
+            elif request.loss_fn == "dro":
+                beta = cfg.beta
+                quadratic = (target_lp - sampling_logprobs) ** 2
+                obj = target_lp * advantages - 0.5 * beta * quadratic
+                per_seq_tensor = -obj.sum(axis=-1)
+            else:
+                per_seq_tensor = None
+
+            eval_targets = [loss_val, batch_token_count, target_lp]
+            if per_seq_tensor is not None:
+                eval_targets.append(per_seq_tensor)
             mx.eval(*eval_targets)
         else:
-            loss_and_grad_fn = nn.value_and_grad(model, compute_loss)
-
-            loss_val, combined_grads = loss_and_grad_fn(
-                model,
+            (loss_val, target_lp), combined_grads = step_fn(
                 input_tokens,
                 target_tokens,
                 token_weights,
                 advantages,
                 sampling_logprobs,
             )
-            eval_targets = [loss_val, batch_token_count]
-            if captured_logprobs[0] is not None:
-                eval_targets.append(captured_logprobs[0])
+
+            # Vectorized per-sequence loss tensor
+            if request.loss_fn == "cross_entropy":
+                per_seq_tensor = (-target_lp * token_weights).sum(axis=-1)
+            elif request.loss_fn == "importance_sampling":
+                per_seq_tensor = (-(mx.exp(target_lp - sampling_logprobs) * advantages)).sum(axis=-1)
+            elif request.loss_fn == "ppo":
+                ratio = mx.exp(target_lp - sampling_logprobs)
+                clip_low = cfg.clip_low_threshold
+                clip_high = cfg.clip_high_threshold
+                clipped_ratio = mx.clip(ratio, 1.0 - clip_low, 1.0 + clip_high)
+                surr1 = ratio * advantages
+                surr2 = clipped_ratio * advantages
+                per_seq_tensor = -mx.minimum(surr1, surr2).sum(axis=-1)
+            elif request.loss_fn == "cispo":
+                ratio = mx.exp(target_lp - sampling_logprobs)
+                clip_low = cfg.clip_low_threshold
+                clip_high = cfg.clip_high_threshold
+                positive_adv = advantages > 0
+                clipped_ratio = mx.where(
+                    positive_adv,
+                    mx.clip(ratio, 1.0 - clip_high, 1.0 + clip_high),
+                    mx.clip(ratio, 1.0 - clip_low, 1.0 + clip_low),
+                )
+                per_seq_tensor = -(mx.stop_gradient(clipped_ratio) * target_lp * advantages).sum(axis=-1)
+            elif request.loss_fn == "dro":
+                beta = cfg.beta
+                quadratic = (target_lp - sampling_logprobs) ** 2
+                obj = target_lp * advantages - 0.5 * beta * quadratic
+                per_seq_tensor = -obj.sum(axis=-1)
+            else:
+                per_seq_tensor = None
+
+            eval_targets = [loss_val, batch_token_count, target_lp]
+            if per_seq_tensor is not None:
+                eval_targets.append(per_seq_tensor)
             mx.eval(*eval_targets)
 
+        if not request.forward_only:
             if self.accumulated_grads[model_id] is None:
                 self.accumulated_grads[model_id] = combined_grads
                 _materialize_tree(self.accumulated_grads[model_id], async_eval=True)
@@ -341,27 +433,17 @@ class TrainingBackend:
             self.total_tokens[model_id] += float(batch_token_count.item())
 
         all_logprobs_out = []
-        per_seq_losses: list[float | None] = []
-        if captured_logprobs[0] is not None:
-            target_lp = captured_logprobs[0]
-            for row_idx, seq_len in enumerate(seq_lens):
-                lp_list = target_lp[row_idx, :seq_len].tolist()
-                all_logprobs_out.append({"logprobs": TensorData(data=lp_list, dtype="float32")})
-                row_lp = target_lp[row_idx, :seq_len]
-                row_w = token_weights[row_idx, :seq_len]
-                if request.loss_fn == "cross_entropy":
-                    row_loss = float((-row_lp * row_w).sum().item())
-                elif request.loss_fn == "importance_sampling":
-                    row_adv = advantages[row_idx, :seq_len]
-                    row_samp = sampling_logprobs[row_idx, :seq_len]
-                    row_loss = float((-(mx.exp(row_lp - row_samp) * row_adv)).sum().item())
-                else:
-                    row_loss = None
-                per_seq_losses.append(row_loss)
+        
+        # Batch collect python lists to reduce overhead
+        target_lp_lists = target_lp.tolist()
+        
+        for row_idx, seq_len in enumerate(seq_lens):
+            lp_list = target_lp_lists[row_idx][:seq_len]
+            all_logprobs_out.append({"logprobs": TensorData(data=lp_list, dtype="float32")})
+
+        if per_seq_tensor is not None:
+            per_seq_losses = [float(v) for v in per_seq_tensor.tolist()]
         else:
-            all_logprobs_out = [
-                {"logprobs": TensorData(data=[], dtype="float32")} for _ in request.data
-            ]
             per_seq_losses = [None] * len(request.data)
 
         loss_sum = loss_val.item()
@@ -470,16 +552,39 @@ class TrainingBackend:
             _prepare_batch_tensors(request)
         )
 
-        if _has_split_lm_head(model):
-            hidden = model.model(input_tokens)
-            target_lp = chunked_target_logprobs(hidden, model.lm_head.weight, target_tokens)
-        else:
-            logits = model(input_tokens)
-            target_lp = _compute_target_logprobs(logits, target_tokens)
+        use_chunked = _has_split_lm_head(model)
+        cache_key = (
+            model_id,
+            id(model),
+            "forward_only",
+            use_chunked,
+        )
+
+        step_fn = self._step_cache.get(cache_key)
+        if step_fn is None:
+            def _compute_lp(m: nn.Module, input_ids: mx.array, targets: mx.array) -> mx.array:
+                if use_chunked:
+                    hidden = m.model(input_ids)
+                    return chunked_target_logprobs(hidden, m.lm_head.weight, targets)
+                else:
+                    logits = m(input_ids)
+                    return _compute_target_logprobs(logits, targets)
+
+            state = [model.state]
+            @partial(mx.compile, inputs=state, outputs=state)
+            def compiled_fwd(input_ids, targets):
+                return _compute_lp(model, input_ids, targets)
+            
+            step_fn = compiled_fwd
+            self._step_cache[cache_key] = step_fn
+
+        target_lp = step_fn(input_tokens, target_tokens)
         mx.eval(target_lp)
 
+        # Batch convert to python lists
+        target_lp_lists = target_lp.tolist()
         all_logprobs = [
-            target_lp[row_idx, :seq_len].tolist() for row_idx, seq_len in enumerate(seq_lens)
+            target_lp_lists[row_idx][:seq_len] for row_idx, seq_len in enumerate(seq_lens)
         ]
 
         return ForwardOutput(

@@ -238,6 +238,7 @@ class MLXBackend:
                 self.training.accumulated_grads.pop(model_id, None)
                 self.training.grad_accum_counts.pop(model_id, None)
                 self.training.optimizers.pop(model_id, None)
+                self.training.clear_cache(model_id)
                 self._base_model = None
                 self._base_tokenizer = None
                 self._loaded_base_model_name = None
