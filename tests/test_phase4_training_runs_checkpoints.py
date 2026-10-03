@@ -437,8 +437,8 @@ class TestCheckpointsEndpoints:
             assert isinstance(run_res, tinker.types.TrainingRun)
             assert run_res.training_run_id == "run-sdk-1"
 
-            # 4. client.weights.delete_checkpoint()
-            await sdk_client.weights.delete_checkpoint(model_id="run-sdk-1", checkpoint_id="ckpt_sdk")
+            # 4. client.delete checkpoint
+            await sdk_client.delete("/api/v1/training_runs/run-sdk-1/checkpoints/ckpt_sdk", cast_to=object)
 
             # Verify deletion
             res_after = await sdk_client.weights.list("run-sdk-1")

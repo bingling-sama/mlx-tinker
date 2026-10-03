@@ -12,15 +12,17 @@ import shutil
 import tarfile
 import tempfile
 import uuid
-import zstandard as zstd
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+import zstandard as zstd
 from fastapi import FastAPI, HTTPException, Query, Request, Response
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
-from starlette.background import BackgroundTask
+from pydantic import ValidationError
 from sqlalchemy import func, select
+from starlette.background import BackgroundTask
 
 from mlx_tinker.api.models import (
     Checkpoint,
@@ -110,8 +112,8 @@ def create_app(config: EngineConfig | None = None) -> FastAPI:
         await _engine.start()
 
         # Register OpenAI-compatible routes now that backend is ready
-        from mlx_tinker.api.openai_compat import register_openai_routes
         from mlx_tinker.api.lora_ui import register_lora_routes
+        from mlx_tinker.api.openai_compat import register_openai_routes
 
         register_openai_routes(app, _backend)
         register_lora_routes(app, _backend)
@@ -308,7 +310,10 @@ def _register_routes(app: FastAPI) -> None:
             )
         else:
             json_data = await request.json()
-            parsed_req = ForwardBackwardRequest(**json_data)
+            try:
+                parsed_req = ForwardBackwardRequest(**json_data)
+            except ValidationError as e:
+                raise RequestValidationError(e.errors())
             fbi = parsed_req.forward_backward_input
             return await _create_future(
                 RequestType.FORWARD_BACKWARD,

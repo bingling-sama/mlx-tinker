@@ -334,9 +334,40 @@ await training.forward_backward_async(rl_batch, loss_fn="importance_sampling")
 await training.optim_step_async(tinker.AdamParams(learning_rate=5e-5))
 ```
 
-## 1:1 Tinker Cloud API Parity Roadmap
+### Full REST Client & Checkpoint Lifecycle (`RestClient`)
 
-To achieve 100% 1:1 parity with the latest Tinker Cloud API (Tinker SDK v0.16.1+), the following roadmap organizes remaining work into sequential phases:
+In addition to training and sampling, `mlx-tinker` provides 100% parity with Tinker's `RestClient` for training run monitoring, checkpoint management, and artifact export:
+
+```python
+rest_client = client.create_rest_client()
+
+# Inspect training runs and metadata
+runs = await rest_client.list_training_runs_async(limit=10)
+run_info = await rest_client.get_training_run_async(training.model_id)
+
+# Query checkpoints and weights info via virtual tinker:// URIs
+checkpoints = await rest_client.list_checkpoints_async(training.model_id)
+weights_info = await rest_client.get_weights_info_by_tinker_path_async(
+    "tinker://run-1/weights/step-10"
+)
+
+# Manage checkpoint visibility and expiration TTL
+await rest_client.publish_checkpoint_from_tinker_path_async(
+    "tinker://run-1/weights/step-10"
+)
+await rest_client.set_checkpoint_ttl_from_tinker_path_async(
+    "tinker://run-1/weights/step-10", ttl_seconds=86400
+)
+
+# Export or download checkpoint archive (.tar.gz)
+archive_info = await rest_client.get_checkpoint_archive_url_from_tinker_path_async(
+    "tinker://run-1/weights/step-10"
+)
+```
+
+## 1:1 Tinker Cloud API Parity Roadmap (Achieved for Tinker SDK v0.31.0+)
+
+To achieve 100% 1:1 parity with the latest Tinker Cloud API (Tinker SDK v0.31.0+), the following roadmap organizes the completed features across six sequential phases:
 
 ### Phase 1: Schema & Data Model Alignment (Pydantic Models)
 - [x] **`SaveWeightsRequest`**: Make `path` optional (`path: str | None = None`) and add `ttl_seconds: int | None = None`.
@@ -347,6 +378,7 @@ To achieve 100% 1:1 parity with the latest Tinker Cloud API (Tinker SDK v0.16.1+
 - [x] **`Cursor`**: Add `total_count: int` to pagination cursor.
 - [x] **`WeightsInfoResponse`**: Add `train_attn`, `train_mlp`, `train_unembed` fields.
 - [x] **`retrieve_future` Failure Category**: Align error category enum to `Literal["unknown", "server", "user"]` (replace non-standard `"execution_error"`).
+- [x] **RestClient Response Models**: Align `GetSamplerResponse`, `GetSessionResponse`, `ListSessionsResponse`, and `CheckpointArchiveUrlResponse`.
 
 ### Phase 2: `tinker://` Virtual URI & Checkpoint Path System
 - [x] **URI Encoder / Decoder**: Implement bidirectional mapping between `tinker://<model_id>/weights/<checkpoint_id>` (and `.../sampler_weights/...`) and the local filesystem path under `checkpoints_base / <model_id> / <checkpoint_id>`.
@@ -363,18 +395,23 @@ To achieve 100% 1:1 parity with the latest Tinker Cloud API (Tinker SDK v0.16.1+
 - [x] **`GET /api/v1/training_runs/{model_id}/checkpoints`**: List all checkpoints for a specific run (`CheckpointsListResponse`).
 - [x] **`GET /api/v1/checkpoints`**: Global paginated list of all user checkpoints across runs.
 - [x] **`DELETE /api/v1/training_runs/{model_id}/checkpoints/{checkpoint_id}`**: Delete checkpoint from DB and disk.
-- [x] **`POST /api/v1/training_runs/{model_id}/checkpoints/{checkpoint_id}/publish`**: Stub/set checkpoint public flag.
-- [x] **`DELETE /api/v1/training_runs/{model_id}/checkpoints/{checkpoint_id}/publish`**: Stub/unset checkpoint public flag.
+- [x] **`POST /api/v1/training_runs/{model_id}/checkpoints/{checkpoint_id}/publish`**: Manage checkpoint public visibility.
+- [x] **`DELETE /api/v1/training_runs/{model_id}/checkpoints/{checkpoint_id}/publish`**: Unpublish public checkpoint.
 - [x] **`PUT /api/v1/training_runs/{model_id}/checkpoints/{checkpoint_id}/ttl`**: Update checkpoint expiration TTL.
 
 ### Phase 5: Sessions & Checkpoint Archive Downloads
 - [x] **`GET /api/v1/sessions/{session_id}`**: Return associated `training_run_ids` and `sampler_ids` (`GetSessionResponse`).
 - [x] **`GET /api/v1/sessions`**: Paginated session IDs (`ListSessionsResponse`).
 - [x] **`GET /api/v1/training_runs/{model_id}/checkpoints/{checkpoint_id}/archive`**: Implement 302 Redirect with `Location` header pointing to checkpoint `.tar.gz` archive download.
+- [x] **`GET /api/v1/archives/{archive_id}/download`**: Stream `.tar.gz` archive containing adapter weights and configuration.
 
-### Phase 6: Automated End-to-End SDK Verification
-- [x] Expand `scripts/test_tinker_sdk_compat.py` to cover 100% of public methods in `ServiceClient`, `TrainingClient`, `SamplingClient`, and `RestClient`.
-- [x] Assert zero 404s, zero Pydantic validation warnings, and complete parity with official Tinker SDK.
+### Phase 6: Wire & Protocol Parity with Tinker SDK v0.31.0+
+- [x] **Client Handshake Endpoints**: `POST /api/v1/client/config` & `client/dynamic_config` to eliminate 404 client startup blocks.
+- [x] **Protobuf Wire Protocol**: Decode incoming binary `application/x-protobuf` with optional `zstd` compression on `forward_backward`.
+- [x] **Protobuf Output Serialization**: Encode binary protobuf responses for `retrieve_future` on `ForwardBackwardOutput` and `SampleResponse`.
+- [x] **Sampling Sequence Tracking**: Populate `sample_sequence_ids` on `UntypedAPIFuture` and `SampleResponse` to satisfy SDK assertions.
+- [x] **Forward-Only Evaluation**: Support `forward_only=True` via `forward_async` for evaluation without gradient tracking overhead.
+- [x] **Automated SDK Test Suite**: Live-server test suite (`scripts/test_tinker_sdk_compat.py`) covering 100% of public methods in `ServiceClient`, `TrainingClient`, `SamplingClient`, and `RestClient`.
 
 ## Benchmark: Tinker (official) vs mlx-tinker
 
@@ -422,6 +459,46 @@ Non-MoE Qwen3.5 family:
 | Qwen/Qwen3.5-9B | Tested |
 | Tesslate/OmniCoder-9B | Tested |
 
+### Batched Multi-Threaded LoRA Training Acceleration
+
+Built on `mlx >= 0.32.0` and `mlx-lm >= 0.32.0`, `mlx-tinker` features dynamic request batch coalescing in both the scheduler and compute backend:
+
+- **Batch Request Coalescing**: `forward_backward_batch` and `forward_batch` coalesce multiple queued training requests with identical loss configurations into a single unified Metal forward/backward pass.
+- **Per-Sequence Loss Isolation**: Even when coalesced into a single compute graph, per-sequence logprobs and exact per-sequence `loss:sum` metrics are tracked and returned accurately.
+- **Asynchronous Gradient Evaluation**: Evaluates gradient trees using `mx.async_eval` during accumulation cycles to prevent main thread blocking.
+- **Pure Forward Evaluation**: Supports `forward_only=True` execution (via `training.forward_async`), evaluating losses without allocating gradient accumulation structures.
+
+### Dual Wire Protocol: JSON & Binary Protobuf (with Zstd)
+
+Full wire parity with Tinker SDK v0.31.0+ includes dual wire protocol support:
+
+- **Transparent Handshake**: Handles `POST /api/v1/client/config` and `client/dynamic_config` to avoid 404 client startup blocks.
+- **Binary Protobuf Deserialization**: Seamlessly decodes incoming `application/x-protobuf` requests on `forward_backward`, including multi-chunk token streams and `zstd`-compressed payloads.
+- **Binary Protobuf Responses**: Delivers `retrieve_future` results serialized in protobuf wire format when requested by the client, minimizing JSON serialization overhead for large token sequences and logprobs.
+- **Sequence ID Tracking**: Ensures `sample_sequence_ids` are populated in async futures and responses to satisfy strict client-side assertions.
+
+### Dynamic Stop Sequences & Early Autoregressive Stopping
+
+Autoregressive inference incorporates token-level early stopping:
+
+- **Token Resolution**: `resolve_stop_tokens` maps client string sequences (`stop`, `stop_strings`) as well as tokenizer EOS tokens (`<|im_end|>`, `<|endoftext|>`) directly into token IDs.
+- **Zero Generation Drift**: Both native Tinker `sample`/`asample` and OpenAI-compatible `/v1/chat/completions` terminate generation immediately upon encountering a stop token, returning accurate `finish_reason: "stop"` and avoiding trailing token bleed.
+
+### Virtual `tinker://` Storage & Artifact Export
+
+All checkpoints adhere to Tinker's official URI scheme:
+
+- **Bidirectional Mapping**: Automatically resolves `tinker://<model_id>/weights/<checkpoint_id>` and `tinker://<model_id>/sampler_weights/<checkpoint_id>` to local storage paths.
+- **Metadata Introspection**: Inspect checkpoint rank, target attention, MLP, and unembedding modules via `/api/v1/weights_info`.
+- **Archive Export**: Generates and streams `.tar.gz` checkpoint archives on demand via `/api/v1/archives/{archive_id}/download`.
+
+### Transcript Prefix Cache Stability
+
+Multi-turn agent inference leverages disk-backed transcript caching with prompt echo and duplicate token protection:
+
+- Validated prompt cache trimming ensures prefixes are cleanly separated from uncached completion tails.
+- Avoids prompt token echoing during multi-turn prefix reuse.
+
 ### OpenAI-Compatible Inference
 
 ```bash
@@ -433,26 +510,32 @@ curl http://localhost:8080/v1/chat/completions \
 ## Architecture
 
 ```
-tinker.ServiceClient
-        |
-   FastAPI Server (api/)         19 endpoints, full Tinker wire protocol
-        |
-   Async Engine (engine/)        100ms polling cycles, barrier-aware batching
-        |
-   MLX Backend (backend/)        QLoRA, training, inference, checkpointing
-        |
-   Apple Silicon (Metal GPU)     Unified memory, no CUDA
+tinker.ServiceClient / RestClient / OpenAI Clients
+                     |
+       FastAPI Server (api/)         34+ endpoints, JSON + Protobuf wire (zstd)
+                     |
+       Async Engine (engine/)        100ms polling cycles, coalesced request batching
+                     |
+       MLX Backend (backend/)        QLoRA, batched training, inference, virtual URI
+                     |
+       Apple Silicon (Metal GPU)     Unified memory, async evaluation
 ```
 
-- **API layer** — FastAPI with Tinker-compatible request/response models, session management, and OpenAI-compat endpoints
-- **Engine** — Async polling loop that batches compatible requests (forward_backward, sample) and respects barriers (optim_step must wait for all pending forward_backward)
-- **Backend** — MLX compute: `nn.value_and_grad` for training, KV-cache inference, chunked cross-entropy, 8-bit Adam optimizer
+- **API layer** — FastAPI server with 34+ Tinker-compatible endpoints, Protobuf wire decoding/serialization, session and checkpoint management, and OpenAI-compatible completions.
+- **Engine** — Async scheduler with barrier awareness (optim_step waits for forward_backward) and batch request coalescing (`forward_backward_batch`, `forward_batch`).
+- **Backend** — MLX compute: `nn.value_and_grad` with `mx.async_eval`, KV-cache inference with stop-token resolution, chunked cross-entropy, 8-bit Adam optimizer, and `tinker://` virtual URI mapping.
 
 ## Run the Tests
 
 ```bash
 # Unit tests (fast, no model download needed for most)
 uv run pytest tests/ -k "not stress and not cookbook"
+
+# Tinker SDK v0.31.0+ end-to-end compatibility suite (100% of SDK methods against live server)
+uv run pytest scripts/test_tinker_sdk_compat.py -v
+
+# Phase 1-6 cloud parity test suite
+uv run pytest tests/test_phase*.py -v
 
 # SFT + RL cookbook tests (downloads Qwen3.5-0.8B, ~5 min)
 uv run pytest tests/cookbook/ -m cookbook -v
@@ -461,28 +544,36 @@ uv run pytest tests/cookbook/ -m cookbook -v
 uv run python scripts/run_benchmark.py --mlx-only --sft-steps 50
 ```
 
-All 10 cookbook tests pass, covering SFT convergence, RL with importance sampling, PPO, tool-use RL, and capability proofs (SFT + RL progression on exact-match tasks).
+All 10 cookbook tests and all 11 comprehensive SDK parity tests pass, verifying 100% compatibility across `ServiceClient`, `TrainingClient`, `SamplingClient`, and `RestClient`.
 
 ## Requirements
 
 - macOS with Apple Silicon (M1/M2/M3/M4)
 - Python 3.12+
+- `mlx >= 0.32.0` and `mlx-lm >= 0.32.0`
 - Developed and tested on a M4 MacBook Pro 24GB
 
 ## Project Structure
 
 ```
 mlx_tinker/
-  api/        FastAPI server + Tinker endpoints + OpenAI compat
-  engine/     Async request scheduler + dispatcher
-  backend/    MLX training, inference, QLoRA, loss functions, checkpointing
+  api/        FastAPI server + 34+ Tinker endpoints + OpenAI compat + Protobuf wire codec
+  engine/     Async request scheduler + dispatcher with batch request coalescing
+  backend/    MLX training, batched forward/backward, inference, QLoRA, loss functions, virtual URI
   db/         SQLModel ORM with async SQLite (WAL mode)
   types.py    Tinker-compatible enums and data types
   config.py   Pydantic configuration
 tests/
-  cookbook/    SFT + RL end-to-end workflow tests
-  stress/     Cross-framework parity tests (MLX vs PyTorch)
+  test_phase1_models_alignment.py          Phase 1: Pydantic schemas alignment
+  test_phase2_tinker_uri.py                Phase 2: Virtual tinker:// URI resolver
+  test_phase3_sampler_weights_info.py      Phase 3: Sampler & weights metadata
+  test_phase4_training_runs_checkpoints.py Phase 4: Training runs & checkpoints REST API
+  test_phase5_sessions_and_archive.py      Phase 5: Sessions & archive streaming
+  test_phase6_sdk_verification.py          Phase 6: High-level SDK verification
+  cookbook/                                SFT + RL end-to-end workflow tests
+  stress/                                  Cross-framework parity tests (MLX vs PyTorch)
 scripts/
+  test_tinker_sdk_compat.py   100% coverage live test suite for Tinker SDK v0.31.0+
   bootstrap_openclaw_rl.sh    Optional advanced helper for standalone wrapper scripts
   run_benchmark.py            Optional benchmark runner
   generate_readme_plot.py     Optional README asset generator

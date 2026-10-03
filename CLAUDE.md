@@ -19,29 +19,34 @@ Tinker API-compatible backend for Mac (Apple Silicon / Metal) using MLX and mlx-
 - Install: `uv sync --all-extras`
 - Run server: `uv run python -m mlx_tinker --model Qwen/Qwen3.5-0.8B`
 - Tests: `uv run pytest tests/ -k "not stress and not cookbook"`
+- SDK compatibility tests: `uv run pytest scripts/test_tinker_sdk_compat.py -v`
+- Phase 1-6 parity tests: `uv run pytest tests/test_phase*.py -v`
 - Stress tests: `uv run pytest tests/stress/ -m stress`
 - Cookbook tests: `uv run pytest tests/cookbook/ -m cookbook`
 - Lint: `uv run ruff check mlx_tinker/`
 - Format: `uv run ruff format mlx_tinker/`
 
 ## Testing requirements
-- ALWAYS run unit tests, cookbook tests, AND stress tests before committing
-- All three test suites must pass (stress tests may have infra issues like deprecated datasets — those are pre-existing)
-- Run: `uv run pytest tests/ -k "not stress and not cookbook" && uv run pytest tests/cookbook/ -m cookbook`
+- ALWAYS run unit tests, SDK compatibility tests, cookbook tests, AND stress tests before committing
+- Run: `uv run pytest tests/ -k "not stress and not cookbook" && uv run pytest scripts/test_tinker_sdk_compat.py -v && uv run pytest tests/cookbook/ -m cookbook`
 
 ## Architecture
-- `mlx_tinker/api/` — FastAPI server, Tinker endpoints + OpenAI-compat
-- `mlx_tinker/engine/` — Async polling loop with barrier-aware batching
-- `mlx_tinker/backend/` — MLX compute: training, inference, QLoRA, checkpointing
+- `mlx_tinker/api/` — FastAPI server with 34+ endpoints, Tinker protocol, RestClient APIs, Protobuf codec (`proto_wire.py`), OpenAI compat
+- `mlx_tinker/engine/` — Async polling loop with barrier-aware batching and request coalescing (`forward_backward_batch`, `forward_batch`)
+- `mlx_tinker/backend/` — MLX compute: training (`mx.async_eval`), inference (stop-token resolution), transcript cache, QLoRA, `tinker://` URI mapping (`uri.py`)
 - `mlx_tinker/db/` — SQLModel ORM with async SQLite (WAL mode)
 - `mlx_tinker/types.py` — Shared enums and Tinker-compatible types
 - `mlx_tinker/config.py` — Pydantic config
 
 ## Key patterns
 - All training/sample endpoints return FutureResponse; client polls retrieve_future
-- Engine runs 100ms cycles, batches compatible requests, respects barriers (optim_step blocks)
-- Backend uses nn.value_and_grad for forward_backward, accumulates grads until optim_step
-- QLoRA: 4-bit quantized base + LoRA adapters via mlx-lm tuner utilities
+- Dual wire format: JSON REST + Binary Protobuf (`application/x-protobuf` with optional `zstd` decompression)
+- Client handshake: `/api/v1/client/config` and `/api/v1/client/dynamic_config` to support Tinker SDK v0.31.0+
+- Engine runs 100ms cycles, batches compatible requests (`forward_backward_batch`), respects barriers (optim_step blocks)
+- Backend uses `nn.value_and_grad` and `mx.async_eval` for forward_backward, accumulates grads until optim_step
+- Checkpoint virtual URIs: `tinker://<model_id>/weights/<checkpoint_id>` and `tinker://<model_id>/sampler_weights/<checkpoint_id>` mapped bidirectionally to local storage
+- Stop tokens: `resolve_stop_tokens` maps stop sequences and EOS tokens into IDs for immediate autoregressive termination
+- QLoRA: 4-bit quantized base + LoRA adapters via mlx-lm tuner utilities (MLX >= 0.32.0)
 
 ## Design decisions — Tinker API parity
 
